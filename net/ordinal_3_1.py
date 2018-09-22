@@ -32,6 +32,8 @@ class mOrdinal_3_1(object):
 
             net = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training)
 
+            features_shape = net.get_shape().as_list()
+            net = tf.reshape(net, [features_shape[0], -1])
             self.result = tf.contrib.layers.fully_connected(inputs = net, num_outputs = self.nJoints, activation_fn = None)
 
     # ordinal_3_1 with no ground truth
@@ -41,7 +43,7 @@ class mOrdinal_3_1(object):
         self.loss = tf.nn.l2_loss(input_depth - self.result, name="depth_l2_loss") / self.batch_size
 
         grads_n_vars = self.optimizer.compute_gradients(self.loss)
-        self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+        self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
         tf.summary.scalar("depth_l2_loss", self.loss)
 
@@ -65,17 +67,17 @@ class mOrdinal_3_1(object):
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
         self.loss = 0
 
-        tf.variable_scope("rank_loss"):
+        with tf.variable_scope("rank_loss"):
             for n in range(self.batch_size):
                 for i in range(self.nJoints):
                     for j in range(i+1, self.nJoints):
-                        cur_loss = tf.cond(tf.equal(relation_table[n, i, j], 1), true_fn=self.loss_rank_0(self.result[n, i], self.result[n, j]), false_fn=lambda:0)
-                        cur_loss += tf.cond(tf.equal(relation_table[n, i, j], -1), true_fn=self.loss_rank_1(self.result[n, i], self.result[n, j]), false_fn=lambda:0)
-                        cur_loss += tf.cond(tf.equal(relation_table[n, i, j], 0), true_fn=self.loss_rank_2(self.result[n, i], self.result[n, j]), false_fn=lambda:0)
+                        cur_loss = tf.cond(tf.equal(relation_table[n, i, j], 1), true_fn=lambda:self.loss_rank_0(self.result[n, i], self.result[n, j]), false_fn=lambda:np.float32(0))
+                        cur_loss += tf.cond(tf.equal(relation_table[n, i, j], -1), true_fn=lambda:self.loss_rank_1(self.result[n, i], self.result[n, j]), false_fn=lambda:np.float32(0))
+                        cur_loss += tf.cond(tf.equal(relation_table[n, i, j], 0), true_fn=lambda:self.loss_rank_2(self.result[n, i], self.result[n, j]), false_fn=lambda:np.float32(0))
                         self.loss += cur_loss
 
         grads_n_vars = self.optimizer.compute_gradients(self.loss)
-        self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+        self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
         tf.summary.scalar("rank_loss", self.loss)
         self.merged_summary = tf.summary.merge_all()

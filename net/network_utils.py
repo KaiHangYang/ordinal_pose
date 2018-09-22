@@ -29,7 +29,7 @@ class mResidualUtils(object):
 
                 return conv_3
 
-    def _skip_path(self inputs, nOut, strides=1, name='skip_path'):
+    def _skip_path(self, inputs, nOut, strides=1, name='skip_path'):
         with tf.variable_scope(name):
             if inputs.get_shape().as_list()[3] == nOut and strides == 1:
                 return inputs # the num of input and output matches
