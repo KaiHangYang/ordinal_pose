@@ -25,7 +25,7 @@ restore_model_path = ""
 
 valid_iter = 5
 train_iter = 300000
-learning_rate = 2.5e-4
+learning_rate = 2.5e-7
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
 train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
@@ -38,8 +38,8 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-    train_range = np.arange(0, 1000)
-    valid_range = np.arange(1000, 1000)
+    train_range = np.arange(0, 80000)
+    valid_range = np.arange(80000, 100000)
 
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
@@ -51,20 +51,18 @@ if __name__ == "__main__":
         train_data_iter, train_data_init_op = ordinal_3_1_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=batch_size, name="train_reader")
         valid_data_iter, valid_data_init_op = ordinal_3_1_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=batch_size, name="valid_reader")
 
-
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
-    input_relation_table = tf.placeholder(shape=[batch_size, nJoints, nJoints], dtype=tf.int32)
+    input_relation_table = tf.placeholder(shape=[batch_size, nJoints, nJoints], dtype=tf.float32)
+    input_loss_table = tf.placeholder(shape=[batch_size, nJoints, nJoints], dtype=tf.float32)
     ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
-
 
     with tf.Session() as sess:
 
-        with tf.device('/device:GPU:0'):
+        with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_no_gt(input_relation_table, learning_rate)
+        ordinal_model.build_loss_no_gt(input_relation_table, input_loss_table, learning_rate)
 
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(coord=coord)
+        print("Network built!")
 
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
@@ -104,7 +102,8 @@ if __name__ == "__main__":
                 cur_data_batch = sess.run(train_data_iter)
 
             batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
-            batch_relation_table_np = np.zeros([batch_size, nJoints, nJoints], dtype=np.int32)
+            batch_relation_table_np = np.zeros([batch_size, nJoints, nJoints], dtype=np.float32)
+            batch_loss_table_np = np.zeros([batch_size, nJoints, nJoints], dtype=np.float32)
 
             # Generate the data batch
             for b in range(batch_size):
@@ -113,19 +112,19 @@ if __name__ == "__main__":
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
                 cur_img, cur_label = preprocessor.preprocess(cur_img, cur_joints)
 
-                batch_relation_table_np[b] = preprocessor.get_relation_table(cur_label[:, 2])
+                batch_relation_table_np[b], batch_loss_table_np[b] = preprocessor.get_relation_table(cur_label[:, 2])
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
             if is_valid:
                 loss, summary  = sess.run([ordinal_model.loss, ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np})
+                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table: batch_loss_table_np})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _, loss, summary  = sess.run([ordinal_model.train_op, ordinal_model.loss, ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np})
-                train_log_writer.add(summary, global_steps)
+                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table: batch_loss_table_np})
+                train_log_writer.add_summary(summary, global_steps)
 
-            print("Iteration: {:07d} Loss : {:07d}".format(global_steps, loss))
+            print("Iteration: {:07d} Loss : {:07f}".format(global_steps, loss))
 
             if global_steps % 50000 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)

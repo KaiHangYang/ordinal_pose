@@ -188,19 +188,20 @@ def data_resize_with_center_cropped(img, joints2d, center, scale, crop_box_size 
 
 def get_relation_table(joints_z):
     relation_table = np.zeros([len(joints_z), len(joints_z)], dtype=np.int32)
+    loss_table = np.zeros([len(joints_z), len(joints_z)], dtype=np.int32)
 
     for i in range(len(joints_z)):
         for j in range(i+1, len(joints_z)):
             if np.abs(joints_z[i] - joints_z[j]) < 100:
                 # i is closer than j
                 relation_table[i, j] = 0
-                relation_table[j, i] = 0
+                loss_table[i, j] = 0
             elif joints_z[i] < joints_z[j]:
                 relation_table[i, j] = 1
-                relation_table[j, i] = -1
+                loss_table[i, j] = 1
             else:
                 relation_table[i, j] = -1
-                relation_table[j, i] = 1
+                loss_table[i, j] = 1
 
-    return relation_table
+    return relation_table, loss_table
 

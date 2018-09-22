@@ -49,35 +49,23 @@ class mOrdinal_3_1(object):
 
         self.merged_summary = tf.summary.merge_all()
 
-    # +1, if joint i is closer than j
-    @staticmethod
-    def loss_rank_0(zi, zj):
-        return tf.log(1 + tf.exp(zi - zj))
-    # -1, if joint i is farther than j
-    @staticmethod
-    def loss_rank_1(zi, zj):
-        return tf.log(1 + tf.exp(-zi + zj))
-    # 0, if joint i and j are nearly the same depth
-    @staticmethod
-    def loss_rank_2(zi, zj):
-        return tf.pow(zi - zj, 2)
-
-    def build_loss_no_gt(self, relation_table, lr):
+    def build_loss_no_gt(self, relation_table, loss_table, lr):
         self.global_steps = tf.train.get_or_create_global_step()
-        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
-        self.loss = 0
 
-        with tf.variable_scope("rank_loss"):
-            for n in range(self.batch_size):
-                for i in range(self.nJoints):
-                    for j in range(i+1, self.nJoints):
-                        cur_loss = tf.cond(tf.equal(relation_table[n, i, j], 1), true_fn=lambda:self.loss_rank_0(self.result[n, i], self.result[n, j]), false_fn=lambda:np.float32(0))
-                        cur_loss += tf.cond(tf.equal(relation_table[n, i, j], -1), true_fn=lambda:self.loss_rank_1(self.result[n, i], self.result[n, j]), false_fn=lambda:np.float32(0))
-                        cur_loss += tf.cond(tf.equal(relation_table[n, i, j], 0), true_fn=lambda:self.loss_rank_2(self.result[n, i], self.result[n, j]), false_fn=lambda:np.float32(0))
-                        self.loss += cur_loss
+        with tf.device("/device:GPU:0"):
+            with tf.variable_scope("rank_loss"):
+                self.loss = 0
+                row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
+                col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
 
-        grads_n_vars = self.optimizer.compute_gradients(self.loss)
-        self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+                rel_distance = (row_val - col_val)
+                self.loss = tf.reduce_sum(tf.log(1 + loss_table * tf.exp(relation_table * rel_distance)) + (1 - loss_table) * tf.pow(rel_distance, 2)) / self.batch_size
+            with tf.variable_scope("grad"):
 
-        tf.summary.scalar("rank_loss", self.loss)
-        self.merged_summary = tf.summary.merge_all()
+                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
+                grads_n_vars = self.optimizer.compute_gradients(self.loss)
+                self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+
+        with tf.device("/cpu:0"):
+            tf.summary.scalar("loss", self.loss)
+            self.merged_summary = tf.summary.merge_all()
