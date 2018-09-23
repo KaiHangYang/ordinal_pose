@@ -75,6 +75,8 @@ if __name__ == "__main__":
             joints_3d = cur_label["joints_3d"]
             joints_2d = cur_label["joints_2d"]
 
+            print(joints_3d - joints_3d[0])
+
             joints_3d -= joints_3d[0] # minus the root
             joints_3d[:, 1:3] *= -1 # flip the y z
             joints_3d /= 600

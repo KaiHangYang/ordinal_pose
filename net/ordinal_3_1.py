@@ -60,7 +60,6 @@ class mOrdinal_3_1(object):
 
                 rel_distance = (row_val - col_val)
 
-                # TODO Check the problem
                 self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
 
             with tf.variable_scope("grad"):
