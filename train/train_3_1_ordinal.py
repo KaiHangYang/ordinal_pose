@@ -17,8 +17,8 @@ nJoints = 17
 batch_size = 4
 img_size = 256
 
-train_log_dir = "../logs/train_3_1_ordinal"
-valid_log_dir = "../logs/valid_3_1_ordinal"
+train_log_dir = "../logs/train/train_3_1_ordinal"
+valid_log_dir = "../logs/train/valid_3_1_ordinal"
 model_dir = "../models"
 model_name = "ordinal_3_1_ordinal"
 
@@ -29,8 +29,8 @@ valid_iter = 5
 train_iter = 300000
 learning_rate = 2.5e-4
 
-train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
-train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
+train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
+train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
 
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
 valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
