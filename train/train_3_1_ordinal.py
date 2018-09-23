@@ -1,5 +1,7 @@
-import numpy as np
 import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+import numpy as np
 import sys
 import tensorflow as tf
 import cv2
@@ -26,8 +28,8 @@ is_restore = False
 restore_model_path = ""
 
 valid_iter = 5
-train_iter = 300000
-learning_rate = 2.5e-4
+train_iter = 400000
+learning_rate = 2.5e-7
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
 train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
@@ -40,7 +42,6 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-
     train_range = np.arange(0, 312188)
     valid_range = np.arange(0, 109867)
 
@@ -144,7 +145,7 @@ if __name__ == "__main__":
 
             if is_valid:
                 loss, summary  = sess.run([ordinal_model.loss, ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: input_loss_table_pow_np})
+                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _, loss, summary  = sess.run([ordinal_model.train_op, ordinal_model.loss, ordinal_model.merged_summary],
