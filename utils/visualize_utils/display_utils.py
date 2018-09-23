@@ -2,47 +2,16 @@ import cv2
 import numpy as np
 import math
 import sys
+import os
 
-bone_indices = np.reshape([0,1, 1,2, 2,3, 3,4, 1,5, 5,6, 6,7, 1,14, 14,8, 8,9, 9,10, 14,11, 11,12, 12,13], [14, 2])
+UTILS_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(UTILS_PATH)
 
-color_table = np.array([
-    [0, 255, 0], # head
-    [0, 0, 255], # left shoulder
-    [0, 0, 255], # left upper arm
-    [0, 0, 255], # left lower arm
-    [255, 153, 0], # right shoulder
-    [255, 153, 0], # right upper arm
-    [255, 153, 0], # right lower arm
-    [0, 255, 0], # spine
-    [0, 0, 255], # left hip
-    [0, 0, 255], # left ham,
-    [0, 0, 255], # left calf,
-    [255, 153, 0], # right hip
-    [255, 153, 0], # right ham,
-    [255, 153, 0], # right calf,
-    [0, 0, 255], # left feet,
-    [255, 153, 0] # right feet
-    ])
+from defs import pose_defs as h36m_pose_def
 
-point_color_table = np.reshape([
-    214, 10, 153,
-    13, 17, 0,
-    13, 10, 100,
-    153, 13, 10,
-    13, 151, 100,
-    10, 13, 150,
-    151, 13, 0,
-    19, 12, 100,
-    121, 13, 52,
-    6, 13, 12,
-    134, 13, 13,
-    29, 112, 13,
-    221, 51, 13,
-    29, 12, 120,
-    11, 13, 152,
-    191, 33, 52,
-    116, 13, 212,
-    ], [17, 3])
+color_table = h36m_pose_def.h36m_bone_colors
+point_color_table = h36m_pose_def.h36m_joint_colors
+bone_indices = h36m_pose_def.h36m_pose
 
 color_data_size = 1025;
 color_data_pad = 5;

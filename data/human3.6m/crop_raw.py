@@ -9,12 +9,15 @@ sys.path.append("../../")
 from utils.preprocess_utils import common as img_utils
 from utils.visualize_utils import display_utils
 
+
+train_or_valid = "valid"
+
 settings = {
-        "img_dir": lambda x: os.path.join("/home/kaihang/Projects/ordinal-pose3d/data/h36m/images", x), # valid data path
-        "img_list_file": "/home/kaihang/Projects/ordinal-pose3d/data/h36m/annot/valid_images.txt", # valid img list
-        "annot_file": "/home/kaihang/Projects/ordinal-pose3d/data/h36m/annot/valid.h5",
-        "target_image": lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}".format(x),
-        "target_label": lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}".format(x)
+        "img_dir": lambda x: os.path.join("/home/kaihang/DataSet_2/Ordinal/human3.6m/raw_datas/"+train_or_valid+"/images/", x), # data path
+        "img_list_file": "/home/kaihang/Projects/ordinal-pose3d/data/h36m/annot/"+train_or_valid+"_images.txt", # img list
+        "annot_file": "/home/kaihang/DataSet_2/Ordinal/human3.6m/raw_datas/"+train_or_valid+"/"+train_or_valid+".h5",
+        "target_image": lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+train_or_valid+"/images/{}".format(x),
+        "target_label": lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+train_or_valid+"/labels/{}".format(x)
         }
 
 if __name__ == "__main__":
@@ -43,6 +46,6 @@ if __name__ == "__main__":
 
         cropped_img, cropped_joints_2d, is_discard = img_utils.data_resize_with_center_cropped(img, joints_2d, crop_center, crop_scale, crop_box_size=256, target_size=256)
 
-        cv2.imwrite(settings["target_image"]("{}.jpg".format(i)), cropped_img)
-        np.save(settings["target_label"](i), {"source": os.path.basename(img_path), "joints_2d": joints_2d, "joints_3d": joints_3d, "joints_zidx": joints_zidx, "center": crop_center, "scale": crop_scale})
+        # cv2.imwrite(settings["target_image"]("{}.jpg".format(i)), cropped_img)
+        np.save(settings["target_label"](i), {"source": os.path.basename(img_path), "joints_2d": cropped_joints_2d, "joints_3d": joints_3d, "joints_zidx": joints_zidx, "center": crop_center, "scale": crop_scale})
 

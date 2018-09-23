@@ -12,7 +12,7 @@ def preprocess(img, annots):
         "num_of_joints": 17,
         "scale_range": 0.25,# max is 0.5
         "rotate_range": 30, # max 45
-        # "shift_range": 0.0,
+        "shift_range": 0, # pixel
         "is_flip": 1,
         "pad_color": [128, 128, 128],
         "flip_array": np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])

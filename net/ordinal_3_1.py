@@ -49,7 +49,7 @@ class mOrdinal_3_1(object):
 
         self.merged_summary = tf.summary.merge_all()
 
-    def build_loss_no_gt(self, relation_table, loss_table, lr):
+    def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr):
         self.global_steps = tf.train.get_or_create_global_step()
 
         with tf.device("/device:GPU:0"):
@@ -59,7 +59,10 @@ class mOrdinal_3_1(object):
                 col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
 
                 rel_distance = (row_val - col_val)
-                self.loss = tf.reduce_sum(tf.log(1 + loss_table * tf.exp(relation_table * rel_distance)) + (1 - loss_table) * tf.pow(rel_distance, 2)) / self.batch_size
+
+                # TODO Check the problem
+                self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+
             with tf.variable_scope("grad"):
 
                 self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)

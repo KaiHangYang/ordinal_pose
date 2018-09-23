@@ -41,7 +41,7 @@ def augment_data_2d(img, annots, settings = {
         "num_of_joints": 17,
         "scale_range": 0.0,# max is 0.5
         "rotate_range": 0.0, # max 45
-        # "shift_range": 0.0,
+        "shift_range": 0.0,
         "is_flip": 0,
         "pad_color": [128, 128, 128],
         "flip_array": None
@@ -53,7 +53,7 @@ def augment_data_2d(img, annots, settings = {
     num_of_joints = settings["num_of_joints"]
     scale_range = settings["scale_range"]
     rotate_range = settings["rotate_range"]
-    # shift_range = settings["shift_range"]
+    shift_range = settings["shift_range"]
     is_flip = settings["is_flip"]
     pad_color = settings["pad_color"]
     flip_array = settings["flip_array"] # contain the joints pairs which need to be exchanged if do flip
@@ -61,8 +61,8 @@ def augment_data_2d(img, annots, settings = {
     scale_size = (-1 if random.random() >= 0.5 else 1) * random.random() * scale_range
     rotate_size = (-1 if random.random() >= 0.5 else 1) * random.random() * rotate_range
 
-    # shift_size_l = (-1 if random.random() >= 0.5 else 1) * random.random() * shift_range
-    # shift_size_t = (-1 if random.random() >= 0.5 else 1) * random.random() * shift_range
+    shift_size_l = (-1 if random.random() >= 0.5 else 1) * random.random() * shift_range
+    shift_size_t = (-1 if random.random() >= 0.5 else 1) * random.random() * shift_range
 
     do_flip = (0 if random.random() >= 0.5 else 1) * is_flip
 
@@ -80,20 +80,24 @@ def augment_data_2d(img, annots, settings = {
         padded_img = cv2.copyMakeBorder(scaled_img, top=pad_y, bottom=pad_y, left=pad_x, right=pad_x, value=pad_color, borderType=cv2.BORDER_CONSTANT)
 
     # rotate by the img center
-    rotate_mat = cv2.getRotationMatrix2D((padded_img.shape[1] / 2, padded_img.shape[0] / 2), rotate_size, 1.0)
-    rotated_img = cv2.warpAffine(padded_img, rotate_mat, (int(padded_img.shape[1]), int(padded_img.shape[0])), borderMode=cv2.BORDER_CONSTANT, borderValue=pad_color)
+    img_rotate_mat = cv2.getRotationMatrix2D((padded_img.shape[1] / 2, padded_img.shape[0] / 2), rotate_size, 1.0)
+    joints_rotate_mat = cv2.getRotationMatrix2D((crop_box_size / 2, crop_box_size / 2), rotate_size, 1.0)
+    rotated_img = cv2.warpAffine(padded_img, img_rotate_mat, (int(padded_img.shape[1]), int(padded_img.shape[0])), borderMode=cv2.BORDER_CONSTANT, borderValue=pad_color)
 
     # the crop
-    # crop_center = np.array([rotated_img.shape[1] / 2.0 + shift_size_l, rotated_img.shape[0] / 2.0 + shift_size_t]).astype(np.int32)
-    crop_center = np.array([rotated_img.shape[1] / 2.0, rotated_img.shape[0] / 2.0]).astype(np.int32)
+    crop_center = np.array([rotated_img.shape[1] / 2.0 + shift_size_l, rotated_img.shape[0] / 2.0 + shift_size_t]).astype(np.int32)
+    # crop_center = np.array([rotated_img.shape[1] / 2.0, rotated_img.shape[0] / 2.0]).astype(np.int32)
 
     offset_l = crop_center[0] - crop_box_size/2
     offset_t = crop_center[1] - crop_box_size/2
 
     cropped_img = rotated_img[offset_t:offset_t + crop_box_size, offset_l:offset_l+crop_box_size]
 
-    pt_offset_l = img_size * scale_size / 2.0
-    pt_offset_t = img_size * scale_size / 2.0
+    pt_offset_l = offset_size
+    pt_offset_t = offset_size
+
+    pt_shift_l = -shift_size_l
+    pt_shift_t = -shift_size_t
 
     if do_flip:
         result_img = cv2.flip(cropped_img, 1)
@@ -106,8 +110,9 @@ def augment_data_2d(img, annots, settings = {
         cur_p = annots[c_num][0:2]
         if cur_p.any():
             cur_p *= cur_scale
-            cur_p = np.dot(rotate_mat, np.array([cur_p[0], cur_p[1], 1]))
             cur_p -= np.array([pt_offset_l, pt_offset_t])
+            cur_p = np.dot(joints_rotate_mat, np.array([cur_p[0], cur_p[1], 1]))
+            cur_p += np.array([pt_shift_l, pt_shift_t])
 
             if (cur_p > 0).all() and (cur_p < crop_box_size).all():
                 if do_flip:
@@ -187,21 +192,30 @@ def data_resize_with_center_cropped(img, joints2d, center, scale, crop_box_size 
     return img_result, points, is_discard
 
 def get_relation_table(joints_z):
-    relation_table = np.zeros([len(joints_z), len(joints_z)], dtype=np.int32)
-    loss_table = np.zeros([len(joints_z), len(joints_z)], dtype=np.int32)
+    relation_table = np.zeros([len(joints_z), len(joints_z)], dtype=np.float32)
+
+    loss_table_log = np.zeros([len(joints_z), len(joints_z)], dtype=np.float32)
+    loss_table_pow = np.zeros([len(joints_z), len(joints_z)], dtype=np.float32)
 
     for i in range(len(joints_z)):
         for j in range(i+1, len(joints_z)):
             if np.abs(joints_z[i] - joints_z[j]) < 100:
                 # i is closer than j
                 relation_table[i, j] = 0
-                loss_table[i, j] = 0
+
+                loss_table_log[i, j] = 0
+                loss_table_pow[i, j] = 1
+
             elif joints_z[i] < joints_z[j]:
                 relation_table[i, j] = 1
-                loss_table[i, j] = 1
+
+                loss_table_log[i, j] = 1
+                loss_table_pow[i, j] = 0
+
             else:
                 relation_table[i, j] = -1
-                loss_table[i, j] = 1
+                loss_table_log[i, j] = 1
+                loss_table_pow[i, j] = 0
 
-    return relation_table, loss_table
+    return relation_table, loss_table_log, loss_table_pow
 
