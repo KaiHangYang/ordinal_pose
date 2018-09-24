@@ -6,35 +6,46 @@ import tensorflow as tf
 from network_utils import mResidualUtils
 import hourglass
 
+# The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
+
 class mOrdinal_3_1(object):
     def __init__(self, nJoints, img_size=256, batch_size=4, is_training=True):
         self.nJoints = nJoints
         self.img_size = img_size
-        self.res_utils = mResidualUtils(is_training=is_training)
+        self.is_use_bias = True
+        self.is_tiny = False
+        self.res_utils = mResidualUtils(is_training=is_training, is_use_bias=is_use_bias, is_tiny=is_tiny)
         self.is_training = is_training
         self.batch_size = batch_size
 
     def build_model(self, input_images):
         with tf.variable_scope("ordinal_3_1"):
-            first_conv = tf.layers.conv2d(
-                             inputs=input_images,
-                             filters=64,
-                             kernel_size=7,
-                             strides=2,
-                             padding="SAME",
-                             kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                             name="conv1")
+
+            with tf.variable_scope("res1"):
+                first_conv = tf.layers.conv2d(
+                                 inputs=input_images,
+                                 filters=64,
+                                 kernel_size=7,
+                                 strides=2,
+                                 padding="SAME",
+                                 use_bias=self.is_use_bias,
+                                 acitvation=None,
+                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                 name="conv")
+                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
 
             net = self.res_utils.residual_block(first_conv, 128, name="res2")
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
             net = self.res_utils.residual_block(net, 128, name="res3")
-            net = self.res_utils.residual_block(net, 128, name="res4")
+            net = self.res_utils.residual_block(net, 256, name="res4")
 
             net = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training)
+            net = self.res_utils.residual_block(net, 256, name="out_res")
 
-            features_shape = net.get_shape().as_list()
-            net = tf.reshape(net, [features_shape[0], -1])
-            self.result = tf.contrib.layers.fully_connected(inputs = net, num_outputs = self.nJoints, activation_fn = None)
+            with tf.variable_scope("final_fc"):
+                features_shape = net.get_shape().as_list()
+                net = tf.reshape(net, [features_shape[0], -1])
+                self.result = tf.contrib.layers.fully_connected(inputs = net, num_outputs = self.nJoints, activation_fn = None)
 
     # ordinal_3_1 with no ground truth
     def build_loss_gt(self, input_depth, lr):

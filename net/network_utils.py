@@ -4,7 +4,7 @@ import sys
 import tensorflow as tf
 
 class mResidualUtils(object):
-    def __init__(self, is_training=True, is_tiny=False, is_use_bias=False):
+    def __init__(self, is_training=True, is_tiny=False, is_use_bias=True):
         self.is_training = is_training
         self.is_tiny = is_tiny
         self.is_use_bias = is_use_bias
