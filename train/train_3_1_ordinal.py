@@ -1,4 +1,5 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -30,7 +31,7 @@ restore_model_path = ""
 
 valid_iter = 5
 train_iter = 300000
-learning_rate = 2.5e-4
+learning_rate = 2.5e-6
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
 train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)

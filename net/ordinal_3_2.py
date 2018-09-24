@@ -29,7 +29,7 @@ class mOrdinal_3_2(object):
                                  kernel_size=7,
                                  strides=2,
                                  padding="SAME",
-                                 acitvation=None,
+                                 activation=None,
                                  use_bias=self.is_use_bias
                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                  name="conv")

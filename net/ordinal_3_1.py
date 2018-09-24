@@ -14,7 +14,7 @@ class mOrdinal_3_1(object):
         self.img_size = img_size
         self.is_use_bias = True
         self.is_tiny = False
-        self.res_utils = mResidualUtils(is_training=is_training, is_use_bias=is_use_bias, is_tiny=is_tiny)
+        self.res_utils = mResidualUtils(is_training=is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.is_training = is_training
         self.batch_size = batch_size
 
@@ -29,7 +29,7 @@ class mOrdinal_3_1(object):
                                  strides=2,
                                  padding="SAME",
                                  use_bias=self.is_use_bias,
-                                 acitvation=None,
+                                 activation=None,
                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                  name="conv")
                 first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
@@ -39,7 +39,7 @@ class mOrdinal_3_1(object):
             net = self.res_utils.residual_block(net, 128, name="res3")
             net = self.res_utils.residual_block(net, 256, name="res4")
 
-            net = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training)
+            net = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
             net = self.res_utils.residual_block(net, 256, name="out_res")
 
             with tf.variable_scope("final_fc"):

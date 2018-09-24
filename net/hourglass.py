@@ -24,7 +24,7 @@ def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=
                 low1 = res_utils.residual_block(low1, nOut, name="res{}".format(i))
 
         if nPooling > 1:
-            low2 = build_hourglass(low1, nOut, nPooling-1, name="inner_hg")
+            low2 = build_hourglass(low1, nOut, nPooling-1, name="inner_hg", res_utils=res_utils)
         else:
             low2 = low1
             with tf.variable_scope("mid"):
