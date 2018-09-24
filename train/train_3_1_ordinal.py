@@ -31,7 +31,7 @@ restore_model_path = ""
 
 valid_iter = 5
 train_iter = 300000
-learning_rate = 2.5e-6
+learning_rate = 8e-7
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
 train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
@@ -44,8 +44,8 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-    train_range = np.arange(0, 312188)
-    valid_range = np.arange(0, 109867)
+    train_range = np.load("train_range.npy")
+    valid_range = np.load("valid_range.npy")
 
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
