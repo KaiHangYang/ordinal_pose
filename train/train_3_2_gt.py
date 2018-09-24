@@ -19,10 +19,13 @@ batch_size = 4
 img_size = 256
 
 ######################## To modify #############################
-train_log_dir = "../logs/train/train_3_2_gt"
-valid_log_dir = "../logs/train/valid_3_2_gt"
-model_dir = "../models"
+train_log_dir = "../logs/train/3_2_gt/train"
+valid_log_dir = "../logs/train/3_2_gt/valid"
+model_dir = "../models/3_2_gt/"
 model_name = "ordinal_3_2_gt"
+
+if not os.path.exists(model_dir):
+    os.path.mkdir(model_dir)
 ################################################################
 
 is_restore = False
@@ -80,7 +83,7 @@ if __name__ == "__main__":
         if is_restore:
             if os.path.exists(restore_model_path+".index"):
                 print("#######################Restored all weights ###########################")
-                saver.restore(sess, restore_model_path)
+                model_saver.restore(sess, restore_model_path)
             else:
                 print("The prev model is not existing!")
                 quit()

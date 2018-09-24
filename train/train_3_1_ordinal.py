@@ -16,18 +16,21 @@ from utils.visualize_utils import display_utils
 nJoints = 17
 batch_size = 4
 img_size = 256
-
-train_log_dir = "../logs/train/train_3_1_ordinal"
-valid_log_dir = "../logs/train/valid_3_1_ordinal"
-model_dir = "../models"
+############# path parameters
+train_log_dir = "../logs/train/3_1_ord/train"
+valid_log_dir = "../logs/train/3_1_ord/valid"
+model_dir = "../models/3_1_ord/"
 model_name = "ordinal_3_1_ordinal"
+
+if not os.path.exists(model_dir):
+    os.mkdir(model_dir)
 
 is_restore = False
 restore_model_path = ""
 
 valid_iter = 5
-train_iter = 400000
-learning_rate = 2.5e-7
+train_iter = 300000
+learning_rate = 2.5e-4
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
 train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
@@ -79,7 +82,7 @@ if __name__ == "__main__":
         if is_restore:
             if os.path.exists(restore_model_path+".index"):
                 print("#######################Restored all weights ###########################")
-                saver.restore(sess, restore_model_path)
+                model_saver.restore(sess, restore_model_path)
             else:
                 print("The prev model is not existing!")
                 quit()
