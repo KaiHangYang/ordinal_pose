@@ -1,13 +1,13 @@
-import numpy as np
 import os
+import numpy as np
 import sys
 import tensorflow as tf
 import cv2
 import time
 
 sys.path.append("../")
-from net import ordinal_3_1
-from utils.dataread_utils import ordinal_3_1_reader
+from net import ordinal_3_2
+from utils.dataread_utils import ordinal_3_1_reader as ordinal_reader
 from utils.preprocess_utils import ordinal_3_1 as preprocessor
 from utils.visualize_utils import display_utils
 
@@ -17,20 +17,20 @@ nJoints = 17
 batch_size = 4
 img_size = 256
 
-train_log_dir = "../logs/train_3_1_ordinal"
-valid_log_dir = "../logs/valid_3_1_ordinal"
+train_log_dir = "../logs/train/train_3_2_ordinal"
+valid_log_dir = "../logs/train/valid_3_2_ordinal"
 model_dir = "../models"
-model_name = "ordinal_3_1_ordinal"
+model_name = "ordinal_3_2_ordinal"
 
 is_restore = False
 restore_model_path = ""
 
 valid_iter = 5
 train_iter = 300000
-learning_rate = 2.5e-4
+learning_rate = 2.5e-7
 
-train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
-train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
+train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
+train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
 
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
 valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
@@ -40,7 +40,6 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-
     train_range = np.arange(0, 312188)
     valid_range = np.arange(0, 109867)
 
@@ -51,20 +50,21 @@ if __name__ == "__main__":
     valid_lbl_list = [valid_lbl_path(i) for i in valid_range]
 
     with tf.device('/cpu:0'):
-        train_data_iter, train_data_init_op = ordinal_3_1_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=batch_size, name="train_reader")
-        valid_data_iter, valid_data_init_op = ordinal_3_1_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=batch_size, name="valid_reader")
+        train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=batch_size, name="train_reader")
+        valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=batch_size, name="valid_reader")
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
+    input_coords2d = tf.placeholder(shape=[batch_size, nJoints, 2], dtype=tf.float32)
     input_relation_table = tf.placeholder(shape=[batch_size, nJoints, nJoints], dtype=tf.float32)
     input_loss_table_log = tf.placeholder(shape=[batch_size, nJoints, nJoints], dtype=tf.float32)
     input_loss_table_pow = tf.placeholder(shape=[batch_size, nJoints, nJoints], dtype=tf.float32)
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size, batch_size, is_training=True)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_no_gt(input_relation_table, input_loss_table_log, input_loss_table_pow, learning_rate)
+        ordinal_model.build_loss_no_gt(input_coords2d, input_relation_table, input_loss_table_log, input_loss_table_pow, learning_rate)
 
         print("Network built!")
 
@@ -105,6 +105,7 @@ if __name__ == "__main__":
                 cur_data_batch = sess.run(train_data_iter)
 
             batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
+            batch_coords2d_np = np.zeros([batch_size, nJoints, 2], dtype=np.float32)
             batch_relation_table_np = np.zeros([batch_size, nJoints, nJoints], dtype=np.float32)
             batch_loss_table_log_np = np.zeros([batch_size, nJoints, nJoints], dtype=np.float32)
             batch_loss_table_pow_np = np.zeros([batch_size, nJoints, nJoints], dtype=np.float32)
@@ -117,6 +118,7 @@ if __name__ == "__main__":
                 cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
+                batch_coords2d_np[b] = cur_joints[:, 0:2]
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas
@@ -144,11 +146,11 @@ if __name__ == "__main__":
 
             if is_valid:
                 loss, summary  = sess.run([ordinal_model.loss, ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: input_loss_table_pow_np})
+                        feed_dict={input_images: batch_images_np, input_coords2d: batch_coords2d_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _, loss, summary  = sess.run([ordinal_model.train_op, ordinal_model.loss, ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np})
+                        feed_dict={input_images: batch_images_np, input_coords2d: batch_coords2d_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np})
                 train_log_writer.add_summary(summary, global_steps)
 
             print("Iteration: {:07d} Loss : {:07f} ".format(global_steps, loss))

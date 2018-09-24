@@ -64,12 +64,12 @@ class mOrdinal_3_2(object):
                     col_val = tf.tile(result_depth[:, tf.newaxis], [1, self.nJoints, 1])
 
                     rel_distance = (row_val - col_val)
-                    rank_loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+                    self.rank_loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
 
                 with tf.variable_scope("coord2d_loss"):
-                    coord2d_loss = tf.nn.l2_loss(result_coords_2d - input_coords_2d)
+                    self.coord2d_loss = tf.nn.l2_loss(result_coords_2d - input_coords_2d)
 
-                self.loss = coord2d_loss + rank_loss
+                self.loss = 100 * self.coord2d_loss + self.rank_loss
 
             with tf.variable_scope("grad"):
                 self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
@@ -78,4 +78,6 @@ class mOrdinal_3_2(object):
 
         with tf.device("/cpu:0"):
             tf.summary.scalar("loss", self.loss)
+            tf.summary.scalar("rank_loss_curve", self.rank_loss)
+            tf.summary.scalar("coord2d_loss_curve", 100 * self.coord2d_loss)
             self.merged_summary = tf.summary.merge_all()

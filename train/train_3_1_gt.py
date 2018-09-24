@@ -1,7 +1,4 @@
 import os
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_DEVICE_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
 import numpy as np
 import sys
 import tensorflow as tf
