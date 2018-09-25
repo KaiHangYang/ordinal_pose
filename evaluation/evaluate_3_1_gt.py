@@ -15,23 +15,22 @@ from utils.common_utils import my_utils
 ##################### Setting for training ######################
 
 nJoints = 17
-batch_size = 4
+batch_size = 1
 img_size = 256
 
 ######################## To modify #############################
+trash_log = "trash_"
 # train_log_dir = "../logs/evaluate/3_1_gt/train"
-valid_log_dir = "../logs/evaluate/3_1_gt/valid"
+valid_log_dir = "../"+trash_log+"logs/evaluate/3_1_gt/valid"
+valid_data_source = "train"
 ################################################################
 
 restore_model_path = "../models/ordinal_3_1_gt-300000"
-
 learning_rate = 2.5e-4
 
-# train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
-# train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
 
-valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
-valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
+valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/images/{}.jpg".format(x)
+valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/labels/{}.npy".format(x)
 
 #################################################################
 
@@ -39,21 +38,17 @@ if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
 
-    # train_range = np.arange(0, 312188)
-    # train_img_list = [train_img_path(i) for i in train_range]
-    # train_lbl_list = [train_lbl_path(i) for i in train_range]
-
+    valid_range = np.load("../train/"+valid_data_source+"_range.npy")
     data_from = 0
-    data_to = 109867
+    data_to = len(valid_range)
     valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
-    valid_range = np.arange(data_from, data_to, 1)
+
     valid_img_list = [valid_img_path(i) for i in valid_range]
     valid_lbl_list = [valid_lbl_path(i) for i in valid_range]
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
     ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
-
 
     cur_average = 0
 

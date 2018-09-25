@@ -32,7 +32,7 @@ if not os.path.exists(model_dir):
 ################################################################
 
 is_restore = True
-restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-300000"
+restore_model_path = "../models/ordinal_3_1_gt-300000"
 
 valid_iter = 5
 train_iter = 600000

@@ -33,7 +33,7 @@ class mOrdinal_3_2(object):
                                  use_bias=self.is_use_bias
                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                  name="conv")
-                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training, updates_collections=None)
 
             net = self.res_utils.residual_block(first_conv, 128, name="res2")
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
