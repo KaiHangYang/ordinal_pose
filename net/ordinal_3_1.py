@@ -45,7 +45,8 @@ class mOrdinal_3_1(object):
             with tf.variable_scope("final_fc"):
                 features_shape = net.get_shape().as_list()
                 net = tf.reshape(net, [features_shape[0], -1])
-                self.result = tf.contrib.layers.fully_connected(inputs = net, num_outputs = self.nJoints, activation_fn = None)
+                net = tf.layers.dropout(net, rate=0.2, name="dropout")
+                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
 
     # ordinal_3_1 with no ground truth
     def build_loss_gt(self, input_depth, lr, lr_decay_step, lr_decay_rate):
@@ -60,6 +61,11 @@ class mOrdinal_3_1(object):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             grads_n_vars = self.optimizer.compute_gradients(self.loss)
+
+            # for g, v in grads_n_vars:
+                # tf.summary.histogram(v.name, v)
+                # tf.summary.histogram(v.name+"_grads", g)
+
             self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
         tf.summary.scalar("depth_l2_loss", self.loss)
