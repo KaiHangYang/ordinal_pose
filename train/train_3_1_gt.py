@@ -20,8 +20,7 @@ img_size = 256
 
 ######################## To modify #############################
 
-trash_log = "trash_"
-
+trash_log = ""
 train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
 model_dir = "../models/3_1_gt/"
@@ -29,14 +28,18 @@ model_name = "ordinal_3_1_gt"
 
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
-################################################################
 
 is_restore = False
 restore_model_path = "../models/ordinal_3_1_gt-300000"
+################################################################
 
+
+############### according to hourglass-tensorflow
 valid_iter = 5
 train_iter = 300000
 learning_rate = 2.5e-4
+lr_decay_rate = 0.96
+lr_decay_step = 2000
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
 train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
@@ -70,7 +73,7 @@ if __name__ == "__main__":
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_gt(input_depths, learning_rate)
+        ordinal_model.build_loss_gt(input_depths, lr=learning_rate, lr_decay_step=lr_decay_step, lr_decay_rate=lr_decay_rate)
 
         print("Network built!")
 
@@ -123,6 +126,7 @@ if __name__ == "__main__":
                 cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
                 batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
+                # batch_images_np[b] = cur_img
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas
@@ -137,15 +141,27 @@ if __name__ == "__main__":
                 ###############################################
 
             if is_valid:
-                loss, summary  = sess.run([ordinal_model.loss, ordinal_model.merged_summary],
+                loss, \
+                lr, \
+                summary  = sess.run(
+                        [ordinal_model.loss,
+                         ordinal_model.lr,
+                         ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
-                _, loss, summary  = sess.run([ordinal_model.train_op, ordinal_model.loss, ordinal_model.merged_summary],
+                _,\
+                loss,\
+                lr,\
+                summary  = sess.run(
+                        [ordinal_model.train_op,
+                         ordinal_model.loss,
+                         ordinal_model.lr,
+                         ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
                 train_log_writer.add_summary(summary, global_steps)
 
-            print("Iteration: {:07d} Loss : {:07f} ".format(global_steps, loss))
+            print("Iteration: {:07d}.learning_rate: {:07f} .Loss : {:07f} ".format(global_steps, lr, loss))
 
             if global_steps % 50000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)

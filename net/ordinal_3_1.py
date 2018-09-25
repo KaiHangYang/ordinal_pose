@@ -48,19 +48,22 @@ class mOrdinal_3_1(object):
                 self.result = tf.contrib.layers.fully_connected(inputs = net, num_outputs = self.nJoints, activation_fn = None)
 
     # ordinal_3_1 with no ground truth
-    def build_loss_gt(self, input_depth, lr):
+    def build_loss_gt(self, input_depth, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
-        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
+        self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
+
+        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
         self.loss = tf.nn.l2_loss(input_depth - self.result, name="depth_l2_loss") / self.batch_size
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
-        update_ops = tf.get_collections(tf.GraphKeys.UPDATE_OPS)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             grads_n_vars = self.optimizer.compute_gradients(self.loss)
             self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
         tf.summary.scalar("depth_l2_loss", self.loss)
+        tf.summary.scalar("learning_rate", self.lr)
 
         self.merged_summary = tf.summary.merge_all()
 
@@ -79,6 +82,8 @@ class mOrdinal_3_1(object):
 
             with tf.variable_scope("grad"):
 
+                # NOTICE: The dependencies must be added, because of the BN used in the residual 
+                # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
                 self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 with tf.control_dependencies(update_ops):
