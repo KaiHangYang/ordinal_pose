@@ -31,11 +31,11 @@ if not os.path.exists(model_dir):
     os.mkdir(model_dir)
 ################################################################
 
-is_restore = True
+is_restore = False
 restore_model_path = "../models/ordinal_3_1_gt-300000"
 
 valid_iter = 5
-train_iter = 600000
+train_iter = 300000
 learning_rate = 2.5e-4
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)

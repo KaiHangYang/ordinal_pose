@@ -33,7 +33,7 @@ class mOrdinal_3_2(object):
                                  use_bias=self.is_use_bias
                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                  name="conv")
-                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training, updates_collections=None)
+                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
 
             net = self.res_utils.residual_block(first_conv, 128, name="res2")
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
@@ -55,8 +55,11 @@ class mOrdinal_3_2(object):
             self.loss = tf.nn.l2_loss(input_coords - self.result, name="ordinal_3_2_gt_loss") / self.batch_size
 
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
-        grads_n_vars = self.optimizer.compute_gradients(self.loss)
-        self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            grads_n_vars = self.optimizer.compute_gradients(self.loss)
+            self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
         tf.summary.scalar("gt_coords_loss", self.loss)
 
         self.merged_summary = tf.summary.merge_all()
@@ -85,8 +88,11 @@ class mOrdinal_3_2(object):
 
             with tf.variable_scope("grad"):
                 self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
-                grads_n_vars = self.optimizer.compute_gradients(self.loss)
-                self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+
+                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                with tf.control_dependencies(update_ops):
+                    grads_n_vars = self.optimizer.compute_gradients(self.loss)
+                    self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
         with tf.device("/cpu:0"):
             tf.summary.scalar("loss", self.loss)
