@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -20,11 +20,11 @@ img_size = 256
 
 ######################## To modify #############################
 
-trash_log = "trash"
-train_log_dir = "../"+trash_log+"logs/train/3_1_1_gt/train"
-valid_log_dir = "../"+trash_log+"logs/train/3_1_1_gt/valid"
-model_dir = "../models/3_1_gt/"
-model_name = "ordinal_3_1_1_gt"
+trash_log = ""
+train_log_dir = "../"+trash_log+"logs/train/3_1_2_gt/train"
+valid_log_dir = "../"+trash_log+"logs/train/3_1_2_gt/valid"
+model_dir = "../models/3_1_2_gt/"
+model_name = "ordinal_3_1_2_gt"
 
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
@@ -38,7 +38,7 @@ restore_model_path = "../models/ordinal_3_1_gt-300000"
 valid_iter = 5
 train_iter = 300000
 learning_rate = 2.5e-4
-lr_decay_rate = 0.96
+lr_decay_rate = 1.0 # 0.96
 lr_decay_step = 2000
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
@@ -62,9 +62,9 @@ if __name__ == "__main__":
     # valid_lbl_list = [valid_lbl_path(i[1]) if i[0] == "valid" else train_lbl_path(i[1]) for i in valid_range]
     ###########################################################################
 
-    ############################ range 3_1_1 ##########################
-    train_range = np.load("./train_range/sec_3/3_1_1/train_range.npy")
-    valid_range = np.load("./train_range/sec_3/3_1_1/valid_range.npy")
+    ############################ range 3_1_2 ##########################
+    train_range = np.load("./train_range/sec_3/3_1_2/train_range.npy")
+    valid_range = np.load("./train_range/sec_3/3_1_2/valid_range.npy")
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
 
