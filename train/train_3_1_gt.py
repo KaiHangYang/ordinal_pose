@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -80,7 +80,9 @@ if __name__ == "__main__":
     input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
     ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
 
-    with tf.Session() as sess:
+    gpu_options = tf.GPUOptions(allow_growth=True)
+
+    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
