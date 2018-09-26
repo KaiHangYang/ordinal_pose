@@ -25,7 +25,7 @@ valid_log_dir = "../"+trash_log+"logs/evaluate/3_1_gt/valid"
 valid_data_source = "valid"
 ################################################################
 
-restore_model_path = "../models/ordinal_3_1_gt_nfc-150000"
+restore_model_path = "../models/ordinal_3_1_1_gt-150000"
 learning_rate = 2.5e-4
 lr_decay_rate = 0.96
 lr_decay_step = 2000
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
 
-    valid_range = np.load("../train/"+valid_data_source+"_range.npy")
+    valid_range = np.load("../train/train_range/sec_3/3_1_1/"+valid_data_source+"_range.npy")
     data_from = 0
     data_to = len(valid_range)
     valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=False)
 
     cur_average = 0
 
