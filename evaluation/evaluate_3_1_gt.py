@@ -22,11 +22,13 @@ img_size = 256
 trash_log = "trash_"
 # train_log_dir = "../logs/evaluate/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/evaluate/3_1_gt/valid"
-valid_data_source = "train"
+valid_data_source = "valid"
 ################################################################
 
-restore_model_path = "../models/ordinal_3_1_gt-300000"
+restore_model_path = "../models/ordinal_3_1_gt_nfc-150000"
 learning_rate = 2.5e-4
+lr_decay_rate = 0.96
+lr_decay_step = 2000
 
 
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/images/{}.jpg".format(x)
@@ -56,7 +58,7 @@ if __name__ == "__main__":
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_gt(input_depths, learning_rate)
+        ordinal_model.build_loss_gt(input_depths, learning_rate, lr_decay_rate=lr_decay_rate, lr_decay_step=lr_decay_step)
 
         print("Network built!")
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)

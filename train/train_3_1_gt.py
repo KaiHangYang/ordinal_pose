@@ -55,11 +55,11 @@ if __name__ == "__main__":
     train_range = np.load("train_range.npy")
     valid_range = np.load("valid_range.npy")
 
-    train_img_list = [train_img_path(i) for i in train_range]
-    train_lbl_list = [train_lbl_path(i) for i in train_range]
+    train_img_list = [train_img_path(i[1]) if i[0] == "train" else valid_img_path(i[1]) for i in train_range]
+    train_lbl_list = [train_lbl_path(i[1]) if i[0] == "train" else valid_lbl_path(i[1]) for i in train_range]
 
-    valid_img_list = [valid_img_path(i) for i in valid_range]
-    valid_lbl_list = [valid_lbl_path(i) for i in valid_range]
+    valid_img_list = [valid_img_path(i[1]) if i[0] == "valid" else train_img_path(i[1]) for i in valid_range]
+    valid_lbl_list = [valid_lbl_path(i[1]) if i[0] == "valid" else train_lbl_path(i[1]) for i in valid_range]
 
     with tf.device('/cpu:0'):
         train_data_iter, train_data_init_op = ordinal_3_1_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=batch_size, name="train_reader")
