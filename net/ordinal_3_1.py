@@ -48,6 +48,10 @@ class mOrdinal_3_1(object):
                 net = tf.layers.dropout(net, rate=0.2, name="dropout")
                 self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
 
+    def cal_accuracy(self, gt_depth, pd_depth):
+        accuracy = tf.reduce_mean(tf.abs(gt_depth - pd_depth))
+        return accuracy
+
     # ordinal_3_1 with no ground truth
     def build_loss_gt(self, input_depth, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
@@ -68,6 +72,10 @@ class mOrdinal_3_1(object):
 
             self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
+        with tf.variable_scope("cal_accuracy"):
+            self.accuracy = self.cal_accuracy(input_depth, self.result)
+
+        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("depth_l2_loss", self.loss)
         tf.summary.scalar("learning_rate", self.lr)
 

@@ -20,11 +20,11 @@ img_size = 256
 
 ######################## To modify #############################
 
-trash_log = ""
-train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
-valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
+trash_log = "trash"
+train_log_dir = "../"+trash_log+"logs/train/3_1_1_gt/train"
+valid_log_dir = "../"+trash_log+"logs/train/3_1_1_gt/valid"
 model_dir = "../models/3_1_gt/"
-model_name = "ordinal_3_1_gt"
+model_name = "ordinal_3_1_1_gt"
 
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
@@ -139,7 +139,6 @@ if __name__ == "__main__":
                 cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
                 batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
-                # batch_images_np[b] = cur_img
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas
@@ -155,9 +154,11 @@ if __name__ == "__main__":
 
             if is_valid:
                 loss, \
+                acc, \
                 lr, \
                 summary  = sess.run(
                         [ordinal_model.loss,
+                         ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
@@ -165,16 +166,18 @@ if __name__ == "__main__":
             else:
                 _,\
                 loss,\
+                acc, \
                 lr,\
                 summary  = sess.run(
                         [ordinal_model.train_op,
                          ordinal_model.loss,
+                         ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
                 train_log_writer.add_summary(summary, global_steps)
 
-            print("Iteration: {:07d}.learning_rate: {:07f} .Loss : {:07f} ".format(global_steps, lr, loss))
+            print("Iteration: {:07d}.learning_rate: {:07f} .Loss : {:07f}. Depth accuracy: {:07f}".format(global_steps, lr, loss, acc))
 
             if global_steps % 50000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)
