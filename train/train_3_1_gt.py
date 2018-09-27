@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -8,7 +8,7 @@ import time
 
 sys.path.append("../")
 from net import ordinal_3_1
-from utils.dataread_utils import ordinal_3_1_reader
+from utils.dataread_utils import ordinal_3_1_reader as ordinal_reader
 from utils.preprocess_utils import ordinal_3_1 as preprocessor
 from utils.visualize_utils import display_utils
 
@@ -20,19 +20,18 @@ valid_batch_size = 2
 img_size = 256
 
 ######################## To modify #############################
-data_range_from = "3_1_2"
 trash_log = "trash"
 
-train_log_dir = "../"+trash_log+"logs/train/"+data_range_from+"_v_gt/train"
-valid_log_dir = "../"+trash_log+"logs/train/"+data_range_from+"_v_gt/valid"
-model_dir = "../models/"+data_range_from+"_v_gt/"
-model_name = "ordinal_"+data_range_from+"_v_gt"
+train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
+valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
+model_dir = "../models/3_1_gt/"
+model_name = "ordinal_3_1_gt"
 
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
 
 is_restore = False
-restore_model_path = "../models/"+data_range_from+"_gt/ordinal_"+data_range_from+"_gt-300000"
+restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-300000"
 ################################################################
 
 
@@ -49,25 +48,16 @@ train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
 valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
 
-training_data_range_file = "./train_range/sec_3/"+data_range_from+"/train_range.npy"
-validing_data_range_file = "./train_range/sec_3/"+data_range_from+"/valid_range.npy"
+training_data_range_file = "./train_range/sec_3/train_range.npy"
+validing_data_range_file = "./train_range/sec_3/valid_range.npy"
 
 #################################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-    ############################# range 3_1_0 #################################
-    # train_range = np.load("./train_range/sec_3/3_1_0/train_range.npy")
-    # valid_range = np.load("./train_range/sec_3/3_1_0/valid_range.npy")
-    # train_img_list = [train_img_path(i[1]) if i[0] == "train" else valid_img_path(i[1]) for i in train_range]
-    # train_lbl_list = [train_lbl_path(i[1]) if i[0] == "train" else valid_lbl_path(i[1]) for i in train_range]
 
-    # valid_img_list = [valid_img_path(i[1]) if i[0] == "valid" else train_img_path(i[1]) for i in valid_range]
-    # valid_lbl_list = [valid_lbl_path(i[1]) if i[0] == "valid" else train_lbl_path(i[1]) for i in valid_range]
-    ###########################################################################
-
-    ############################ range 3_1_1 ##########################
+    ############################ range section 3 ##########################
     train_range = np.load(training_data_range_file)
     valid_range = np.load(validing_data_range_file)
     train_img_list = [train_img_path(i) for i in train_range]
@@ -78,8 +68,8 @@ if __name__ == "__main__":
     ###################################################################
 
     with tf.device('/cpu:0'):
-        train_data_iter, train_data_init_op = ordinal_3_1_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=train_batch_size, name="train_reader")
-        valid_data_iter, valid_data_init_op = ordinal_3_1_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=valid_batch_size, name="valid_reader", is_shuffle=False)
+        train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=train_batch_size, name="train_reader")
+        valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=valid_batch_size, name="valid_reader", is_shuffle=False)
 
     input_images = tf.placeholder(shape=[None, img_size, img_size, 3], dtype=tf.float32)
     input_depths = tf.placeholder(shape=[None, nJoints], dtype=tf.float32)
@@ -189,7 +179,7 @@ if __name__ == "__main__":
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\nDepth accuracy: {:07f}\n\n".format(global_steps, lr, loss, acc))
-            # print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
             if global_steps % 10000 == 0 and not is_valid:

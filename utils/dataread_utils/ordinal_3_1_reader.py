@@ -4,6 +4,9 @@ import tensorflow as tf
 import numpy as np
 
 def get_data_iterator(img_list, lbl_list, batch_size, name="", is_shuffle=True):
+    data_sum = len(img_list)
+    print("DataSet: {}. Sum: {}. BatchSize: {}. Shuffle: {}".format(name, data_sum, batch_size, is_shuffle))
+
     with tf.name_scope(name):
         assert(len(img_list) == len(lbl_list))
         for i in range(len(img_list)):
@@ -13,7 +16,7 @@ def get_data_iterator(img_list, lbl_list, batch_size, name="", is_shuffle=True):
         lbl_dataset = tf.data.Dataset.from_tensor_slices(lbl_list)
 
         if is_shuffle:
-            dataset = tf.data.Dataset.zip((img_dataset, lbl_dataset)).shuffle(500).repeat().batch(batch_size)
+            dataset = tf.data.Dataset.zip((img_dataset, lbl_dataset)).shuffle(data_sum).repeat().batch(batch_size)
         else:
             dataset = tf.data.Dataset.zip((img_dataset, lbl_dataset)).repeat().batch(batch_size)
         iterator = tf.data.Iterator.from_structure(output_types=dataset.output_types, output_shapes=dataset.output_shapes)

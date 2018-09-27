@@ -24,10 +24,10 @@ section = "3_1_2"
 
 trash_log = "trash_"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
-valid_data_source = "valid"
+valid_data_source = "train"
 ################################################################
 
-restore_model_path = "../models/"+section+"_n_gt/ordinal_"+section+"_n_gt-10000"
+restore_model_path = "../models/"+section+"_n_gt/ordinal_"+section+"_n_gt-90000"
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0
 lr_decay_step = 2000
@@ -108,5 +108,5 @@ if __name__ == "__main__":
             print("\n\n")
 
             cur_average = (cur_average * (valid_data_index.val - 1) + np.abs(batch_depth_np[0] - depth[0]) ) / valid_data_index.val
-            # print(cur_average)
+            print(np.mean(cur_average))
         np.save("./gt_"+section+"_eval", cur_average)

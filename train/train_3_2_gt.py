@@ -15,27 +15,28 @@ from utils.visualize_utils import display_utils
 ##################### Setting for training ######################
 
 nJoints = 17
-batch_size = 4
+train_batch_size = 4
+valid_batch_size = 2
 img_size = 256
 
 ######################## To modify #############################
+trash_log = "trash"
 
-trash_log = ""
-train_log_dir = "../"+trash_log+"logs/train/3_2_1_gt/train"
-valid_log_dir = "../"+trash_log+"logs/train/3_2_1_gt/valid"
-model_dir = "../models/3_2_1_gt/"
-model_name = "ordinal_3_2_1_gt"
+train_log_dir = "../"+trash_log+"logs/train/3_2_gt/train"
+valid_log_dir = "../"+trash_log+"logs/train/3_2_gt/valid"
+model_dir = "../models/3_2_gt/"
+model_name = "ordinal_3_2_gt"
 
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
 
 is_restore = False
-restore_model_path = "../models/ordinal_3_2_gt-300000"
+restore_model_path = "../models/3_2_gt/ordinal_3_2_gt-300000"
 ################################################################
 
 
 ############### according to hourglass-tensorflow
-valid_iter = 5
+valid_iter = 10
 train_iter = 300000
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0 # 0.96
@@ -47,15 +48,17 @@ train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
 valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
 
+training_data_range_file = "./train_range/sec_3/train_range.npy"
+validing_data_range_file = "./train_range/sec_3/valid_range.npy"
+
 #################################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-
-    ############################ range 3_2_1 ##########################
-    train_range = np.load("./train_range/sec_3/3_2_1/train_range.npy")
-    valid_range = np.load("./train_range/sec_3/3_2_1/valid_range.npy")
+    ############################ range section 3 ##########################
+    train_range = np.load(training_data_range_file)
+    valid_range = np.load(validing_data_range_file)
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
 
@@ -64,23 +67,22 @@ if __name__ == "__main__":
     ###################################################################
 
     with tf.device('/cpu:0'):
-        train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=batch_size, name="train_reader")
-        valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=batch_size, name="valid_reader")
+        train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=train_batch_size, name="train_reader")
+        valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=valid_batch_size, name="valid_reader", is_shuffle=False)
 
-    input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
-    input_coords = tf.placeholder(shape=[batch_size, nJoints, 3], dtype=tf.float32)
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size, batch_size, is_training=True)
+    input_images = tf.placeholder(shape=[None, img_size, img_size, 3], dtype=tf.float32)
+    input_coords = tf.placeholder(shape=[None, nJoints, 3], dtype=tf.float32)
+    input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
+    input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    gpu_options = tf.GPUOptions(allow_growth=True)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training)
 
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session() as sess:
 
-        with tf.device("/device:GPU:0"):
-            ordinal_model.build_model(input_images)
+        ordinal_model.build_model(input_images)
         ordinal_model.build_loss_gt(input_coords, lr=learning_rate, lr_decay_step=lr_decay_step, lr_decay_rate=lr_decay_rate)
 
         print("Network built!")
-
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
 
@@ -118,16 +120,21 @@ if __name__ == "__main__":
             else:
                 cur_data_batch = sess.run(train_data_iter)
 
+            batch_size = len(cur_data_batch[0])
             batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
             batch_coords_np = np.zeros([batch_size, nJoints, 3], dtype=np.float32)
 
             # Generate the data batch
+            img_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
+            label_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
             for b in range(batch_size):
+                img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
+                label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
+
                 cur_img = cv2.imread(cur_data_batch[0][b])
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
-                # no rotate is used in the preprocessing
                 cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
                 cur_joints_3d = cur_joints[:, 2:5]
@@ -154,7 +161,7 @@ if __name__ == "__main__":
                          ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
+                        feed_dict={input_images: batch_images_np, input_coords: batch_coords_np, input_is_training: False, input_batch_size: valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _,\
@@ -167,14 +174,16 @@ if __name__ == "__main__":
                          ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
+                        feed_dict={input_images: batch_images_np, input_coords: batch_coords_np, input_is_training: True, input_batch_size: train_batch_size})
                 train_log_writer.add_summary(summary, global_steps)
 
-            print("Iteration: {:07d}.learning_rate: {:07f} .Loss : {:07f}. coords accuracy: {:07f}".format(global_steps, lr, loss, acc))
+            print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
+            print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\nCoords accuracy: {:07f}\n\n".format(global_steps, lr, loss, acc))
+            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+            print("\n\n")
 
-            if global_steps % 50000 == 0 and not is_valid:
+            if global_steps % 10000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)
 
             if global_steps >= train_iter and not is_valid:
                 break
-

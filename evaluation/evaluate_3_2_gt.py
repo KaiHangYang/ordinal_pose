@@ -26,7 +26,7 @@ trash_log = "trash_"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
 valid_data_source = "valid"
 ################################################################
-restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-10000"
+restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-300000"
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0
 lr_decay_step = 2000
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     input_coords = tf.placeholder(shape=[batch_size, nJoints, 3], dtype=tf.float32)
     ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size, batch_size, is_training=False)
 
-    cur_average = np.zeros([nJoints], dtype=np.float32)
+    cur_average = 0
 
     with tf.Session() as sess:
 
@@ -103,12 +103,12 @@ if __name__ == "__main__":
                     feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
             valid_log_writer.add_summary(summary, global_steps)
 
-            print("Iteration: {:07d} \nLoss : {:07f}\nDepth accuracy: {:07f}\n\n".format(global_steps, loss, acc))
+            print("Iteration: {:07d} \nLoss : {:07f}\nCoords accuracy: {:07f}\n\n".format(global_steps, loss, acc))
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
-            cur_dis = np.length(batch_depth_np[0] - depth[0])
-            assert(np.abs(cur_dis - acc) < 0.001)
-            cur_average = (cur_average * (valid_data_index.val - 1) +  ) / valid_data_index.val
-            # print(cur_average)
+            cur_dis_arr = np.linalg.norm(batch_coords_np - coords, axis=2)
+            assert(np.abs(np.mean(cur_dis_arr) - acc) < 0.001)
+            cur_average = (cur_average * (valid_data_index.val - 1) + acc) / valid_data_index.val
+            print(np.mean(cur_average))
         np.save("./gt_"+section+"_eval", cur_average)
