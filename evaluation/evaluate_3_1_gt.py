@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -20,20 +20,22 @@ batch_size = 1
 img_size = 256
 
 ######################## To modify #############################
-section = "3_1_1"
+section = "3_1_2"
+
 trash_log = "trash_"
-# train_log_dir = "../logs/evaluate/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
 valid_data_source = "valid"
 ################################################################
 
-restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-150000"
+restore_model_path = "../models/"+section+"_n_gt/ordinal_"+section+"_n_gt-10000"
 learning_rate = 2.5e-4
-lr_decay_rate = 0.96
+lr_decay_rate = 1.0
 lr_decay_step = 2000
 
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/images/{}.jpg".format(x)
 valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/labels/{}.npy".format(x)
+
+valid_range_file = "../train/train_range/sec_3/"+section+"/"+valid_data_source+"_range.npy"
 
 #################################################################
 
@@ -41,7 +43,7 @@ if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
 
-    valid_range = np.load("../train/train_range/sec_3/"+section+"/"+valid_data_source+"_range.npy")
+    valid_range = np.load(valid_range_file)
     data_from = 0
     data_to = len(valid_range)
     valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
@@ -81,20 +83,29 @@ if __name__ == "__main__":
             batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
             batch_depth_np = np.zeros([batch_size, nJoints], dtype=np.float32)
 
-            cur_img = cv2.imread(valid_img_list[valid_data_index.val])
-            cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
-            valid_data_index.val += 1
+            img_path_for_show = []
+            label_path_for_show = []
 
-            cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
+            for b in range(batch_size):
+                img_path_for_show.append(os.path.basename(valid_img_list[valid_data_index.val]))
+                label_path_for_show.append(os.path.basename(valid_lbl_list[valid_data_index.val]))
 
-            batch_depth_np[0] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
-            batch_images_np[0] = preprocessor.img2train(cur_img, [-1, 1])
+                cur_img = cv2.imread(valid_img_list[valid_data_index.val])
+                cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
+                valid_data_index.val += 1
+
+                cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
+
+                batch_depth_np[0] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
+                batch_images_np[0] = preprocessor.img2train(cur_img, [-1, 1])
 
             acc, depth, loss, summary  = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss, ordinal_model.merged_summary],
                     feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
             valid_log_writer.add_summary(summary, global_steps)
 
-            print("Iteration: {:07d} Loss : {:07f}. Accuracy: {:07f}".format(global_steps, loss, acc))
+            print("Iteration: {:07d} \nLoss : {:07f}\nDepth accuracy: {:07f}\n\n".format(global_steps, loss, acc))
+            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+            print("\n\n")
 
             cur_average = (cur_average * (valid_data_index.val - 1) + np.abs(batch_depth_np[0] - depth[0]) ) / valid_data_index.val
             # print(cur_average)

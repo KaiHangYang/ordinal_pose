@@ -63,15 +63,16 @@ class mOrdinal_3_1(object):
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
 
-        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
         # for g, v in grads_n_vars:
             # tf.summary.histogram(v.name, v)
             # tf.summary.histogram(v.name+"_grads", g)
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        assert(len(update_ops) != 0)
-        with tf.control_dependencies(update_ops):
-            self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
+        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
+        if self.is_training:
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            assert(len(update_ops) != 0)
+            with tf.control_dependencies(update_ops):
+                self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy = self.cal_accuracy(input_depth, self.result)
