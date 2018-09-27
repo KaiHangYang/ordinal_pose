@@ -25,6 +25,18 @@ class mRangeVariable(object):
     def isEnd(self):
         return self.end
 
+class mAverageCounter(object):
+    def __init__(self, shape=[]):
+        self.cur_data_sum = 0
+        self.cur_average = np.zeros(shape=shape)
+
+    def add(self, one):
+        self.cur_average = ((self.cur_data_sum * self.cur_average) + one ) / (self.cur_data_sum + 1)
+        self.cur_data_sum += 1
+
+    def mean(axis=0):
+        return np.mean(self.cur_average, axis=axis)
+
 # list all the files in the directorys
 def list_all_files(root_dir):
     file_list = []
