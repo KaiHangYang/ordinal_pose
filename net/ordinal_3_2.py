@@ -47,7 +47,8 @@ class mOrdinal_3_2(object):
             with tf.variable_scope("final_fc"):
                 features_shape = net.get_shape().as_list()
                 net = tf.reshape(net, [features_shape[0], -1])
-                net = tf.layers.dropout(net, rate=0.2, name="dropout")
+                if self.is_training:
+                    net = tf.layers.dropout(net, rate=0.2, name="dropout")
                 self.result = tf.layers.dense(inputs=net, units=3*self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
                 self.result = tf.reshape(self.result, [-1, self.nJoints, 3])
 
