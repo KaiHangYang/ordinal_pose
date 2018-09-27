@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -19,25 +19,25 @@ batch_size = 4
 img_size = 256
 
 ######################## To modify #############################
+data_range_from = "3_1_2"
 
 trash_log = "trash"
-train_log_dir = "../"+trash_log+"logs/train/3_1_2_gt/train"
-valid_log_dir = "../"+trash_log+"logs/train/3_1_2_gt/valid"
-model_dir = "../models/3_1_2_gt/"
-model_name = "ordinal_3_1_2_gt"
+train_log_dir = "../"+trash_log+"logs/train/"+data_range_from+"_n_gt/train"
+valid_log_dir = "../"+trash_log+"logs/train/"+data_range_from+"_n_gt/valid"
+model_dir = "../models/"+data_range_from+"_n_gt/"
+model_name = "ordinal_"+data_range_from+"_n_gt"
 
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
 
-is_training = False
-is_restore = True
-restore_model_path = "../models/3_1_2_gt/ordinal_3_1_2_gt-300000"
+is_restore = False
+restore_model_path = "../models/"+data_range_from+"_gt/ordinal_"+data_range_from+"_gt-300000"
 ################################################################
 
 
 ############### according to hourglass-tensorflow
 valid_iter = 5
-train_iter = 600000
+train_iter = 300000
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0 # 0.96
 lr_decay_step = 2000
@@ -63,9 +63,9 @@ if __name__ == "__main__":
     # valid_lbl_list = [valid_lbl_path(i[1]) if i[0] == "valid" else train_lbl_path(i[1]) for i in valid_range]
     ###########################################################################
 
-    ############################ range 3_1_2 ##########################
-    train_range = np.load("./train_range/sec_3/3_1_2/train_range.npy")
-    valid_range = np.load("./train_range/sec_3/3_1_2/valid_range.npy")
+    ############################ range 3_1_1 ##########################
+    train_range = np.load("./train_range/sec_3/"+data_range_from+"/train_range.npy")
+    valid_range = np.load("./train_range/sec_3/"+data_range_from+"/valid_range.npy")
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
 
@@ -79,14 +79,14 @@ if __name__ == "__main__":
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=is_training)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
 
-    gpu_options = tf.GPUOptions(allow_growth=True)
+    # gpu_options = tf.GPUOptions(allow_growth=True)
 
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    # with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session() as sess:
 
-        with tf.device("/device:GPU:0"):
-            ordinal_model.build_model(input_images)
+        ordinal_model.build_model(input_images)
         ordinal_model.build_loss_gt(input_depths, lr=learning_rate, lr_decay_step=lr_decay_step, lr_decay_rate=lr_decay_rate)
 
         print("Network built!")
@@ -121,9 +121,6 @@ if __name__ == "__main__":
             else:
                 valid_count += 1
                 is_valid = False
-
-            if not is_training:
-                is_valid = True
 
             # get the data path
             if is_valid:
@@ -183,7 +180,7 @@ if __name__ == "__main__":
 
             print("Iteration: {:07d}.learning_rate: {:07f} .Loss : {:07f}. Depth accuracy: {:07f}".format(global_steps, lr, loss, acc))
 
-            if global_steps % 50000 == 0 and not is_valid:
+            if global_steps % 10000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)
 
             if global_steps >= train_iter and not is_valid:
