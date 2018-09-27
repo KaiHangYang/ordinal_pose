@@ -32,7 +32,7 @@ class mOrdinal_3_1(object):
                                  activation=None,
                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                  name="conv")
-                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
 
             net = self.res_utils.residual_block(first_conv, 128, name="res2")
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
@@ -64,14 +64,14 @@ class mOrdinal_3_1(object):
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
 
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
-        grads_n_vars = self.optimizer.compute_gradients(self.loss)
         # for g, v in grads_n_vars:
             # tf.summary.histogram(v.name, v)
             # tf.summary.histogram(v.name+"_grads", g)
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        assert(len(update_ops) != 0)
         with tf.control_dependencies(update_ops):
-            self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+            self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy = self.cal_accuracy(input_depth, self.result)
