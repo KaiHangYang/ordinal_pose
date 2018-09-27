@@ -14,8 +14,8 @@ class mOrdinal_3_1(object):
         self.img_size = img_size
         self.is_use_bias = True
         self.is_tiny = False
-        self.res_utils = mResidualUtils(is_training=is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.is_training = is_training
+        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
 
     def build_model(self, input_images):
@@ -57,20 +57,19 @@ class mOrdinal_3_1(object):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
-        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
         self.loss = tf.nn.l2_loss(input_depth - self.result, name="depth_l2_loss") / self.batch_size
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            grads_n_vars = self.optimizer.compute_gradients(self.loss)
-
-            # for g, v in grads_n_vars:
-                # tf.summary.histogram(v.name, v)
-                # tf.summary.histogram(v.name+"_grads", g)
-
-            self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+        if self.is_training:
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
+                grads_n_vars = self.optimizer.compute_gradients(self.loss)
+                # for g, v in grads_n_vars:
+                    # tf.summary.histogram(v.name, v)
+                    # tf.summary.histogram(v.name+"_grads", g)
+                self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy = self.cal_accuracy(input_depth, self.result)
@@ -81,29 +80,29 @@ class mOrdinal_3_1(object):
 
         self.merged_summary = tf.summary.merge_all()
 
-    def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr):
-        self.global_steps = tf.train.get_or_create_global_step()
+    # def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr):
+        # self.global_steps = tf.train.get_or_create_global_step()
 
-        with tf.device("/device:GPU:0"):
-            with tf.variable_scope("rank_loss"):
-                self.loss = 0
-                row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
-                col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
+        # with tf.device("/device:GPU:0"):
+            # with tf.variable_scope("rank_loss"):
+                # self.loss = 0
+                # row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
+                # col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
 
-                rel_distance = (row_val - col_val)
+                # rel_distance = (row_val - col_val)
 
-                self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+                # self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
 
-            with tf.variable_scope("grad"):
+            # with tf.variable_scope("grad"):
 
-                # NOTICE: The dependencies must be added, because of the BN used in the residual 
-                # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
-                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                with tf.control_dependencies(update_ops):
-                    grads_n_vars = self.optimizer.compute_gradients(self.loss)
-                    self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+                # # NOTICE: The dependencies must be added, because of the BN used in the residual 
+                # # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
+                # self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
+                # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                # with tf.control_dependencies(update_ops):
+                    # grads_n_vars = self.optimizer.compute_gradients(self.loss)
+                    # self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
 
-        with tf.device("/cpu:0"):
-            tf.summary.scalar("loss", self.loss)
-            self.merged_summary = tf.summary.merge_all()
+        # with tf.device("/cpu:0"):
+            # tf.summary.scalar("loss", self.loss)
+            # self.merged_summary = tf.summary.merge_all()

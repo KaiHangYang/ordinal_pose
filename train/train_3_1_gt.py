@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -20,7 +20,7 @@ img_size = 256
 
 ######################## To modify #############################
 
-trash_log = ""
+trash_log = "trash"
 train_log_dir = "../"+trash_log+"logs/train/3_1_2_gt/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_2_gt/valid"
 model_dir = "../models/3_1_2_gt/"
@@ -29,14 +29,15 @@ model_name = "ordinal_3_1_2_gt"
 if not os.path.exists(model_dir):
     os.mkdir(model_dir)
 
-is_restore = False
-restore_model_path = "../models/ordinal_3_1_gt-300000"
+is_training = False
+is_restore = True
+restore_model_path = "../models/3_1_2_gt/ordinal_3_1_2_gt-300000"
 ################################################################
 
 
 ############### according to hourglass-tensorflow
 valid_iter = 5
-train_iter = 300000
+train_iter = 600000
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0 # 0.96
 lr_decay_step = 2000
@@ -78,7 +79,7 @@ if __name__ == "__main__":
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=is_training)
 
     gpu_options = tf.GPUOptions(allow_growth=True)
 
@@ -120,6 +121,9 @@ if __name__ == "__main__":
             else:
                 valid_count += 1
                 is_valid = False
+
+            if not is_training:
+                is_valid = True
 
             # get the data path
             if is_valid:
