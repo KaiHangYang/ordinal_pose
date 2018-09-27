@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -15,7 +15,8 @@ from utils.visualize_utils import display_utils
 ##################### Setting for training ######################
 
 nJoints = 17
-batch_size = 4
+train_batch_size = 4
+valid_batch_size = 2
 img_size = 256
 
 ######################## To modify #############################
@@ -36,7 +37,7 @@ restore_model_path = "../models/"+data_range_from+"_gt/ordinal_"+data_range_from
 
 
 ############### according to hourglass-tensorflow
-valid_iter = 5
+valid_iter = 10
 train_iter = 300000
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0 # 0.96
@@ -77,12 +78,15 @@ if __name__ == "__main__":
     ###################################################################
 
     with tf.device('/cpu:0'):
-        train_data_iter, train_data_init_op = ordinal_3_1_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=batch_size, name="train_reader")
-        valid_data_iter, valid_data_init_op = ordinal_3_1_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=batch_size, name="valid_reader")
+        train_data_iter, train_data_init_op = ordinal_3_1_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=train_batch_size, name="train_reader")
+        valid_data_iter, valid_data_init_op = ordinal_3_1_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=valid_batch_size, name="valid_reader", is_shuffle=False)
 
-    input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
-    input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints, img_size, batch_size, is_training=True)
+    input_images = tf.placeholder(shape=[None, img_size, img_size, 3], dtype=tf.float32)
+    input_depths = tf.placeholder(shape=[None, nJoints], dtype=tf.float32)
+    input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
+    input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
+
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training)
 
     with tf.Session() as sess:
 
@@ -127,15 +131,16 @@ if __name__ == "__main__":
             else:
                 cur_data_batch = sess.run(train_data_iter)
 
+            batch_size = len(cur_data_batch[0])
             batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
             batch_depth_np = np.zeros([batch_size, nJoints], dtype=np.float32)
 
             # Generate the data batch
-            img_path_for_show = []
-            label_path_for_show = []
+            img_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
+            label_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
             for b in range(batch_size):
-                img_path_for_show.append(os.path.basename(cur_data_batch[0][b]))
-                label_path_for_show.append(os.path.basename(cur_data_batch[1][b]))
+                img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
+                label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
 
                 cur_img = cv2.imread(cur_data_batch[0][b])
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
@@ -166,7 +171,7 @@ if __name__ == "__main__":
                          ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
+                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np, input_is_training: False, input_batch_size: valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _,\
@@ -179,11 +184,12 @@ if __name__ == "__main__":
                          ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
+                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np, input_is_training: True, input_batch_size: train_batch_size})
                 train_log_writer.add_summary(summary, global_steps)
 
+            print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\nDepth accuracy: {:07f}\n\n".format(global_steps, lr, loss, acc))
-            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+            # print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
             if global_steps % 10000 == 0 and not is_valid:

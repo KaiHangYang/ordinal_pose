@@ -8,8 +8,9 @@ import hourglass
 
 # The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
 
+# is_training is a tensor or python bool
 class mOrdinal_3_1(object):
-    def __init__(self, nJoints, img_size=256, batch_size=4, is_training=True):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256):
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -43,9 +44,9 @@ class mOrdinal_3_1(object):
             net = self.res_utils.residual_block(net, 256, name="out_res")
 
             with tf.variable_scope("final_fc"):
-                features_shape = net.get_shape().as_list()
-                net = tf.reshape(net, [features_shape[0], -1])
-                if self.is_training:
+                net = tf.layers.flatten(net)
+                if not isinstance(self.is_training, bool) or is_training:
+                    print("Use dropout!")
                     net = tf.layers.dropout(net, rate=0.2, name="dropout")
                 self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
 
@@ -68,11 +69,10 @@ class mOrdinal_3_1(object):
             # tf.summary.histogram(v.name+"_grads", g)
 
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
-        if self.is_training:
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            assert(len(update_ops) != 0)
-            with tf.control_dependencies(update_ops):
-                self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        print("Update_ops num {}".format(len(update_ops)))
+        with tf.control_dependencies(update_ops):
+            self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy = self.cal_accuracy(input_depth, self.result)
@@ -82,7 +82,6 @@ class mOrdinal_3_1(object):
         tf.summary.scalar("learning_rate", self.lr)
 
         self.merged_summary = tf.summary.merge_all()
-
     # def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr):
         # self.global_steps = tf.train.get_or_create_global_step()
 
