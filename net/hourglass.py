@@ -26,6 +26,8 @@ def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=
         if nPooling > 1:
             low2 = build_hourglass(low1, nOut, nPooling-1, name="inner_hg", res_utils=res_utils)
         else:
+            # TODO The 2017 version in https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked-no-int.lua
+            # contains only one residual block, but the paper contains three
             low2 = low1
             with tf.variable_scope("mid"):
                 for i in range(3):

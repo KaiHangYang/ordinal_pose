@@ -45,3 +45,20 @@ class mResidualUtils(object):
             skip_path = self._skip_path(inputs, nOut, strides)
 
             return tf.add_n([main_path, skip_path], name="elw_add")
+
+
+def mConvBnRelu(inputs, nOut, kernel_size=1, strides=1, name="conv_bn_relu", is_training=True, is_use_bias=True):
+    with tf.variable_scope(name):
+        conv = tf.layers.conv2d(
+                    inputs=inputs,
+                    filters=nOut,
+                    kernel_size=kernel_size,
+                    strides=strides,
+                    padding="SAME",
+                    use_bias=is_use_bias,
+                    activation=None,
+                    kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                    name="conv")
+        normed = tf.contrib.layers.batch_norm(conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=is_training)
+
+    return normed
