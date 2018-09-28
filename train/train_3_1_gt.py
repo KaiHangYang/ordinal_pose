@@ -20,7 +20,7 @@ valid_batch_size = 1
 img_size = 256
 
 ######################## To modify #############################
-trash_log = "trash_"
+trash_log = ""
 
 train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
@@ -28,7 +28,7 @@ model_dir = "../models/3_1_gt/"
 model_name = "ordinal_3_1_gt"
 
 if not os.path.exists(model_dir):
-    os.mkdir(model_dir)
+    os.makedirs(model_dir)
 
 is_restore = False
 restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-300000"

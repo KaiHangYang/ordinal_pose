@@ -16,7 +16,7 @@ from utils.visualize_utils import display_utils
 
 nJoints = 17
 train_batch_size = 4
-valid_batch_size = 2
+valid_batch_size = 1
 img_size = 256
 
 ######################## To modify #############################
@@ -28,18 +28,19 @@ model_dir = "../models/3_2_gt/"
 model_name = "ordinal_3_2_gt"
 
 if not os.path.exists(model_dir):
-    os.mkdir(model_dir)
+    os.makedirs(model_dir)
 
 is_restore = False
 restore_model_path = "../models/3_2_gt/ordinal_3_2_gt-300000"
+coords_scale = 1.0
 ################################################################
 
 
 ############### according to hourglass-tensorflow
-valid_iter = 10
+valid_iter = 3
 train_iter = 300000
 learning_rate = 2.5e-4
-lr_decay_rate = 1.0 # 0.96
+lr_decay_rate = 0.96 # 0.96
 lr_decay_step = 2000
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
@@ -75,7 +76,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, coords_scale=coords_scale)
 
     with tf.Session() as sess:
 
@@ -127,6 +128,7 @@ if __name__ == "__main__":
             # Generate the data batch
             img_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
             label_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
+
             for b in range(batch_size):
                 img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
                 label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
@@ -138,7 +140,7 @@ if __name__ == "__main__":
                 cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
                 cur_joints_3d = cur_joints[:, 2:5]
-                batch_coords_np[b] = cur_joints_3d - cur_joints_3d[0] # related to the root
+                batch_coords_np[b] = (cur_joints_3d - cur_joints_3d[0]) / coords_scale# related to the root
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas
