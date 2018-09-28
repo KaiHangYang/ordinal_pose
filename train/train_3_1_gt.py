@@ -16,11 +16,11 @@ from utils.visualize_utils import display_utils
 
 nJoints = 17
 train_batch_size = 4
-valid_batch_size = 2
+valid_batch_size = 1
 img_size = 256
 
 ######################## To modify #############################
-trash_log = ""
+trash_log = "trash_"
 
 train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
@@ -32,14 +32,15 @@ if not os.path.exists(model_dir):
 
 is_restore = False
 restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-300000"
+depth_scale = 1.0
 ################################################################
 
 
 ############### according to hourglass-tensorflow
-valid_iter = 10
+valid_iter = 2
 train_iter = 300000
 learning_rate = 2.5e-4
-lr_decay_rate = 1.0 # 0.96
+lr_decay_rate = 0.96 # 0.96
 lr_decay_step = 2000
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, depth_scale=depth_scale)
 
     with tf.Session() as sess:
 
@@ -138,7 +139,7 @@ if __name__ == "__main__":
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
                 cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
-                batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
+                batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / depth_scale # related to the root
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas

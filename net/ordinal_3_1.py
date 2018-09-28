@@ -10,7 +10,7 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mOrdinal_3_1(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, depth_scale=1000.0):
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -18,6 +18,7 @@ class mOrdinal_3_1(object):
         self.is_training = is_training
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
+        self.depth_scale = depth_scale
 
     def build_model(self, input_images):
         with tf.variable_scope("ordinal_3_1"):
@@ -44,14 +45,23 @@ class mOrdinal_3_1(object):
             net = self.res_utils.residual_block(net, 256, name="out_res")
 
             with tf.variable_scope("final_fc"):
+                net = tf.layers.max_pooling2d(net, pool_size=2, strides=2, padding="VALID", name="pooling_1")
+                net = self.res_utils.residual_block(net, 256, name="fc_res1")
+                net = tf.layers.max_pooling2d(net, pool_size=2, strides=2, padding="VALID", name="pooling_2")
+                net = self.res_utils.residual_block(net, 256, name="fc_res2")
+                net = tf.layers.max_pooling2d(net, pool_size=2, strides=2, padding="VALID", name="pooling_3")
+                net = self.res_utils.residual_block(net, 256, name="fc_res3")
                 net = tf.layers.flatten(net)
-                if not isinstance(self.is_training, bool) or self.is_training:
-                    print("Use dropout!")
-                    net = tf.layers.dropout(net, rate=0.5, name="dropout")
-                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
+
+                net = tf.contrib.layers.batch_norm(net, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                net = tf.layers.dropout(net, rate=0.4, training=self.is_training, name="dropout_1")
+                net = tf.layers.dense(inputs=net, units=512, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc_1")
+                net = tf.contrib.layers.batch_norm(net, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                net = tf.layers.dropout(net, rate=0.2, training=self.is_training, name="dropout_1")
+                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc_2")
 
     def cal_accuracy(self, gt_depth, pd_depth):
-        accuracy = tf.reduce_mean(tf.abs(gt_depth - pd_depth))
+        accuracy = tf.reduce_mean(tf.abs(self.depth_scale * gt_depth - self.depth_scale * pd_depth))
         return accuracy
 
     # ordinal_3_1 with no ground truth

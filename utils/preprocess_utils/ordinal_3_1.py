@@ -14,10 +14,11 @@ def preprocess(img, annots):
         "rotate_range": 30, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
-        "pad_color": [128, 128, 128],
+        "pad_color": [127.5, 127.5, 127.5],
         "flip_array": np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
     }
 
+    img = img.astype(np.float32)
     aug_img, aug_annot = augment_data_2d(img, annots, settings)
 
     return aug_img, aug_annot

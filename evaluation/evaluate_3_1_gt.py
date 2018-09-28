@@ -28,7 +28,7 @@ valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
 valid_data_source = "valid"
 ################################################################
 
-restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-300000"
+restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-250000"
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0
 lr_decay_step = 2000
@@ -95,6 +95,12 @@ if __name__ == "__main__":
                 cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
                 valid_data_index.val += 1
 
+                ################################# Just for test #####################################
+                # cur_img = cv2.imread(valid_img_list[9019])
+                # cur_label = np.load(valid_lbl_list[9019]).tolist()
+                #####################################################################################
+
+
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
                 batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
@@ -109,5 +115,6 @@ if __name__ == "__main__":
             gt_3_1_eval.add(batch_depth_np, depth)
             gt_3_1_eval.printMean()
             print("\n\n")
+            assert(acc < 1000)
 
-        gt_3_1_eval.save("../eval_result/gt_3_1/eval.npy")
+        gt_3_1_eval.save("../eval_result/gt_3_1/eval_15w.npy")

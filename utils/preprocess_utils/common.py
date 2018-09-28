@@ -43,7 +43,7 @@ def augment_data_2d(img, annots, settings = {
         "rotate_range": 0.0, # max 45
         "shift_range": 0.0,
         "is_flip": 0,
-        "pad_color": [128, 128, 128],
+        "pad_color": [127.5, 127.5, 127.5],
         "flip_array": None
     }):
 
@@ -136,7 +136,7 @@ def img2show(train_image, image_pixel_range):
 def img2train(img, image_pixel_range):
     return (image_pixel_range[1] - image_pixel_range[0]) * (img / 255.0) + image_pixel_range[0]
 
-def get_crop_from_center(img, center, scale, crop_box_size = 256, pad_color=[128, 128, 128]):
+def get_crop_from_center(img, center, scale, crop_box_size = 256, pad_color=[127.5, 127.5, 127.5]):
     img_width = img.shape[1]
     img_height = img.shape[0]
 
