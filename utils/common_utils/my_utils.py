@@ -34,7 +34,7 @@ class mAverageCounter(object):
         self.cur_average = ((self.cur_data_sum * self.cur_average) + one ) / (self.cur_data_sum + 1)
         self.cur_data_sum += 1
 
-    def mean(axis=0):
+    def mean(self, axis=0):
         return np.mean(self.cur_average, axis=axis)
 
 # list all the files in the directorys

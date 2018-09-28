@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -12,6 +12,7 @@ from utils.dataread_utils import ordinal_3_1_reader
 from utils.preprocess_utils import ordinal_3_1 as preprocessor
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
+from utils.evaluate_utils import evaluators
 
 ##################### Setting for training ######################
 
@@ -20,7 +21,7 @@ batch_size = 1
 img_size = 256
 
 ######################## To modify #############################
-section = "3_2_1"
+section = "3_2"
 
 trash_log = "trash_"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
@@ -34,7 +35,7 @@ lr_decay_step = 2000
 valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/images/{}.jpg".format(x)
 valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/labels/{}.npy".format(x)
 
-valid_range_file = "../train/train_range/sec_3/"+section+"/"+valid_data_source+"_range.npy"
+valid_range_file = "../train/train_range/sec_3/"+valid_data_source+"_range.npy"
 
 #################################################################
 
@@ -52,9 +53,9 @@ if __name__ == "__main__":
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_coords = tf.placeholder(shape=[batch_size, nJoints, 3], dtype=tf.float32)
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size, batch_size, is_training=False)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size=img_size, batch_size=batch_size, is_training=False)
 
-    cur_average = 0
+    gt_3_2_eval = evaluators.mEvaluator3_2_gt(nJoints=nJoints)
 
     with tf.Session() as sess:
 
@@ -103,12 +104,10 @@ if __name__ == "__main__":
                     feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
             valid_log_writer.add_summary(summary, global_steps)
 
+            gt_3_2_eval.add(batch_coords_np, coords)
+
             print("Iteration: {:07d} \nLoss : {:07f}\nCoords accuracy: {:07f}\n\n".format(global_steps, loss, acc))
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
-            print("\n\n")
+            gt_3_2_eval.printMean()
 
-            cur_dis_arr = np.linalg.norm(batch_coords_np - coords, axis=2)
-            assert(np.abs(np.mean(cur_dis_arr) - acc) < 0.001)
-            cur_average = (cur_average * (valid_data_index.val - 1) + acc) / valid_data_index.val
-            print(np.mean(cur_average))
-        np.save("./gt_"+section+"_eval", cur_average)
+        gt_3_2_eval.save("../eval_result/gt_3_2/eval")

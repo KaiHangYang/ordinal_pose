@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -20,7 +20,7 @@ valid_batch_size = 2
 img_size = 256
 
 ######################## To modify #############################
-trash_log = "trash"
+trash_log = ""
 
 train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"

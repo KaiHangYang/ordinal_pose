@@ -45,7 +45,7 @@ class mOrdinal_3_1(object):
 
             with tf.variable_scope("final_fc"):
                 net = tf.layers.flatten(net)
-                if not isinstance(self.is_training, bool) or is_training:
+                if not isinstance(self.is_training, bool) or self.is_training:
                     print("Use dropout!")
                     net = tf.layers.dropout(net, rate=0.5, name="dropout")
                 self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")

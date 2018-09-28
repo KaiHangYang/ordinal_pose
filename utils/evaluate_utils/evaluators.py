@@ -31,15 +31,17 @@ class mEvaluator3_1_gt(object):
         return self.avg_counter.cur_average
 
     def printMean(self):
-        print("MPJE(depth / mm): {}".format(self.mean()))
+        print("MPJE(depth / mm): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
 
     def printAll(self):
-        print("MPJE(depth / mm): {}".format(self.mean()))
+        print("MPJE(depth / mm): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
         print(("MPJE(depth_joints / mm): " + "{}" * self.nJoints).format(*self.get()))
 
     def save(self, path):
-        np.save(path, {"mean": self.mean(), "all": self.get()})
+        if not os.path.exists(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
 
+        np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
 
 
 class mEvaluator3_2_gt(object):
@@ -50,11 +52,11 @@ class mEvaluator3_2_gt(object):
 
     def add(self, gt_coords, pd_coords):
         assert(gt_coords.shape == pd_coords.shape)
-        gt_depth = np.reshape(gt_depth, [-1, self.nJoints, 3])
-        pd_depth = np.reshape(pd_depth, [-1, self.nJoints, 3])
+        gt_coords = np.reshape(gt_coords, [-1, self.nJoints, 3])
+        pd_coords = np.reshape(pd_coords, [-1, self.nJoints, 3])
 
-        for batch_num in range(gt_depth.shape[0]):
-            mpje_arr = np.linalg.norm(gt_depth[batch_num] - pd_depth[batch_num], axis=1)
+        for batch_num in range(gt_coords.shape[0]):
+            mpje_arr = np.linalg.norm(gt_coords[batch_num] - pd_coords[batch_num], axis=1)
             self.avg_counter.add(mpje_arr)
 
     def mean(self):
@@ -64,11 +66,13 @@ class mEvaluator3_2_gt(object):
         return self.avg_counter.cur_average
 
     def printMean(self):
-        print("MPJE(distance / mm): {}".format(self.mean()))
+        print("MPJE(distance / mm): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
 
     def printAll(self):
-        print("MPJE(distance / mm): {}".format(self.mean()))
+        print("MPJE(distance / mm): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
         print(("MPJE(distance_joints / mm): " + "{}" * self.nJoints).format(*self.get()))
 
     def save(self, path):
-        np.save(path, {"mean": self.mean(), "all": self.get()})
+        if not os.path.exists(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+        np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
