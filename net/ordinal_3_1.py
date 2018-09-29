@@ -4,13 +4,14 @@ import numpy as np
 import tensorflow as tf
 
 from network_utils import mResidualUtils
+from network_utils import mConvBnRelu
 import hourglass
 
 # The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
 
 # is_training is a tensor or python bool
 class mOrdinal_3_1(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, depth_scale=1000.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, depth_scale=1000.0, loss_weight=1000):
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -19,11 +20,12 @@ class mOrdinal_3_1(object):
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
         self.depth_scale = depth_scale
+        self.loss_weight = loss_weight
 
     def build_model(self, input_images):
         with tf.variable_scope("ordinal_3_1"):
 
-            with tf.variable_scope("res1"):
+            with tf.variable_scope("conv1"):
                 first_conv = tf.layers.conv2d(
                                  inputs=input_images,
                                  filters=64,
@@ -36,29 +38,19 @@ class mOrdinal_3_1(object):
                                  name="conv")
                 first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
 
-            net = self.res_utils.residual_block(first_conv, 128, name="res2")
+            net = self.res_utils.residual_block(first_conv, 128, name="res1")
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
+            net = self.res_utils.residual_block(net, 128, name="res2")
             net = self.res_utils.residual_block(net, 128, name="res3")
             net = self.res_utils.residual_block(net, 256, name="res4")
 
-            net = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
-            net = self.res_utils.residual_block(net, 256, name="out_res")
+            net = hourglass.build_hourglass(net, 512, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
+            net = mConvBnRelu(inputs=net, nOut=512, kernel_size=1, strides=1, name="lin1", is_training=self.is_training, is_use_bias=self.is_use_bias)
+            net = mConvBnRelu(inputs=net, nOut=256, kernel_size=1, strides=1, name="lin2", is_training=self.is_training, is_use_bias=self.is_use_bias)
 
             with tf.variable_scope("final_fc"):
-                net = tf.layers.max_pooling2d(net, pool_size=2, strides=2, padding="VALID", name="pooling_1")
-                net = self.res_utils.residual_block(net, 256, name="fc_res1")
-                net = tf.layers.max_pooling2d(net, pool_size=2, strides=2, padding="VALID", name="pooling_2")
-                net = self.res_utils.residual_block(net, 256, name="fc_res2")
-                net = tf.layers.max_pooling2d(net, pool_size=2, strides=2, padding="VALID", name="pooling_3")
-                net = self.res_utils.residual_block(net, 256, name="fc_res3")
                 net = tf.layers.flatten(net)
-
-                net = tf.contrib.layers.batch_norm(net, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
-                net = tf.layers.dropout(net, rate=0.4, training=self.is_training, name="dropout_1")
-                net = tf.layers.dense(inputs=net, units=512, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc_1")
-                net = tf.contrib.layers.batch_norm(net, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
-                net = tf.layers.dropout(net, rate=0.2, training=self.is_training, name="dropout_1")
-                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc_2")
+                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
 
     def cal_accuracy(self, gt_depth, pd_depth):
         accuracy = tf.reduce_mean(tf.abs(self.depth_scale * gt_depth - self.depth_scale * pd_depth))
@@ -69,7 +61,7 @@ class mOrdinal_3_1(object):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
-        self.loss = tf.nn.l2_loss(input_depth - self.result, name="depth_l2_loss") / self.batch_size
+        self.loss = tf.nn.l2_loss(input_depth - self.result, name="depth_l2_loss") / self.batch_size * self.loss_weight
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm

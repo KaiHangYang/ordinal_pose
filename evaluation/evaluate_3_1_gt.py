@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -25,7 +25,7 @@ section = "3_1"
 
 trash_log = "trash_"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
-valid_data_source = "valid"
+valid_data_source = "train"
 depth_scale=1.0
 ################################################################
 
@@ -40,7 +40,7 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 valid_range_file = "../train/train_range/sec_3/"+valid_data_source+"_range.npy"
 
 #################################################################
-evaluation_models = range(350000, 600001, 50000)
+evaluation_models = range(500000, 600001, 50000)
 
 if __name__ == "__main__":
 

@@ -30,17 +30,17 @@ model_name = "ordinal_3_2_gt"
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
-is_restore = False
-restore_model_path = "../models/3_2_gt/ordinal_3_2_gt-300000"
+is_restore = True
+restore_model_path = "../models/3_2_gt/ordinal_3_2_gt-280000"
 coords_scale = 1.0
 ################################################################
 
 
 ############### according to hourglass-tensorflow
 valid_iter = 3
-train_iter = 300000
+train_iter = 600000
 learning_rate = 2.5e-4
-lr_decay_rate = 0.96 # 0.96
+lr_decay_rate = 1.0 # 0.96
 lr_decay_step = 2000
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)

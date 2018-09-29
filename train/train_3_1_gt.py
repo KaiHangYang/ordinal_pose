@@ -16,11 +16,11 @@ from utils.visualize_utils import display_utils
 
 nJoints = 17
 train_batch_size = 4
-valid_batch_size = 1
+valid_batch_size = 3
 img_size = 256
 
 ######################## To modify #############################
-trash_log = ""
+trash_log = "trash"
 
 train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
@@ -32,15 +32,15 @@ if not os.path.exists(model_dir):
 
 is_restore = False
 restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-300000"
-depth_scale = 1.0
+depth_scale = 1000.0
+loss_weight = 1000.0
 ################################################################
 
-
 ############### according to hourglass-tensorflow
-valid_iter = 2
-train_iter = 300000
+valid_iter = 3
+train_iter = 600000
 learning_rate = 2.5e-4
-lr_decay_rate = 0.96 # 0.96
+lr_decay_rate = 1.0 # 0.96
 lr_decay_step = 2000
 
 train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
@@ -60,6 +60,8 @@ if __name__ == "__main__":
 
     ############################ range section 3 ##########################
     train_range = np.load(training_data_range_file)
+    np.random.shuffle(train_range)
+
     valid_range = np.load(validing_data_range_file)
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, depth_scale=depth_scale)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, depth_scale=depth_scale, loss_weight=loss_weight)
 
     with tf.Session() as sess:
 
@@ -129,6 +131,7 @@ if __name__ == "__main__":
             # Generate the data batch
             img_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
             label_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
+
             for b in range(batch_size):
                 img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
                 label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
@@ -137,7 +140,9 @@ if __name__ == "__main__":
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
+
+                # Cause the dataset is to large, test no augment
+                # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
 
                 batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / depth_scale # related to the root
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
@@ -183,7 +188,7 @@ if __name__ == "__main__":
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
-            if global_steps % 10000 == 0 and not is_valid:
+            if global_steps % 50000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)
 
             if global_steps >= train_iter and not is_valid:
