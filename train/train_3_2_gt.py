@@ -16,7 +16,7 @@ from utils.visualize_utils import display_utils
 
 nJoints = 17
 train_batch_size = 4
-valid_batch_size = 1
+valid_batch_size = 3
 img_size = 256
 
 ######################## To modify #############################
@@ -30,9 +30,10 @@ model_name = "ordinal_3_2_gt"
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
-is_restore = True
+is_restore = False
 restore_model_path = "../models/3_2_gt/ordinal_3_2_gt-280000"
-coords_scale = 1.0
+coords_scale = 1000.0
+loss_weight = 1000.0
 ################################################################
 
 
@@ -59,6 +60,8 @@ if __name__ == "__main__":
     ################### Initialize the data reader ###################
     ############################ range section 3 ##########################
     train_range = np.load(training_data_range_file)
+    np.random.shuffle(train_range)
+
     valid_range = np.load(validing_data_range_file)
     train_img_list = [train_img_path(i) for i in train_range]
     train_lbl_list = [train_lbl_path(i) for i in train_range]
@@ -76,7 +79,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, coords_scale=coords_scale)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, coords_scale=coords_scale, loss_weight=loss_weight)
 
     with tf.Session() as sess:
 
@@ -137,7 +140,7 @@ if __name__ == "__main__":
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
+                # cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
                 cur_joints_3d = cur_joints[:, 2:5]
                 batch_coords_np[b] = (cur_joints_3d - cur_joints_3d[0]) / coords_scale# related to the root
@@ -184,7 +187,7 @@ if __name__ == "__main__":
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
-            if global_steps % 10000 == 0 and not is_valid:
+            if global_steps % 50000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)
 
             if global_steps >= train_iter and not is_valid:

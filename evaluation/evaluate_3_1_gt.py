@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -13,6 +13,7 @@ from utils.preprocess_utils import ordinal_3_1 as preprocessor
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
+from utils.postprocess_utils import volume_utils
 
 ##################### Setting for training ######################
 
@@ -25,8 +26,8 @@ section = "3_1"
 
 trash_log = "trash_"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
-valid_data_source = "train"
-depth_scale=1.0
+valid_data_source = "valid"
+depth_scale=1000.0
 ################################################################
 
 restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-{}"
@@ -40,7 +41,7 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 valid_range_file = "../train/train_range/sec_3/"+valid_data_source+"_range.npy"
 
 #################################################################
-evaluation_models = range(500000, 600001, 50000)
+evaluation_models = [50000]
 
 if __name__ == "__main__":
 
@@ -73,7 +74,9 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
 
-            gt_3_1_eval = evaluators.mEvaluator3_1_gt(nJoints=nJoints)
+            depth_eval = evaluators.mEvaluatorDepth(nJoints=nJoints)
+            coords_eval = evaluators.mEvaluatorPose3D(nJoints=nJoints)
+
             valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
             if os.path.exists(restore_model_path.format(cur_model_iterations)+".index"):
@@ -92,6 +95,13 @@ if __name__ == "__main__":
                 img_path_for_show = []
                 label_path_for_show = []
 
+                source_txt_arr = []
+                center_arr = []
+                scale_arr = []
+                depth_root_arr = []
+                gt_joints_3d_arr = []
+                crop_joints_2d_arr = []
+
                 for b in range(batch_size):
                     img_path_for_show.append(os.path.basename(valid_img_list[valid_data_index.val]))
                     label_path_for_show.append(os.path.basename(valid_lbl_list[valid_data_index.val]))
@@ -100,28 +110,37 @@ if __name__ == "__main__":
                     cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
                     valid_data_index.val += 1
 
-                    ################################# Just for test #####################################
-                    # cur_img = cv2.imread(valid_img_list[9019])
-                    # cur_label = np.load(valid_lbl_list[9019]).tolist()
-                    #####################################################################################
+                    ########## Save the data for evaluation ###########
+                    source_txt_arr.append(cur_label["source"])
+                    center_arr.append(cur_label["center"])
+                    scale_arr.append(cur_label["scale"])
+                    depth_root_arr.append(cur_label["joints_3d"][0, 2])
+                    gt_joints_3d_arr.append(cur_label["joints_3d"].copy())
+                    crop_joints_2d_arr.append(cur_label["joints_2d"].copy())
+                    ###################################################
 
 
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
-                    batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2] # related to the root
+                    batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / depth_scale # related to the root
                     batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
-
-                # acc, depth, loss, summary  = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss, ordinal_model.merged_summary],
-                        # feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
-                # valid_log_writer.add_summary(summary, global_steps)
 
                 acc, depth, loss = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss],
                         feed_dict={input_images: batch_images_np, input_depths: batch_depth_np})
 
                 print("Iteration: {:07d} \nLoss : {:07f}\nDepth accuracy: {:07f}\n\n".format(global_steps, loss, acc))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
-                gt_3_1_eval.add(batch_depth_np, depth)
-                gt_3_1_eval.printMean()
+
+                depth_eval.add(depth_scale * batch_depth_np, depth_scale * depth)
+                depth_eval.printMean()
+
+                ############# evaluate the coords recovered from the gt 2d and gt root depth
+                for b in range(batch_size):
+                    c_j_2d, c_j_3d, _ = volume_utils.local_to_global(depth_scale * depth[b], depth_root_arr[b], crop_joints_2d_arr[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    coords_eval.add(gt_joints_3d_arr[b], c_j_3d)
+
+                coords_eval.printMean()
                 print("\n\n")
 
-            gt_3_1_eval.save("../eval_result/gt_3_1/eval_{}w.npy".format(cur_model_iterations / 10000))
+            depth_eval.save("../eval_result/gt_3_1/depth_eval_{}w.npy".format(cur_model_iterations / 10000))
+            coords_eval.save("../eval_result/gt_3_1/coord_eval_{}w.npy".format(cur_model_iterations / 10000))

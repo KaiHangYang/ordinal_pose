@@ -5,9 +5,9 @@ import os
 sys.path.append("../")
 from common_utils import my_utils
 
-class mEvaluator3_1_gt(object):
+########## Evaluation used only for evaluate depth ##########
+class mEvaluatorDepth(object):
     def __init__(self, nJoints=17):
-        # section 3_1 only evaluate the depth np.abs()
         self.nJoints = nJoints
         self.avg_counter = my_utils.mAverageCounter(shape=self.nJoints)
 
@@ -44,12 +44,13 @@ class mEvaluator3_1_gt(object):
         np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
 
 
-class mEvaluator3_2_gt(object):
+############### Evaluator for Pose3D ############
+class mEvaluatorPose3D(object):
     def __init__(self, nJoints=17):
-        # section 3_2 evaluate the coords distance (mpje:mm)
         self.nJoints = nJoints
         self.avg_counter = my_utils.mAverageCounter(shape=self.nJoints)
 
+    ### The root of each coords is the same
     def add(self, gt_coords, pd_coords):
         assert(gt_coords.shape == pd_coords.shape)
         gt_coords = np.reshape(gt_coords, [-1, self.nJoints, 3])
