@@ -623,10 +623,14 @@ def mouse_move_callback(window, x, y):
 
 class mVisualBox():
     # basedir is the root dir of shader and model dirs
-    def __init__(self, wnd_width, wnd_height, title="test", btn_callback=None, proj_mat=[], view_mat=[], limbs_n_root=[]):
+    # model_size: 0.04, 30.0
+    def __init__(self, wnd_width, wnd_height, title="test", btn_callback=None, proj_mat=[], view_mat=[], limbs_n_root=[], model_size=0.04):
         self.wnd_width = wnd_width
         self.wnd_height = wnd_height
         self.app = MyApplication(title = "Visual Box", wndWidth=wnd_width, wndHeight=wnd_height)
+        self.model_size = model_size
+
+        assert(self.model_size in [0.04, 30.0])
 
         def button_callback(window, key, scancode, action, mods):
             global reset_rotate
@@ -660,7 +664,7 @@ class mVisualBox():
         self.cam_scene = CamScene(cam_shader, wnd_width, wnd_height)
 
         mesh_render = MeshRenderer()
-        mesh_render.addMesh(os.path.join(PLY_DIR, "sphere-0.04.ply"))
+        mesh_render.addMesh(os.path.join(PLY_DIR, "sphere-{}.ply".format(self.model_size)))
         self.mpose_model = PoseModel(mesh_render, model_shader, (wnd_width, wnd_height), in_cammat_display, ex_cammat_display, limbs_n_root)
 
     def checkStop(self):
@@ -683,7 +687,7 @@ class mVisualBox():
         self.drawCam(cam_bg)
 
     def drawPose(self, joints_3d, color):
-        self.mpose_model.draw(joints_3d, color)
+        self.mpose_model.draw(joints_3d, color, sphere_ratio=self.model_size)
 
     def drawCam(self, cam_bg):
         self.cam_scene.drawFrame(cam_bg)
