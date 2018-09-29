@@ -31,8 +31,10 @@ model_name = "ordinal_3_1_ord"
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
-is_restore = False
-restore_model_path = "../models/3_1_ord/ordinal_3_1_ord-300000"
+#################### Pay attention, The xavier initialize method make inf loss and nan grads, So I tried use the initial gt_model as the initializer ####################3
+is_restore = True
+is_reset_global_steps = True
+restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-50000"
 depth_scale = 1.0
 loss_weight = 1.0
 ################################################################
@@ -108,6 +110,8 @@ if __name__ == "__main__":
                 print("The prev model is not existing!")
                 quit()
 
+        if is_reset_global_steps:
+            sess.run(tf.train.get_or_create_global_step().assign(0))
 
         is_valid = False
         valid_count = 0
