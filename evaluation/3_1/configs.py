@@ -16,6 +16,12 @@ range_file = None
 img_path_fn = None
 lbl_path_fn = None
 restore_model_path_fn = None
+
+##### The parameters below only used in the ordinal mode
+scale_batch_size = 4
+scale_range_file = None
+scale_img_path_fn = None
+scale_lbl_path_fn = None
 ###############################
 
 # t means gt(0) or ord(1)
@@ -50,6 +56,11 @@ def parse_configs(t, d):
     img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/images/{}.jpg".format(x)
     lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/labels/{}.npy".format(x)
 
+    # Parameters used in ordinal mode
+    scale_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "scale_range.npy")
+    scale_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images/{}.jpg".format(x)
+    scale_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/labels/{}.npy".format(x)
+
     restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), "3_1_{}/".format(eval_type) + config_parser.get("model", "prefix").format("3_1", eval_type, x))
 
 def print_configs():
@@ -63,4 +74,8 @@ def print_configs():
     print("range_file: {}".format(range_file))
     print("img_path: {}".format(img_path_fn("{}")))
     print("lbl_path: {}".format(lbl_path_fn("{}")))
+
+    print("scale_range_file: {}".format(scale_range_file))
+    print("scale_img_path: {}".format(scale_img_path_fn("{}")))
+    print("scale_lbl_path: {}".format(scale_lbl_path_fn("{}")))
     print("restore_model_path: {}".format(restore_model_path_fn("{}")))
