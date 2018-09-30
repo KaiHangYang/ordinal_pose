@@ -6,7 +6,7 @@ import tensorflow as tf
 import cv2
 import time
 
-sys.path.append("../")
+sys.path.append("../../")
 from net import ordinal_3_1
 from utils.dataread_utils import ordinal_3_1_reader
 from utils.preprocess_utils import ordinal_3_1 as preprocessor
@@ -16,35 +16,35 @@ from utils.evaluate_utils import evaluators
 from utils.postprocess_utils import volume_utils
 
 ##################### Evaluation Configs ######################
-from configs import *
+import configs
 
 # t means gt(0) or ord(1)
 # d means validset(0) or trainset(1)
-parse_configs(0, 0)
-print_configs()
+configs.parse_configs(0, 0)
+configs.print_configs()
 
-evaluation_models = [50000]
+evaluation_models = [300000, 350000]
 ###############################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-    range_arr = np.load(range_file)
+    range_arr = np.load(configs.range_file)
     data_from = 0
     data_to = len(range_arr)
 
-    img_list = [img_path_fn(i) for i in range_arr]
-    lbl_list = [lbl_path_fn(i) for i in range_arr]
+    img_list = [configs.img_path_fn(i) for i in range_arr]
+    lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
 
-    input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
-    input_depths = tf.placeholder(shape=[batch_size, nJoints], dtype=tf.float32)
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=batch_size, is_training=False, depth_scale=depth_scale)
+    input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
+    input_depths = tf.placeholder(shape=[configs.batch_size, configs.nJoints], dtype=tf.float32)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False, depth_scale=configs.depth_scale)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_gt(input_depths, learning_rate, lr_decay_rate=lr_decay_rate, lr_decay_step=lr_decay_step)
+        ordinal_model.build_loss_gt(input_depths, configs.learning_rate, lr_decay_rate=configs.lr_decay_rate, lr_decay_step=configs.lr_decay_step)
 
         print("Network built!")
         # log_writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
@@ -56,23 +56,24 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
 
-            depth_eval = evaluators.mEvaluatorDepth(nJoints=nJoints)
-            coords_eval = evaluators.mEvaluatorPose3D(nJoints=nJoints)
+            depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
+            coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
-            if os.path.exists(restore_model_path_fn(cur_model_iterations)+".index"):
+            if os.path.exists(configs.restore_model_path_fn(cur_model_iterations)+".index"):
                 print("#######################Restored all weights ###########################")
-                model_saver.restore(sess, restore_model_path_fn(cur_model_iterations))
+                model_saver.restore(sess, configs.restore_model_path_fn(cur_model_iterations))
             else:
+                print(configs.restore_model_path_fn(cur_model_iterations))
                 print("The prev model is not existing!")
                 quit()
 
             while not data_index.isEnd():
                 global_steps = sess.run(ordinal_model.global_steps)
 
-                batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
-                batch_depth_np = np.zeros([batch_size, nJoints], dtype=np.float32)
+                batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_depth_np = np.zeros([configs.batch_size, configs.nJoints], dtype=np.float32)
 
                 img_path_for_show = []
                 label_path_for_show = []
@@ -84,7 +85,7 @@ if __name__ == "__main__":
                 gt_joints_3d_arr = []
                 crop_joints_2d_arr = []
 
-                for b in range(batch_size):
+                for b in range(configs.batch_size):
                     img_path_for_show.append(os.path.basename(img_list[data_index.val]))
                     label_path_for_show.append(os.path.basename(lbl_list[data_index.val]))
 
@@ -103,7 +104,7 @@ if __name__ == "__main__":
 
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
-                    batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / depth_scale # related to the root
+                    batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / configs.depth_scale # related to the root
                     batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 acc, depth, loss = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss],
@@ -112,12 +113,12 @@ if __name__ == "__main__":
                 print("Iteration: {:07d} \nLoss : {:07f}\nDepth accuracy: {:07f}\n\n".format(global_steps, loss, acc))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
-                depth_eval.add(depth_scale * batch_depth_np, depth_scale * depth)
+                depth_eval.add(configs.depth_scale * batch_depth_np, configs.depth_scale * depth)
                 depth_eval.printMean()
 
                 ############# evaluate the coords recovered from the gt 2d and gt root depth
-                for b in range(batch_size):
-                    c_j_2d, c_j_3d, _ = volume_utils.local_to_global(depth_scale * depth[b], depth_root_arr[b], crop_joints_2d_arr[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                for b in range(configs.batch_size):
+                    c_j_2d, c_j_3d, _ = volume_utils.local_to_global(configs.depth_scale * depth[b], depth_root_arr[b], crop_joints_2d_arr[b], source_txt_arr[b], center_arr[b], scale_arr[b])
                     coords_eval.add(gt_joints_3d_arr[b], c_j_3d)
 
                 coords_eval.printMean()

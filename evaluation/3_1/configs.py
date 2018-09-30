@@ -3,19 +3,19 @@ import os
 import sys
 
 #### Evaluation Parameters ####
-global depth_scale
-global weight_scale
-global nJoints
-global batch_size
-global img_size
-global learning_rate
-global lr_decay_rate
-global lr_decay_step
-global log_dir
-global range_file
-global img_path_fn
-global lbl_path_fn
-global restore_model_path_fn
+depth_scale = None
+weight_scale = None
+nJoints = None
+batch_size = None
+img_size = None
+learning_rate = None
+lr_decay_rate = None
+lr_decay_step = None
+log_dir = None
+range_file = None
+img_path_fn = None
+lbl_path_fn = None
+restore_model_path_fn = None
 ###############################
 
 # t means gt(0) or ord(1)
@@ -50,7 +50,7 @@ def parse_configs(t, d):
     img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/images/{}.jpg".format(x)
     lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/labels/{}.npy".format(x)
 
-    restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), config_parser.get("model", "prefix").format("3_1", eval_type, x))
+    restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), "3_1_{}/".format(eval_type) + config_parser.get("model", "prefix").format("3_1", eval_type, x))
 
 def print_configs():
     global depth_scale, weight_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn

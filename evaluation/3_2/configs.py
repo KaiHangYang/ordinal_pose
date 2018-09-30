@@ -49,7 +49,7 @@ def parse_configs(t, d):
     img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/images/{}.jpg".format(x)
     lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/labels/{}.npy".format(x)
 
-    restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), config_parser.get("model", "prefix").format("3_2", eval_type, x))
+    restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), "3_2_{}/".format(eval_type) + config_parser.get("model", "prefix").format("3_2", eval_type, x))
 
 def print_configs():
     global coords_scale, weight_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn
