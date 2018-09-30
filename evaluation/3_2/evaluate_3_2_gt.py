@@ -8,54 +8,32 @@ import time
 
 sys.path.append("../")
 from net import ordinal_3_2
-from utils.preprocess_utils import ordinal_3_2 as preprocessor
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
 from utils.postprocess_utils import volume_utils
 
-##################### Setting for training ######################
+##################### Evaluation paramters  ######################
+from configs import *
+parse_configs(0, 0)
+print_configs()
 
-nJoints = 17
-batch_size = 1
-img_size = 256
-
-######################## To modify #############################
-section = "3_2"
-
-trash_log = "trash_"
-valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
-valid_data_source = "valid"
-coords_scale=1000.0
-################################################################
-
-restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-{}"
-learning_rate = 2.5e-4
-lr_decay_rate = 1.0
-lr_decay_step = 2000
-
-valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/images/{}.jpg".format(x)
-valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+valid_data_source+"/labels/{}.npy".format(x)
-
-valid_range_file = "../train/train_range/sec_3/"+valid_data_source+"_range.npy"
-
-#################################################################
 evaluation_models = [50000, 100000, 150000, 200000, 250000, 300000]
+#################################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-
-    valid_range = np.load(valid_range_file)
+    range_arr = np.load(range_file)
     data_from = 0
-    data_to = len(valid_range)
+    data_to = len(range_arr)
 
-    valid_img_list = [valid_img_path(i) for i in valid_range]
-    valid_lbl_list = [valid_lbl_path(i) for i in valid_range]
+    img_list = [img_path_fn(i) for i in range_arr]
+    lbl_list = [lbl_path_fn(i) for i in range_arr]
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_coords = tf.placeholder(shape=[batch_size, nJoints, 3], dtype=tf.float32)
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size=img_size, batch_size=batch_size, is_training=False, coords_scale=coords_scale)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=nJoints, img_size=img_size, batch_size=batch_size, is_training=False, coords_scale=coords_scale)
 
     with tf.Session() as sess:
 
@@ -64,7 +42,7 @@ if __name__ == "__main__":
         ordinal_model.build_loss_gt(input_coords, learning_rate, lr_decay_rate=lr_decay_rate, lr_decay_step=lr_decay_step)
 
         print("Network built!")
-        # valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
+        # log_writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
 
         model_saver = tf.train.Saver()
         net_init = tf.global_variables_initializer()
@@ -75,16 +53,16 @@ if __name__ == "__main__":
 
             coords_eval = evaluators.mEvaluatorPose3D(nJoints=nJoints)
 
-            valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
+            data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
-            if os.path.exists(restore_model_path.format(cur_model_iterations)+".index"):
+            if os.path.exists(restore_model_path_fn(cur_model_iterations)+".index"):
                 print("#######################Restored all weights ###########################")
-                model_saver.restore(sess, restore_model_path.format(cur_model_iterations))
+                model_saver.restore(sess, restore_model_path_fn(cur_model_iterations))
             else:
                 print("The prev model is not existing!")
                 quit()
 
-            while not valid_data_index.isEnd():
+            while not data_index.isEnd():
                 global_steps = sess.run(ordinal_model.global_steps)
 
                 batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
@@ -94,12 +72,12 @@ if __name__ == "__main__":
                 label_path_for_show = []
 
                 for b in range(batch_size):
-                    img_path_for_show.append(os.path.basename(valid_img_list[valid_data_index.val]))
-                    label_path_for_show.append(os.path.basename(valid_lbl_list[valid_data_index.val]))
+                    img_path_for_show.append(os.path.basename(img_list[data_index.val]))
+                    label_path_for_show.append(os.path.basename(lbl_list[data_index.val]))
 
-                    cur_img = cv2.imread(valid_img_list[valid_data_index.val])
-                    cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
-                    valid_data_index.val += 1
+                    cur_img = cv2.imread(img_list[data_index.val])
+                    cur_label = np.load(lbl_list[data_index.val]).tolist()
+                    data_index.val += 1
 
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
 
