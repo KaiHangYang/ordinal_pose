@@ -21,7 +21,7 @@ valid_batch_size = 3
 img_size = 256
 
 ######################## To modify #############################
-trash_log = "trash"
+trash_log = ""
 
 train_log_dir = "../"+trash_log+"logs/train/3_1_ord/train"
 valid_log_dir = "../"+trash_log+"logs/train/3_1_ord/valid"

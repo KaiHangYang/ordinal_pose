@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -8,11 +8,11 @@ import time
 
 sys.path.append("../")
 from net import ordinal_3_2
-from utils.dataread_utils import ordinal_3_1_reader
-from utils.preprocess_utils import ordinal_3_1 as preprocessor
+from utils.preprocess_utils import ordinal_3_2 as preprocessor
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
+from utils.postprocess_utils import volume_utils
 
 ##################### Setting for training ######################
 
@@ -26,8 +26,10 @@ section = "3_2"
 trash_log = "trash_"
 valid_log_dir = "../"+trash_log+"logs/evaluate/"+section+"_gt/valid"
 valid_data_source = "valid"
+coords_scale=1000.0
 ################################################################
-restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-300000"
+
+restore_model_path = "../models/"+section+"_gt/ordinal_"+section+"_gt-{}"
 learning_rate = 2.5e-4
 lr_decay_rate = 1.0
 lr_decay_step = 2000
@@ -38,6 +40,7 @@ valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_25
 valid_range_file = "../train/train_range/sec_3/"+valid_data_source+"_range.npy"
 
 #################################################################
+evaluation_models = [50000, 100000, 150000, 200000, 250000, 300000]
 
 if __name__ == "__main__":
 
@@ -46,16 +49,13 @@ if __name__ == "__main__":
     valid_range = np.load(valid_range_file)
     data_from = 0
     data_to = len(valid_range)
-    valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
     valid_img_list = [valid_img_path(i) for i in valid_range]
     valid_lbl_list = [valid_lbl_path(i) for i in valid_range]
 
     input_images = tf.placeholder(shape=[batch_size, img_size, img_size, 3], dtype=tf.float32)
     input_coords = tf.placeholder(shape=[batch_size, nJoints, 3], dtype=tf.float32)
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size=img_size, batch_size=batch_size, is_training=False)
-
-    gt_3_2_eval = evaluators.mEvaluator3_2_gt(nJoints=nJoints)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints, img_size=img_size, batch_size=batch_size, is_training=False, coords_scale=coords_scale)
 
     with tf.Session() as sess:
 
@@ -64,50 +64,56 @@ if __name__ == "__main__":
         ordinal_model.build_loss_gt(input_coords, learning_rate, lr_decay_rate=lr_decay_rate, lr_decay_step=lr_decay_step)
 
         print("Network built!")
-        valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
+        # valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
 
         model_saver = tf.train.Saver()
         net_init = tf.global_variables_initializer()
         sess.run([net_init])
         # reload the model
-        if os.path.exists(restore_model_path+".index"):
-            print("#######################Restored all weights ###########################")
-            model_saver.restore(sess, restore_model_path)
-        else:
-            print("The prev model is not existing!")
-            quit()
 
-        while not valid_data_index.isEnd():
-            global_steps = sess.run(ordinal_model.global_steps)
+        for cur_model_iterations in evaluation_models:
 
-            batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
-            batch_coords_np = np.zeros([batch_size, nJoints, 3], dtype=np.float32)
+            coords_eval = evaluators.mEvaluatorPose3D(nJoints=nJoints)
 
-            img_path_for_show = []
-            label_path_for_show = []
+            valid_data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
-            for b in range(batch_size):
-                img_path_for_show.append(os.path.basename(valid_img_list[valid_data_index.val]))
-                label_path_for_show.append(os.path.basename(valid_lbl_list[valid_data_index.val]))
+            if os.path.exists(restore_model_path.format(cur_model_iterations)+".index"):
+                print("#######################Restored all weights ###########################")
+                model_saver.restore(sess, restore_model_path.format(cur_model_iterations))
+            else:
+                print("The prev model is not existing!")
+                quit()
 
-                cur_img = cv2.imread(valid_img_list[valid_data_index.val])
-                cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
-                valid_data_index.val += 1
+            while not valid_data_index.isEnd():
+                global_steps = sess.run(ordinal_model.global_steps)
 
-                cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
+                batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
+                batch_coords_np = np.zeros([batch_size, nJoints, 3], dtype=np.float32)
 
-                cur_joints_3d = cur_joints[:, 2:5]
-                batch_coords_np[b] = cur_joints_3d - cur_joints_3d[0] # related to the root
-                batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
+                img_path_for_show = []
+                label_path_for_show = []
 
-            acc, coords, loss, summary  = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss, ordinal_model.merged_summary],
-                    feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
-            valid_log_writer.add_summary(summary, global_steps)
+                for b in range(batch_size):
+                    img_path_for_show.append(os.path.basename(valid_img_list[valid_data_index.val]))
+                    label_path_for_show.append(os.path.basename(valid_lbl_list[valid_data_index.val]))
 
-            gt_3_2_eval.add(batch_coords_np, coords)
+                    cur_img = cv2.imread(valid_img_list[valid_data_index.val])
+                    cur_label = np.load(valid_lbl_list[valid_data_index.val]).tolist()
+                    valid_data_index.val += 1
 
-            print("Iteration: {:07d} \nLoss : {:07f}\nCoords accuracy: {:07f}\n\n".format(global_steps, loss, acc))
-            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
-            gt_3_2_eval.printMean()
+                    cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
 
-        gt_3_2_eval.save("../eval_result/gt_3_2/eval")
+                    cur_joints_3d = cur_joints[:, 2:5]
+                    batch_coords_np[b] = (cur_joints_3d - cur_joints_3d[0]) / coords_scale # related to the root
+                    batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
+
+                acc, coords, loss = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss],
+                        feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
+
+                print("Iteration: {:07d} \nLoss : {:07f}\nCoords accuracy: {:07f}\n\n".format(global_steps, loss, acc))
+                print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+                coords_eval.add(coords_scale * batch_coords_np, coords_scale * coords)
+                coords_eval.printMean()
+                print("\n\n")
+
+            coords_eval.save("../eval_result/gt_3_2/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
