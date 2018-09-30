@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(1, 0)
 configs.print_configs()
 
-evaluation_models = [300000, 350000]
+evaluation_models = [300000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -77,8 +77,7 @@ if __name__ == "__main__":
                 print("The prev model is not existing!")
                 quit()
 
-            ##### First get the depth scale from the subset of the training set #####
-
+            ##################### First get the depth scale from the subset of the training set ######################
             cur_model_depth_scale = my_utils.mAverageCounter(shape=[1])
             scale_data_index = my_utils.mRangeVariable(min_val=scale_data_from, max_val=scale_data_to-1, initial_val=scale_data_from)
             while not scale_data_index.isEnd():
@@ -92,9 +91,9 @@ if __name__ == "__main__":
 
                 for b in range(configs.scale_batch_size):
 
-                    cur_img = cv2.imread(img_list[data_index.val])
-                    cur_label = np.load(lbl_list[data_index.val]).tolist()
-                    data_index.val += 1
+                    cur_img = cv2.imread(scale_img_list[scale_data_index.val])
+                    cur_label = np.load(scale_lbl_list[scale_data_index.val]).tolist()
+                    scale_data_index.val += 1
 
                     ########## Save the data for evaluation ###########
                     gt_joints_3d = cur_label["joints_3d"].copy()
@@ -119,11 +118,13 @@ if __name__ == "__main__":
 
                     scale_for_show.append(cur_scale)
 
-                print("Loss : {:07f} Scales: {}\n\n".format(loss, scale_for_show))
-                print("Cur Scale: {:07f}\n\n".format(cur_model_depth_scale.cur_average))
+                print("Iter: {:07d} Loss : {:07f} Scales: {}\n\n".format(scale_data_index.val, scale_loss, scale_for_show))
+                print("Cur Scale: {:07f}\n\n".format(cur_model_depth_scale.cur_average[0]))
+
+            ################################################################################################
 
             ##### Then evaluate it #####
-            cur_depth_scale = cur_model_depth_scale.cur_average
+            cur_depth_scale = cur_model_depth_scale.cur_average[0]
             print("Scale used to evaluate: {:07f}".format(cur_depth_scale))
 
             depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
@@ -178,7 +179,7 @@ if __name__ == "__main__":
                          ordinal_model.depth],
                         feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_batch_size: configs.batch_size})
 
-                print("Loss : {:07f}\n\n".format(loss))
+                print("Iter: {:07d}. Loss : {:07f}\n\n".format(data_index.val, loss))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
                 # multiply the scale

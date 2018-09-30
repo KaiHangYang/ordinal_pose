@@ -28,7 +28,7 @@ scale_lbl_path_fn = None
 # d means validset(0) or trainset(1)
 def parse_configs(t, d):
 
-    global depth_scale, weight_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn
+    global depth_scale, weight_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     eval_type = ["gt", "ord"][t]
     data_source = ["valid", "train"][d]
@@ -64,7 +64,7 @@ def parse_configs(t, d):
     restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), "3_1_{}/".format(eval_type) + config_parser.get("model", "prefix").format("3_1", eval_type, x))
 
 def print_configs():
-    global depth_scale, weight_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn
+    global depth_scale, weight_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
     print("##################### Evaluation Parameters #####################")
     print("##### Data Parameters")
     print("depth_scale: {}\nweight_scale: {}\nnJoints: {}\nbatch_size: {}\nimg_size: {}".format(depth_scale, weight_scale, nJoints, batch_size, img_size))
