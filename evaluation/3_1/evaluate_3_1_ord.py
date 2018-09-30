@@ -78,6 +78,7 @@ if __name__ == "__main__":
                 quit()
 
             ##################### First get the depth scale from the subset of the training set ######################
+
             cur_model_depth_scale = my_utils.mAverageCounter(shape=[1])
             scale_data_index = my_utils.mRangeVariable(min_val=scale_data_from, max_val=scale_data_to-1, initial_val=scale_data_from)
             while not scale_data_index.isEnd():
@@ -120,7 +121,6 @@ if __name__ == "__main__":
 
                 print("Iter: {:07d} Loss : {:07f} Scales: {}\n\n".format(scale_data_index.val, scale_loss, scale_for_show))
                 print("Cur Scale: {:07f}\n\n".format(cur_model_depth_scale.cur_average[0]))
-
             ################################################################################################
 
             ##### Then evaluate it #####
@@ -176,7 +176,7 @@ if __name__ == "__main__":
                 loss, \
                 depth  = sess.run(
                         [ordinal_model.loss,
-                         ordinal_model.depth],
+                         ordinal_model.result],
                         feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_batch_size: configs.batch_size})
 
                 print("Iter: {:07d}. Loss : {:07f}\n\n".format(data_index.val, loss))
@@ -186,7 +186,7 @@ if __name__ == "__main__":
                 depth = depth - depth[:, 0]
                 depth = cur_depth_scale * depth
 
-                depth_eval.add(gt_depth_arr, depth)
+                depth_eval.add(np.array(gt_depth_arr), depth)
                 depth_eval.printMean()
 
                 ############# evaluate the coords recovered from the gt 2d and gt root depth

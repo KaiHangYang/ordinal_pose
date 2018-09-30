@@ -1,90 +1,63 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
 import cv2
 import time
 
-sys.path.append("../")
+sys.path.append("../../")
 from net import ordinal_3_1
 from utils.dataread_utils import ordinal_3_1_reader as ordinal_reader
 from utils.preprocess_utils import ordinal_3_1 as preprocessor
 from utils.visualize_utils import display_utils
 
 ##################### Setting for training ######################
+import configs
 
-nJoints = 17
-train_batch_size = 4
-valid_batch_size = 3
-img_size = 256
+# t means gt(0) or ord(1)
+configs.parse_configs(0)
+configs.print_configs()
 
-######################## To modify #############################
-trash_log = "trash"
+train_log_dir = os.path.join(configs.log_dir, "train")
+valid_log_dir = os.path.join(configs.log_dir, "valid")
 
-train_log_dir = "../"+trash_log+"logs/train/3_1_gt/train"
-valid_log_dir = "../"+trash_log+"logs/train/3_1_gt/valid"
-model_dir = "../models/3_1_gt/"
-model_name = "ordinal_3_1_gt"
+if not os.path.exists(configs.model_dir):
+    os.makedirs(configs.model_dir)
 
-if not os.path.exists(model_dir):
-    os.makedirs(model_dir)
-
-is_restore = False
-restore_model_path = "../models/3_1_gt/ordinal_3_1_gt-300000"
-depth_scale = 1000.0
-loss_weight = 1000.0
-################################################################
-
-############### according to hourglass-tensorflow
-valid_iter = 3
-train_iter = 600000
-learning_rate = 2.5e-4
-lr_decay_rate = 1.0 # 0.96
-lr_decay_step = 2000
-
-train_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/images/{}.jpg".format(x)
-train_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/labels/{}.npy".format(x)
-
-valid_img_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/images/{}.jpg".format(x)
-valid_lbl_path = lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/labels/{}.npy".format(x)
-
-training_data_range_file = "./train_range/sec_3/train_range.npy"
-validing_data_range_file = "./train_range/sec_3/valid_range.npy"
-
+restore_model_iteration = None
 #################################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
-
-    ############################ range section 3 ##########################
-    train_range = np.load(training_data_range_file)
+    train_range = np.load(configs.train_range_file)
     np.random.shuffle(train_range)
 
-    valid_range = np.load(validing_data_range_file)
-    train_img_list = [train_img_path(i) for i in train_range]
-    train_lbl_list = [train_lbl_path(i) for i in train_range]
+    valid_range = np.load(configs.valid_range_file)
 
-    valid_img_list = [valid_img_path(i) for i in valid_range]
-    valid_lbl_list = [valid_lbl_path(i) for i in valid_range]
+    train_img_list = [configs.train_img_path_fn(i) for i in train_range]
+    train_lbl_list = [configs.train_lbl_path_fn(i) for i in train_range]
+
+    valid_img_list = [configs.valid_img_path_fn(i) for i in valid_range]
+    valid_lbl_list = [configs.valid_lbl_path_fn(i) for i in valid_range]
     ###################################################################
 
     with tf.device('/cpu:0'):
-        train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=train_batch_size, name="train_reader")
-        valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=valid_batch_size, name="valid_reader", is_shuffle=False)
+        train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=configs.train_batch_size, name="train_reader")
+        valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
-    input_images = tf.placeholder(shape=[None, img_size, img_size, 3], dtype=tf.float32)
-    input_depths = tf.placeholder(shape=[None, nJoints], dtype=tf.float32)
+    input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32)
+    input_depths = tf.placeholder(shape=[None, configs.nJoints], dtype=tf.float32)
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=nJoints, img_size=img_size, batch_size=input_batch_size, is_training=input_is_training, depth_scale=depth_scale, loss_weight=loss_weight)
+    ordinal_model = ordinal_3_1.mOrdinal_3_1(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, depth_scale=configs.depth_scale, loss_weight=configs.loss_weight)
 
     with tf.Session() as sess:
 
         ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_gt(input_depths, lr=learning_rate, lr_decay_step=lr_decay_step, lr_decay_rate=lr_decay_rate)
+        ordinal_model.build_loss_gt(input_depths, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
@@ -96,10 +69,10 @@ if __name__ == "__main__":
         sess.run([train_data_init_op, valid_data_init_op, net_init])
 
         # reload the model
-        if is_restore:
-            if os.path.exists(restore_model_path+".index"):
+        if restore_model_iteration is not None:
+            if os.path.exists(configs.model_path_fn(restore_model_iteration)+".index"):
                 print("#######################Restored all weights ###########################")
-                model_saver.restore(sess, restore_model_path)
+                model_saver.restore(sess, configs.model_path_fn(restore_model_iteration))
             else:
                 print("The prev model is not existing!")
                 quit()
@@ -111,7 +84,7 @@ if __name__ == "__main__":
         while True:
             global_steps = sess.run(ordinal_model.global_steps)
 
-            if valid_count == valid_iter:
+            if valid_count == configs.valid_iter:
                 valid_count = 0
                 is_valid = True
             else:
@@ -125,12 +98,12 @@ if __name__ == "__main__":
                 cur_data_batch = sess.run(train_data_iter)
 
             batch_size = len(cur_data_batch[0])
-            batch_images_np = np.zeros([batch_size, img_size, img_size, 3], dtype=np.float32)
-            batch_depth_np = np.zeros([batch_size, nJoints], dtype=np.float32)
+            batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+            batch_depth_np = np.zeros([batch_size, configs.nJoints], dtype=np.float32)
 
             # Generate the data batch
-            img_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
-            label_path_for_show = [[] for i in range(max(train_batch_size, valid_batch_size))]
+            img_path_for_show = [[] for i in range(max(configs.train_batch_size, configs.valid_batch_size))]
+            label_path_for_show = [[] for i in range(len(img_path_for_show))]
 
             for b in range(batch_size):
                 img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
@@ -144,7 +117,7 @@ if __name__ == "__main__":
                 # Cause the dataset is to large, test no augment
                 # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
 
-                batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / depth_scale # related to the root
+                batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / configs.depth_scale # related to the root
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas
@@ -167,7 +140,7 @@ if __name__ == "__main__":
                          ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np, input_is_training: False, input_batch_size: valid_batch_size})
+                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _,\
@@ -180,7 +153,7 @@ if __name__ == "__main__":
                          ordinal_model.accuracy,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np, input_is_training: True, input_batch_size: train_batch_size})
+                        feed_dict={input_images: batch_images_np, input_depths: batch_depth_np, input_is_training: True, input_batch_size: configs.train_batch_size})
                 train_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
@@ -189,7 +162,7 @@ if __name__ == "__main__":
             print("\n\n")
 
             if global_steps % 50000 == 0 and not is_valid:
-                model_saver.save(sess=sess, save_path=os.path.join(model_dir, model_name), global_step=global_steps)
+                model_saver.save(sess=sess, save_path=configs.model_path, global_step=global_steps)
 
-            if global_steps >= train_iter and not is_valid:
+            if global_steps >= configs.train_iter and not is_valid:
                 break
