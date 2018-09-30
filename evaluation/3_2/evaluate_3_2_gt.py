@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 global_steps = sess.run(ordinal_model.global_steps)
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-                batch_coords_np = np.zeros([configs.batch_size, configs.nJoints], dtype=np.float32)
+                batch_coords_np = np.zeros([configs.batch_size, configs.nJoints, 3], dtype=np.float32)
 
                 img_path_for_show = []
                 label_path_for_show = []
