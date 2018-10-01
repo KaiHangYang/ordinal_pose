@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 import tensorflow as tf
-truncated_normal_dev = 0.00001
+truncated_normal_dev = 0.01
 
 class mResidualUtils(object):
     def __init__(self, is_training=True, is_tiny=False, is_use_bias=True, is_bn_offset=True, is_bn_scale=True):
