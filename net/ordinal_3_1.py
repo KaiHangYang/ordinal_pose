@@ -93,7 +93,6 @@ class mOrdinal_3_1(object):
         with tf.device("/device:GPU:0"):
             self.loss = 0
             with tf.variable_scope("rank_loss"):
-                self.rank_loss = 0
                 row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
                 col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
 
