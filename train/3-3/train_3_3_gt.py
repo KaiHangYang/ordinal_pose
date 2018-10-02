@@ -127,8 +127,8 @@ if __name__ == "__main__":
                 hm_joint_3d = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
                 for j_idx in range(configs.nJoints):
-                    batch_heatmaps_np[b][:, :, j_idx] = preprocessor.make_gaussian(hm_joint_2d, size=configs.feature_map_size, ratio=2)
-                    batch_volumes_np[b][:, :, configs.feature_map_size*j_idx:configs.feature_map_size*(j_idx+1)] = preprocessor.make_gaussian_3d(hm_joint_3d, size=configs.feature_map_size, ratio=2)
+                    batch_heatmaps_np[b][:, :, j_idx] = preprocessor.make_gaussian(hm_joint_2d[j_idx], size=configs.feature_map_size, ratio=2)
+                    batch_volumes_np[b][:, :, configs.feature_map_size*j_idx:configs.feature_map_size*(j_idx+1)] = preprocessor.make_gaussian_3d(hm_joint_3d[j_idx], size=configs.feature_map_size, ratio=2)
 
                 ############### Visualize the augmentated datas
                 # show_img = cur_img.copy().astype(np.uint8)
