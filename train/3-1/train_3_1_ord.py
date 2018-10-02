@@ -49,6 +49,8 @@ if __name__ == "__main__":
         valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
+    input_depth = tf.placeholder(shape=[None, configs.nJoints], dtype=tf.float32, name="input_depth")
+
     input_relation_table = tf.placeholder(shape=[None, configs.nJoints, configs.nJoints], dtype=tf.float32, name="input_relation_table")
     input_loss_table_log = tf.placeholder(shape=[None, configs.nJoints, configs.nJoints], dtype=tf.float32, name="input_loss_table_log")
     input_loss_table_pow = tf.placeholder(shape=[None, configs.nJoints, configs.nJoints], dtype=tf.float32, name="input_loss_table_pow")
@@ -61,7 +63,7 @@ if __name__ == "__main__":
     with tf.Session() as sess:
 
         ordinal_model.build_model(input_images)
-        ordinal_model.build_loss_no_gt(relation_table=input_relation_table, loss_table_log=input_loss_table_log, loss_table_pow=input_loss_table_pow, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
+        ordinal_model.build_loss_no_gt(gt_depth=input_depth, relation_table=input_relation_table, loss_table_log=input_loss_table_log, loss_table_pow=input_loss_table_pow, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
@@ -105,6 +107,7 @@ if __name__ == "__main__":
 
             batch_size = len(cur_data_batch[0])
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+            batch_depth_np = np.zeros([batch_size, configs.nJoints], dtype=np.float32)
             batch_relation_table_np = np.zeros([batch_size, configs.nJoints, configs.nJoints], dtype=np.float32)
             batch_loss_table_log_np = np.zeros([batch_size, configs.nJoints, configs.nJoints], dtype=np.float32)
             batch_loss_table_pow_np = np.zeros([batch_size, configs.nJoints, configs.nJoints], dtype=np.float32)
@@ -125,31 +128,36 @@ if __name__ == "__main__":
                 # Cause the dataset is to large, test no augment
                 # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
+                batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2]
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
 
             if is_valid:
+                acc, \
                 loss, \
                 lr, \
                 summary  = sess.run(
-                        [ordinal_model.loss,
-                         ordinal_model.lr,
-                         ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
-                valid_log_writer.add_summary(summary, global_steps)
-            else:
-                _,\
-                loss,\
-                lr,\
-                summary  = sess.run(
-                        [ordinal_model.train_op,
+                        [ordinal_model.accuracy,
                          ordinal_model.loss,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_is_training: False, input_batch_size: configs.valid_batch_size, input_depth: batch_depth_np})
+                valid_log_writer.add_summary(summary, global_steps)
+            else:
+                _,\
+                acc, \
+                loss,\
+                lr,\
+                summary  = sess.run(
+                        [ordinal_model.accuracy,
+                         ordinal_model.train_op,
+                         ordinal_model.loss,
+                         ordinal_model.lr,
+                         ordinal_model.merged_summary],
+                        feed_dict={input_images: batch_images_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_is_training: True, input_batch_size: configs.train_batch_size, input_depth: batch_depth_np})
                 train_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
-            print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\n\n\n".format(global_steps, lr, loss))
+            print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\nAcc : {:07f}\n\n\n".format(global_steps, lr, loss, acc))
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 

@@ -86,18 +86,26 @@ class mOrdinal_3_1(object):
 
         self.merged_summary = tf.summary.merge_all()
 
-    def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr, lr_decay_step, lr_decay_rate):
+    def build_loss_no_gt(self, gt_depth, relation_table, loss_table_log, loss_table_pow, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.device("/device:GPU:0"):
+            self.loss = 0
             with tf.variable_scope("rank_loss"):
-                self.loss = 0
+                self.rank_loss = 0
                 row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
                 col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
 
                 rel_distance = (row_val - col_val)
-                self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+                self.rank_loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+
+            ############## Test ordinal supervision with gt supervision ##############
+            with tf.variable_scope("gt_loss"):
+                self.gt_loss = tf.nn.l2_loss(gt_depth - self.result, name="l2_loss") / self.batch_size
+
+            self.loss = self.rank_loss + self.gt_loss
+            ##########################################################################
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
@@ -112,9 +120,10 @@ class mOrdinal_3_1(object):
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
-        # with tf.variable_scope("cal_accuracy"):
-            # self.accuracy = self.cal_accuracy(input_depth, self.result)
-        # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+        with tf.variable_scope("cal_accuracy"):
+            self.accuracy = self.cal_accuracy(input_depth, self.result)
+
+        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("rank_loss", self.loss)
         tf.summary.scalar("learning_rate", self.lr)
 
