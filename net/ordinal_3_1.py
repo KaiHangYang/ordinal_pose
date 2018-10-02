@@ -120,7 +120,7 @@ class mOrdinal_3_1(object):
             self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
         with tf.variable_scope("cal_accuracy"):
-            self.accuracy = self.cal_accuracy(input_depth, self.result)
+            self.accuracy = self.cal_accuracy(gt_depth, self.result)
 
         tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("rank_loss", self.loss)
