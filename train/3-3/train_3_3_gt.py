@@ -61,8 +61,8 @@ if __name__ == "__main__":
         ordinal_model.build_loss_gt(input_heatmaps=input_heatmaps, input_volumes=input_volumes, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
-        train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
-        valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
+        # train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
+        # valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
 
         model_saver = tf.train.Saver(max_to_keep=70)
         net_init = tf.global_variables_initializer()
@@ -101,7 +101,7 @@ if __name__ == "__main__":
             batch_size = len(cur_data_batch[0])
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
             batch_heatmaps_np = np.zeros([batch_size, configs.feature_map_size, configs.feature_map_size, configs.nJoints], dtype=np.float32)
-            batch_volumes_np = np.zeros([batch_size, configs.feature_map_size, configs.feature_map_size, configs.nJoints], dtype=np.float32)
+            batch_volumes_np = np.zeros([batch_size, configs.feature_map_size, configs.feature_map_size, configs.nJoints*configs.feature_map_size], dtype=np.float32)
 
             # Generate the data batch
             img_path_for_show = [[] for i in range(max(configs.train_batch_size, configs.valid_batch_size))]
@@ -147,13 +147,13 @@ if __name__ == "__main__":
                 volume_loss, \
                 lr, \
                 summary  = sess.run(
-                        [ordinal_model.loss,
+                        [ordinal_model.total_loss,
                          ordinal_model.heatmap_loss,
                          ordinal_model.volume_loss,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_heatmaps: batch_heatmaps_np, input_volumes: batch_volumes_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
-                valid_log_writer.add_summary(summary, global_steps)
+                # valid_log_writer.add_summary(summary, global_steps)
             else:
                 _,\
                 loss,\
@@ -162,16 +162,16 @@ if __name__ == "__main__":
                 lr,\
                 summary  = sess.run(
                         [ordinal_model.train_op,
-                         ordinal_model.loss,
+                         ordinal_model.total_loss,
                          ordinal_model.heatmap_loss,
                          ordinal_model.volume_loss,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_heatmaps: batch_heatmaps_np, input_volumes: batch_volumes_np, input_is_training: True, input_batch_size: configs.train_batch_size})
-                train_log_writer.add_summary(summary, global_steps)
+                # train_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
-            print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmap Loss: {:07f}\nVolume Loss: {:07f}\n\n".format(global_steps, lr, loss, acc))
+            print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmap Loss: {:07f}\nVolume Loss: {:07f}\n\n".format(global_steps, lr, loss, heatmap_loss, volume_loss))
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
