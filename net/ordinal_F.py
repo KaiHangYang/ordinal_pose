@@ -11,7 +11,9 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mOrdinal_F(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_volume=1.0):
+        self.loss_weight_heatmap = loss_weight_heatmap
+        self.loss_weight_volume = loss_weight_volume
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -64,8 +66,8 @@ class mOrdinal_F(object):
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.variable_scope("losses"):
-            self.heatmap_loss = tf.nn.l2_loss(input_heatmaps - self.heatmaps, name="heatmap_loss") / self.batch_size
-            self.volume_loss = tf.nn.l2_loss(input_volumes - self.volumes, name="volume_loss") / self.batch_size
+            self.heatmap_loss = tf.nn.l2_loss(input_heatmaps - self.heatmaps, name="heatmap_loss") / self.batch_size * self.loss_weight_heatmap
+            self.volume_loss = tf.nn.l2_loss(input_volumes - self.volumes, name="volume_loss") / self.batch_size * self.loss_weight_volume
 
             self.total_loss = self.heatmap_loss + self.volume_loss
 
@@ -80,13 +82,15 @@ class mOrdinal_F(object):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         print("Update_ops num {}".format(len(update_ops)))
         with tf.control_dependencies(update_ops):
-            self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
+            self.train_op = self.optimizer.minimize(self.total_loss, self.global_steps)
 
-        with tf.variable_scope("cal_accuracy"):
-            self.accuracy = self.cal_accuracy(input_depth, self.result)
+        # with tf.variable_scope("cal_accuracy"):
+            # self.accuracy = self.cal_accuracy(input_depth, self.result)
 
-        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
-        tf.summary.scalar("depth_l2_loss", self.loss)
+        # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+        tf.summary.scalar("total_loss_scalar", self.total_loss)
+        tf.summary.scalar("heatmap_loss_scalar", self.heatmap_loss)
+        tf.summary.scalar("volume_loss_scalar", self.volume_loss)
         tf.summary.scalar("learning_rate", self.lr)
 
         self.merged_summary = tf.summary.merge_all()

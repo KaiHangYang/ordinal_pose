@@ -16,7 +16,7 @@ import time
              size: the heatmap size
              ratio: the gaussian ratio
 '''
-def make_gaussian(point, size=46, ratio=3):
+def make_gaussian(point, size=64, ratio=2):
     if point[0] <= 0.000001 and point[1] <= 0.000001:
         return np.zeros((size, size), np.float32)
 
@@ -27,6 +27,22 @@ def make_gaussian(point, size=46, ratio=3):
 
     heatmap = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / 2.0 / ratio/ ratio)
     return heatmap
+
+### Pay attentaion, the function is only used under (n, h, w, c) mode
+def make_gaussian_3d(point, size=64, ratio=2):
+    if point[0] < 0.0000001 and point[1] < 0.0000001 and point[2] < 0.0000001:
+        return np.zeros((size, size, size), np.float32)
+
+    z = np.arange(0, size, 1, np.float32)
+    x = z[:, np.newaxis]
+    y = x[:, np.newaxis]
+
+    x0 = point[0]
+    y0 = point[1]
+    z0 = point[2]
+
+    heatmaps_3d = np.exp(-((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / 2.0 / ratio /ratio)
+    return heatmaps_3d
 
 '''
  Functional: Augmentate the 2d data
@@ -218,4 +234,3 @@ def get_relation_table(joints_z):
                 loss_table_pow[i, j] = 0
 
     return relation_table, loss_table_log, loss_table_pow
-
