@@ -1,3 +1,6 @@
+[DEFAULT]
+PROJ_ROOT_DIR = /home/kaihang/Projects/ordinal_pose
+
 [data]
 nJoints = 17
 batch_size = 1
@@ -5,7 +8,7 @@ img_size = 256
 
 [dataset]
 base_dir = /home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256
-range_file_dir = /home/kaihang/Projects/ordinal_pose/data_range/sec_3
+range_file_dir = %(PROJ_ROOT_DIR)s/data_range/sec_3
 
 [train]
 learning_rate = 2.5e-4
@@ -13,8 +16,8 @@ lr_decay_rate = 1.0
 lr_decay_step = 2000
 
 [log]
-base_dir = /home/kaihang/Projects/ordinal_pose/logs
+base_dir = %(PROJ_ROOT_DIR)s/logs
 
 [model]
-base_dir = /home/kaihang/Projects/ordinal_pose/models
+base_dir = %(PROJ_ROOT_DIR)s/models
 prefix = ordinal_{}_{}-{}
