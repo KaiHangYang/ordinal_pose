@@ -128,7 +128,7 @@ if __name__ == "__main__":
                 # Cause the dataset is to large, test no augment
                 # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
-                batch_depth_np[b] = cur_joints[:, 2] - cur_joints[0, 2]
+                batch_depth_np[b] = (cur_joints[:, 2] - cur_joints[0, 2]) / configs.depth_scale
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
 
             if is_valid:

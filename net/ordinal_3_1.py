@@ -101,9 +101,10 @@ class mOrdinal_3_1(object):
 
             ############## Test ordinal supervision with gt supervision ##############
             with tf.variable_scope("gt_loss"):
-                self.gt_loss = tf.nn.l2_loss(gt_depth - self.result, name="l2_loss") / self.batch_size
+                self.gt_loss = tf.nn.l2_loss(gt_depth - self.result, name="l2_loss") / self.batch_size * self.loss_weight
 
-            self.loss = self.rank_loss + self.gt_loss
+            with tf.variable_scope("Total_loss"):
+                self.loss = self.rank_loss + self.gt_loss
             ##########################################################################
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
