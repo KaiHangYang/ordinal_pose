@@ -1,0 +1,26 @@
+[DEFAULT]
+PROJ_ROOT_DIR = /home/kaihang/Projects/ordinal_depth_tf
+
+[data]
+nJoints = 17
+train_batch_size = 4
+valid_batch_size = 3
+img_size = 256
+train_iter = 600000
+valid_iter = 10
+
+[dataset]
+base_dir = /home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256
+range_file_dir = %(PROJ_ROOT_DIR)s/data_range/sec_3
+
+[train]
+learning_rate = 2.5e-4
+lr_decay_rate = 1.0
+lr_decay_step = 2000
+
+[log]
+base_dir = %(PROJ_ROOT_DIR)s/logs
+
+[model]
+base_dir = %(PROJ_ROOT_DIR)s/models
+prefix = ordinal_{}_{}-{}

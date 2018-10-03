@@ -26,7 +26,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = 10000
+restore_model_iteration = 50000
 is_reset_global_steps = True
 #################################################################
 
