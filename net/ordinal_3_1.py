@@ -51,7 +51,7 @@ class mOrdinal_3_1(object):
 
             with tf.variable_scope("final_fc"):
                 net = tf.layers.flatten(net)
-                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.initializers.truncated_normal(stddev=0.0001), name="fc")
+                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.initializers.truncated_normal(stddev=0.01), name="fc")
 
     def cal_accuracy(self, gt_depth, pd_depth):
         accuracy = tf.reduce_mean(tf.abs(self.depth_scale * gt_depth - self.depth_scale * pd_depth))
@@ -97,7 +97,8 @@ class mOrdinal_3_1(object):
                 col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
 
                 rel_distance = (row_val - col_val)
-                self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+                # Softplus is log(1 + exp(x)) and without overflow
+                self.loss = tf.reduce_sum(loss_table_log * tf.math.softplus(relation_table * rel_distance) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
