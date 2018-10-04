@@ -12,7 +12,7 @@ import hourglass
 # is_training is a tensor or a python bool
 class mOrdinal_3_2(object):
 
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, coords_scale=1000.0, coords_scale_2d=255.0, keyp_loss_weight=100.0, rank_loss_weight=1.0, coords_loss_weight=1000.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, coords_scale=1000.0, coords_2d_scale=255.0, keyp_loss_weight=100.0, rank_loss_weight=1.0, coords_loss_weight=1000.0):
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -21,7 +21,7 @@ class mOrdinal_3_2(object):
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
         self.coords_scale = coords_scale
-        self.coords_scale_2d = coords_scale_2d
+        self.coords_2d_scale = coords_2d_scale
 
         self.coords_loss_weight = coords_loss_weight
         self.keyp_loss_weight = keyp_loss_weight
@@ -63,7 +63,7 @@ class mOrdinal_3_2(object):
         return accuracy
 
     def cal_accuracy_2d(self, gt_joints_2d, pd_joints_2d):
-        accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(self.coords_scale_2d * gt_joints_2d - self.coords_scale_2d * pd_joints_2d, 2), axis=2)))
+        accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(self.coords_2d_scale * gt_joints_2d - self.coords_2d_scale * pd_joints_2d, 2), axis=2)))
         return accuracy
 
     # The fully supervision of the 3d coords: joints are all related to root!
@@ -99,16 +99,16 @@ class mOrdinal_3_2(object):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
+        result_coords_2d = self.result[:, :, 0:2]
+        result_depth = self.result[:, :, 2]
+
         with tf.device("/device:GPU:0"):
             with tf.variable_scope("loss_calculation"):
                 self.loss = 0
 
-                result_coords_2d = self.result[:, :, 0:2]
-                result_depth = self.result[:, :, 2]
-
                 with tf.variable_scope("rank_loss"):
-                    row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
-                    col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
+                    row_val = tf.tile(result_depth[:, :, tf.newaxis], [1, 1, self.nJoints])
+                    col_val = tf.tile(result_depth[:, tf.newaxis], [1, self.nJoints, 1])
 
                     rel_distance = (row_val - col_val)
                     # Softplus is log(1 + exp(x)) and without overflow

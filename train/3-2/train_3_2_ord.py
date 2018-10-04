@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, rank_loss_weight=1.0, keyp_loss_weight=100.0)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, coords_2d_scale=configs.coords_2d_scale, rank_loss_weight=1.0, keyp_loss_weight=100.0)
 
     with tf.Session() as sess:
 
