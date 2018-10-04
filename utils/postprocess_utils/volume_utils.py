@@ -62,3 +62,14 @@ def put_cropped_back(cropped_img, center, scale, crop_box_size=256, wnd_width=10
     raw_img[r_t:r_b, r_l:r_r] = cv2.resize(cropped_img[c_t:c_b, c_l:c_r], c_size)
 
     return raw_img
+
+# Volume size 64*64*17*64
+def get_joints_from_volume(volumes, volume_size=64, nJoints=17):
+    joints = np.zeros([nJoints, 3], dtype=np.float32)
+
+    for j_idx in range(nJoints):
+        cur_vols = volumes[:, :, volume_size*j_idx:volume_size*(j_idx + 1)]
+        vol_joints = np.unravel_index(np.argmax(cur_vols), [volume_size, volume_size, volume_size])
+        joints[j_idx] = [vol_joints[1], vol_joints[0], vol_joints[2]]
+
+    return joints
