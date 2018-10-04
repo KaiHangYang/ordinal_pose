@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(1, 0)
 configs.print_configs()
 
-evaluation_models = [50000, 100000, 150000, 200000, 250000]
+evaluation_models = [50000, 100000, 150000, 200000, 250000, 300000]
 ###############################################################
 
 if __name__ == "__main__":

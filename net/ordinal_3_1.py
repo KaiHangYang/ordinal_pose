@@ -34,8 +34,7 @@ class mOrdinal_3_1(object):
                                  padding="SAME",
                                  use_bias=self.is_use_bias,
                                  activation=None,
-                                 # kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                 kernel_initializer=tf.initializers.truncated_normal(stddev=0.01),
+                                 # kernel_initializer=tf.contrib.layers.xavier_initializer(), # default is it
                                  name="conv")
                 first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
 
@@ -51,7 +50,7 @@ class mOrdinal_3_1(object):
 
             with tf.variable_scope("final_fc"):
                 net = tf.layers.flatten(net)
-                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.initializers.truncated_normal(stddev=0.01), name="fc")
+                self.result = tf.layers.dense(inputs=net, units=self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
 
     def cal_accuracy(self, gt_depth, pd_depth):
         accuracy = tf.reduce_mean(tf.abs(self.depth_scale * gt_depth - self.depth_scale * pd_depth))

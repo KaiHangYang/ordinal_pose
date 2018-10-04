@@ -23,7 +23,7 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [300000, 350000]
+evaluation_models = [300000]
 ###############################################################
 
 if __name__ == "__main__":
