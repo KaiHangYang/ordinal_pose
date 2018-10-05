@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(1, 0)
 configs.print_configs()
 
-evaluation_models = [50000, 100000, 150000, 200000, 250000, 300000]
+evaluation_models = [250000, 300000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -133,6 +133,7 @@ if __name__ == "__main__":
 
             ##### Then evaluate it #####
             cur_depth_scale = cur_model_depth_scale.cur_average[0]
+            # cur_depth_scale = 120
             print("Scale used to evaluate: {:07f}".format(cur_depth_scale))
 
             depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)

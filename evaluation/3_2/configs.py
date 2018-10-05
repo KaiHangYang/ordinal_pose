@@ -21,7 +21,7 @@ global restore_model_path_fn
 ###############################
 
 ##### The parameters below only used in the ordinal mode
-scale_batch_size = 4
+scale_batch_size = 1
 scale_range_file = None
 scale_img_path_fn = None
 scale_lbl_path_fn = None

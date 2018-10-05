@@ -145,7 +145,7 @@ if __name__ == "__main__":
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_volumes: batch_volumes_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
-                # valid_log_writer.add_summary(summary, global_steps)
+                valid_log_writer.add_summary(summary, global_steps)
             else:
                 _,\
                 loss,\
@@ -156,7 +156,7 @@ if __name__ == "__main__":
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_volumes: batch_volumes_np, input_is_training: True, input_batch_size: configs.train_batch_size})
-                # train_log_writer.add_summary(summary, global_steps)
+                train_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\n\n".format(global_steps, lr, loss))

@@ -3,7 +3,7 @@ import sys
 import cv2
 import numpy as np
 
-sys.path.append("../")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common_utils import h36m_camera
 
 # The depths is related to the root joints

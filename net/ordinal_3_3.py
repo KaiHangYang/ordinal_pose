@@ -40,8 +40,20 @@ class mOrdinal_3_3(object):
 
             self.volumes = tf.layers.conv2d(inputs=lin2, filters=self.nJoints*64, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 
-    def cal_accuracy(self, gt_volume, pd_volume):
-        pass
+    def get_joints(self, volumes, name="volume_to_joints"):
+        # volume shape (batch_size, feature_size, feature_size, feature_size * nJoints)
+        with tf.variable_scope(name):
+            all_joints = []
+            for i in range(self.nJoints):
+                cur_volume = volumes[:, :, :, 64*i:64*(i+1)]
+                cur_joints = tf.transpose(tf.unravel_index(tf.argmax(tf.layers.flatten(cur_volume), axis=1), [64, 64, 64]))[:, np.newaxis]
+                all_joints.append(tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, np.newaxis]], axis=2))
+
+            return tf.concat(all_joints, axis=1)
+
+    def cal_accuracy(self, gt_joints, pd_joints):
+        accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
+        return accuracy
 
     # ordinal_3_3 with ground true volumes
     def build_loss_gt(self, input_volumes, lr, lr_decay_step, lr_decay_rate):
@@ -53,22 +65,19 @@ class mOrdinal_3_3(object):
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
-
-        # for g, v in grads_n_vars:
-            # tf.summary.histogram(v.name, v)
-            # tf.summary.histogram(v.name+"_grads", g)
-
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         print("Update_ops num {}".format(len(update_ops)))
-
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
-        # with tf.variable_scope("cal_accuracy"):
-            # self.accuracy = self.cal_accuracy(input_depth, self.result)
+        gt_joints = self.get_joints(input_volumes, name="gt_joints")
+        pd_joints = self.get_joints(self.volumes, name="pd_joints")
 
-        # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+        with tf.variable_scope("cal_accuracy"):
+            self.accuracy = self.cal_accuracy(gt_joints, pd_joints)
+
+        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("loss", self.loss)
         tf.summary.scalar("learning_rate", self.lr)
 
