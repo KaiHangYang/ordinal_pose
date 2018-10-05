@@ -40,10 +40,7 @@ class mOrdinal_3_3(object):
 
             self.volumes = tf.layers.conv2d(inputs=lin2, filters=self.nJoints*64, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 
-
     def cal_accuracy(self, gt_volume, pd_volume):
-        # accuracy = tf.reduce_mean(tf.abs(self.depth_scale * gt_depth - self.depth_scale * pd_depth))
-        # return accuracy
         pass
 
     # ordinal_3_3 with ground true volumes

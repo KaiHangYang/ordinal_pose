@@ -54,10 +54,10 @@ if __name__ == "__main__":
             cur_joints_zidx = cur_label["joints_zidx"].copy() - 1
             cur_joints = np.concatenate([cur_label["joints_2d"] / 4, cur_joints_zidx[:, np.newaxis]], axis=1)
 
-            all_vols = np.zeros([1, 64, 64, 64*17], dtype=np.float32)
+            all_vols = np.zeros([64, 64, 64*17], dtype=np.float32)
 
             for j_idx in range(configs.nJoints):
-                all_vols[:, :, :, 64*j_idx:64*(j_idx+1)] = preprocessor.make_gaussian_3d(cur_joints[j_idx], size=64, ratio=2)
+                all_vols[:, :, 64*j_idx:64*(j_idx+1)] = preprocessor.make_gaussian_3d(cur_joints[j_idx], size=64, ratio=2)
             vol_joints = volume_utils.get_joints_from_volume(all_vols, volume_size=64, nJoints=17)
 
-            np.max(np.abs(cur_joints - vol_joints))
+            print(np.max(np.abs(cur_joints - vol_joints)))
