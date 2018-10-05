@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -127,7 +127,7 @@ if __name__ == "__main__":
                     scale_for_show.append(cur_scale)
 
                 print("Iter: {:07d} Loss : {:07f} Scales: {}\n\n".format(scale_data_index.val, scale_loss, scale_for_show))
-                print("Accuracy 2D: {:07d}".format(scale_acc_2d))
+                print("Accuracy 2D: {:07f}".format(scale_acc_2d))
                 print("Cur Scale: {:07f}\n\n".format(cur_model_depth_scale.cur_average[0]))
             ################################################################################################
 
