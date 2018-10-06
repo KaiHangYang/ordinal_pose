@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(1, 0)
 configs.print_configs()
 
-evaluation_models = [250000, 300000]
+evaluation_models = [300000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -133,7 +133,6 @@ if __name__ == "__main__":
 
             ##### Then evaluate it #####
             cur_depth_scale = cur_model_depth_scale.cur_average[0]
-            # cur_depth_scale = 120
             print("Scale used to evaluate: {:07f}".format(cur_depth_scale))
 
             depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
@@ -206,7 +205,7 @@ if __name__ == "__main__":
                 ############# evaluate the coords recovered from the pd 2d and gt root depth
                 for b in range(configs.batch_size):
                     c_j_2d, c_j_3d, _ = volume_utils.local_to_global(result_depth[b], depth_root_arr[b], result_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    coords_eval.add(gt_joints_3d_arr[b], c_j_3d)
+                    coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], c_j_3d - c_j_3d[0])
 
                 coords_eval.printMean()
                 print("\n\n")

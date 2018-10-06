@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [300000, 250000]
+evaluation_models = [225000, 200000, 175000, 150000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -135,7 +135,9 @@ if __name__ == "__main__":
                 for b in range(configs.batch_size):
                     c_j_2d_pd, c_j_3d_pd, _ = volume_utils.local_to_global(pd_depth[b], depth_root_arr[b], pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
                     c_j_2d_gt, c_j_3d_gt, _ = volume_utils.local_to_global(gt_depth[b], depth_root_arr[b], gt_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    coords_eval.add(c_j_3d_gt, c_j_3d_pd)
+                    # Here I used the root aligned pose to evaluate the error
+                    # according to https://github.com/geopavlakos/c2f-vol-demo/blob/master/matlab/utils/errorH36M.m
+                    coords_eval.add(c_j_3d_gt-c_j_3d_gt[0], c_j_3d_pd-c_j_3d_pd[0])
 
                 coords_eval.printMean()
                 print("\n\n")
