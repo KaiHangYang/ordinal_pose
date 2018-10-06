@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, coords_2d_scale=configs.coords_2d_scale, rank_loss_weight=1.0, keyp_loss_weight=100.0)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, coords_2d_scale=configs.coords_2d_scale, rank_loss_weight=1.0, keyp_loss_weight=1000.0)
 
     with tf.Session() as sess:
 
@@ -118,10 +118,10 @@ if __name__ == "__main__":
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
-                # cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
 
-                cur_joints_2d = cur_joints[:, 0:2]
-                cur_joints_3d = cur_joints[:, 2:5]
+                # cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, do_rotate=True)
+                cur_joints_2d = cur_joints[:, 0:2].copy()
+                cur_joints_3d = cur_joints[:, 2:5].copy()
 
                 batch_coords_2d_np[b] = (cur_joints_2d / configs.coords_2d_scale).copy()
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints_3d[:, 2])

@@ -40,16 +40,22 @@ class mOrdinal_3_3(object):
 
             self.volumes = tf.layers.conv2d(inputs=lin2, filters=self.nJoints*64, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 
+    # It is too slow, so when training, don't use it !!!!!!
+
     def get_joints(self, volumes, name="volume_to_joints"):
         # volume shape (batch_size, feature_size, feature_size, feature_size * nJoints)
-        with tf.variable_scope(name):
-            all_joints = []
-            for i in range(self.nJoints):
-                cur_volume = volumes[:, :, :, 64*i:64*(i+1)]
-                cur_joints = tf.transpose(tf.unravel_index(tf.argmax(tf.layers.flatten(cur_volume), axis=1), [64, 64, 64]))[:, np.newaxis]
-                all_joints.append(tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, np.newaxis]], axis=2))
+        with tf.device("/device:GPU:0"):
+            with tf.variable_scope(name):
+                all_joints = []
+                for i in range(self.nJoints):
+                    cur_volume = volumes[:, :, :, 64*i:64*(i+1)]
+                    cur_argmax_index = tf.argmax(tf.layers.flatten(cur_volume), axis=1)
 
-            return tf.concat(all_joints, axis=1)
+                    with tf.device("cpu:0"):
+                        cur_joints = tf.transpose(tf.unravel_index(cur_argmax_index, [64, 64, 64]))[:, np.newaxis]
+                    all_joints.append(tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, np.newaxis]], axis=2))
+
+                return tf.cast(tf.concat(all_joints, axis=1), tf.float32)
 
     def cal_accuracy(self, gt_joints, pd_joints):
         accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
@@ -71,13 +77,12 @@ class mOrdinal_3_3(object):
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
-        gt_joints = self.get_joints(input_volumes, name="gt_joints")
-        pd_joints = self.get_joints(self.volumes, name="pd_joints")
+        self.gt_joints = self.get_joints(input_volumes, name="gt_joints")
+        self.pd_joints = self.get_joints(self.volumes, name="pd_joints")
+        # with tf.variable_scope("cal_accuracy"):
+            # self.accuracy = self.cal_accuracy(self.gt_joints, self.pd_joints)
 
-        with tf.variable_scope("cal_accuracy"):
-            self.accuracy = self.cal_accuracy(gt_joints, pd_joints)
-
-        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+        # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("loss", self.loss)
         tf.summary.scalar("learning_rate", self.lr)
 

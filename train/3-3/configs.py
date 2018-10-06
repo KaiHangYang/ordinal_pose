@@ -3,6 +3,9 @@ import os
 import sys
 
 #### Training Parameters ####
+depth_scale = None
+coords_2d_scale = None
+
 feature_map_size = None
 loss_weight_heatmap = None
 loss_weight_volume = None
@@ -31,7 +34,7 @@ valid_iter = None
 # t means gt(0) or ord(1)
 def parse_configs(t):
 
-    global loss_weight_heatmap, loss_weight_volume, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size
+    global loss_weight_heatmap, loss_weight_volume, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, depth_scale, coords_2d_scale
 
     train_type = ["gt", "ord"][t]
 
@@ -39,6 +42,9 @@ def parse_configs(t):
     ### The train.conf is in the same directory with this script
     config_parser = ConfigParser.SafeConfigParser()
     config_parser.read(os.path.join(TRAIN_ROOT_DIR, "train.conf"))
+
+    depth_scale = 1000.0 / 32.0
+    coords_2d_scale = 4
 
     loss_weight_heatmap = 1.0
     loss_weight_volume = 1.0
@@ -74,11 +80,12 @@ def parse_configs(t):
     model_path = model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_volume, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size
+    global loss_weight_heatmap, loss_weight_volume, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, depth_scale, coords_2d_scale
     print("##################### Training Parameters #####################")
     print("##### Data Parameters")
     print("loss_weight_heatmap: {}\nloss_weight_volume: {}\nnJoints: {}\ntrain_batch_size: {}\nvalid_batch_size: {}\nimg_size: {}\ntrain_iter: {}\nvalid_iter: {}".format(loss_weight_heatmap, loss_weight_volume, nJoints, train_batch_size, valid_batch_size, img_size, train_iter, valid_iter))
     print("feature_map_size: {}".format(feature_map_size))
+    print("depth_scale: {}\ncoords_2d_scale: {}".format(depth_scale, coords_2d_scale))
     print("##### Learn Parameters")
     print("learning_rate: {}\nlr_decay_rate: {}\nlr_decay_step: {}".format(learning_rate, lr_decay_rate, lr_decay_step))
     print("log_dir: {}".format(log_dir))

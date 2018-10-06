@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 import numpy as np
 import sys
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
                 # Cause the dataset is to large, test no augment
-                # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
 

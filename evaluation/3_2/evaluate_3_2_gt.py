@@ -90,10 +90,14 @@ if __name__ == "__main__":
                     batch_coords_np[b] = (cur_joints_3d - cur_joints_3d[0]) / configs.coords_scale # related to the root
                     batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
+                forward_time = time.clock()
                 acc, coords, loss = sess.run([ordinal_model.accuracy, ordinal_model.result, ordinal_model.loss],
                         feed_dict={input_images: batch_images_np, input_coords: batch_coords_np})
 
+                forward_time = time.clock() - forward_time
+
                 print("Iteration: {:07d} \nLoss : {:07f}\nCoords accuracy: {:07f}\n\n".format(global_steps, loss, acc))
+                print("Forward time: {:07f}".format(forward_time))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
                 coords_eval.add(configs.coords_scale * batch_coords_np, configs.coords_scale * coords)
