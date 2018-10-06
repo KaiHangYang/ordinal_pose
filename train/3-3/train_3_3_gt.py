@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_joints_zidx[:, np.newaxis]], axis=1)
 
                 # Cause the dataset is to large, test no augment first
-                # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 hm_joint_2d = cur_joints[:, 0:2] / configs.coords_2d_scale
