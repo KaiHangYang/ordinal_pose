@@ -48,7 +48,7 @@ if __name__ == "__main__":
         valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32)
-    input_volumes = tf.placeholder(shape=[None, configs.feature_map_size, configs.feature_map_size, configs.nJoints * configs.feature_map_size], dtype=tf.float32)
+    input_centers = tf.placeholder(shape=[None, configs.nJoints, 3], dtype=tf.float32)
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
 
@@ -56,7 +56,9 @@ if __name__ == "__main__":
 
     with tf.Session() as sess:
 
-        ordinal_model.build_model(input_images)
+        with tf.device("/device:GPU:0"):
+            ordinal_model.build_model(input_images)
+            input_volumes = ordinal_model.build_input_volumes(input_centers, stddev=2.0, name="input_volumes")
         ordinal_model.build_loss_gt(input_volumes=input_volumes, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
@@ -99,7 +101,7 @@ if __name__ == "__main__":
 
             batch_size = len(cur_data_batch[0])
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-            batch_volumes_np = np.zeros([batch_size, configs.feature_map_size, configs.feature_map_size, configs.nJoints*configs.feature_map_size], dtype=np.float32)
+            batch_centers_np = np.zeros([batch_size, configs.nJoints, 3], dtype=np.float32)
 
             # Generate the data batch
             img_path_for_show = [[] for i in range(max(configs.train_batch_size, configs.valid_batch_size))]
@@ -120,22 +122,8 @@ if __name__ == "__main__":
                 # cur_img, cur_joints, is_do_flip = preprocessor.preprocess(cur_img, cur_joints)
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
-                hm_joint_2d = cur_joints[:, 0:2] * float(configs.feature_map_size) / configs.img_size
-                hm_joint_3d = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
-
-                for j_idx in range(configs.nJoints):
-                    batch_volumes_np[b][:, :, configs.feature_map_size*j_idx:configs.feature_map_size*(j_idx+1)] = preprocessor.make_gaussian_3d(hm_joint_3d[j_idx], size=configs.feature_map_size, ratio=2)
-
-                ############### Visualize the augmentated datas
-                # show_img = cur_img.copy().astype(np.uint8)
-                # show_img = display_utils.drawLines(show_img, cur_joints[:, 0:2])
-                # show_img = display_utils.drawPoints(show_img, cur_joints[:, 0:2])
-
-                # print((cur_joints[:, 2] == cur_label["joints_3d"][:, 2]).all())
-
-                # cv2.imshow("img_show", show_img)
-                # cv2.waitKey()
-                ###############################################
+                hm_joint_2d = cur_joints[:, 0:2] / configs.coords_2d_scale
+                batch_centers_np[b] = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
             if is_valid:
                 loss, \
@@ -144,7 +132,7 @@ if __name__ == "__main__":
                         [ordinal_model.loss,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_volumes: batch_volumes_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
+                        feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 _,\
@@ -155,7 +143,7 @@ if __name__ == "__main__":
                          ordinal_model.loss,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_volumes: batch_volumes_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                        feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
                 train_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")

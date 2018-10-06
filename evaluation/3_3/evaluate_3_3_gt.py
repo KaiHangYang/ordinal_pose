@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [125000]
+evaluation_models = [300000, 250000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -36,12 +36,14 @@ if __name__ == "__main__":
     lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
 
     input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
-    input_volumes = tf.placeholder(shape=[configs.batch_size, configs.feature_map_size, configs.feature_map_size, configs.nJoints * configs.feature_map_size], dtype=tf.float32)
+    input_centers = tf.placeholder(shape=[configs.batch_size, configs.nJoints, 3], dtype=tf.float32)
     ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False)
 
     with tf.Session() as sess:
 
-        ordinal_model.build_model(input_images)
+        with tf.device("/device:GPU:0"):
+            ordinal_model.build_model(input_images)
+            input_volumes = ordinal_model.build_input_volumes(input_centers, stddev=2.0)
         ordinal_model.build_loss_gt(input_volumes=input_volumes, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
@@ -69,7 +71,7 @@ if __name__ == "__main__":
                 global_steps = sess.run(ordinal_model.global_steps)
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-                batch_volumes_np = np.zeros([configs.batch_size, configs.feature_map_size, configs.feature_map_size, configs.nJoints*configs.feature_map_size], dtype=np.float32)
+                batch_centers_np = np.zeros([configs.batch_size, configs.nJoints, 3], dtype=np.float32)
 
                 img_path_for_show = []
                 label_path_for_show = []
@@ -80,7 +82,6 @@ if __name__ == "__main__":
                 depth_root_arr = []
                 gt_joints_3d_arr = []
                 crop_joints_2d_arr = []
-
 
                 preprocess_time = time.clock()
 
@@ -109,10 +110,7 @@ if __name__ == "__main__":
                     batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                     hm_joint_2d = cur_joints[:, 0:2] / configs.coords_2d_scale
-                    hm_joint_3d = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
-
-                    # for j_idx in range(configs.nJoints):
-                        # batch_volumes_np[b][:, :, configs.feature_map_size*j_idx:configs.feature_map_size*(j_idx+1)] = preprocessor.make_gaussian_3d(hm_joint_3d[j_idx], size=configs.feature_map_size, ratio=2)
+                    batch_centers_np[b] = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
                 preprocess_time = time.clock() - preprocess_time
 
@@ -123,7 +121,7 @@ if __name__ == "__main__":
                          ordinal_model.gt_joints,
                          ordinal_model.pd_joints
                         ],
-                        feed_dict={input_images: batch_images_np, input_volumes: batch_volumes_np})
+                        feed_dict={input_images: batch_images_np, input_centers: batch_centers_np})
 
                 forward_time = time.clock() - forward_time
 

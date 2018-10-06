@@ -20,7 +20,7 @@ class mOrdinal_3_3(object):
         self.is_training = is_training
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
-
+        self.feature_size = 64
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
@@ -38,7 +38,7 @@ class mOrdinal_3_3(object):
             lin1 = mConvBnRelu(inputs=hg1, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin1")
             lin2 = mConvBnRelu(inputs=lin1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin2")
 
-            self.volumes = tf.layers.conv2d(inputs=lin2, filters=self.nJoints*64, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
+            self.volumes = tf.layers.conv2d(inputs=lin2, filters=self.nJoints*self.feature_size, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 
     # It is too slow, so when training, don't use it !!!!!!
 
@@ -48,11 +48,11 @@ class mOrdinal_3_3(object):
             with tf.variable_scope(name):
                 all_joints = []
                 for i in range(self.nJoints):
-                    cur_volume = volumes[:, :, :, 64*i:64*(i+1)]
+                    cur_volume = volumes[:, :, :, self.feature_size*i:self.feature_size*(i+1)]
                     cur_argmax_index = tf.argmax(tf.layers.flatten(cur_volume), axis=1)
 
                     with tf.device("cpu:0"):
-                        cur_joints = tf.transpose(tf.unravel_index(cur_argmax_index, [64, 64, 64]))[:, np.newaxis]
+                        cur_joints = tf.transpose(tf.unravel_index(cur_argmax_index, [self.feature_size, self.feature_size, self.feature_size]))[:, np.newaxis]
                     all_joints.append(tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, np.newaxis]], axis=2))
 
                 return tf.cast(tf.concat(all_joints, axis=1), tf.float32)
@@ -60,6 +60,24 @@ class mOrdinal_3_3(object):
     def cal_accuracy(self, gt_joints, pd_joints):
         accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
         return accuracy
+
+    # input_joints shape (None, 17, 3)
+    def build_input_volumes(self, input_centers, stddev=2.0, name="input_vols"):
+        with tf.variable_scope(name):
+            raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size*self.feature_size), [self.feature_size, self.feature_size, self.feature_size]).astype(np.float32), name="raw_arr_y")
+
+            const_y = tf.tile(raw_arr_y[np.newaxis], [self.batch_size, 1, 1, 1], name="const_y")
+            const_x = tf.tile(tf.transpose(raw_arr_y, perm=[1, 0, 2])[np.newaxis], [self.batch_size, 1, 1, 1], name="const_x")
+            const_z = tf.tile(tf.transpose(raw_arr_y, perm=[2, 1, 0])[np.newaxis], [self.batch_size, 1, 1, 1], name="const_z")
+
+            all_vols = []
+            for j_idx in range(self.nJoints):
+                cur_vol = tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                all_vols.append(cur_vol)
+
+            vol_labels = tf.concat(all_vols, axis=3, name="joints")
+
+        return vol_labels
 
     # ordinal_3_3 with ground true volumes
     def build_loss_gt(self, input_volumes, lr, lr_decay_step, lr_decay_rate):

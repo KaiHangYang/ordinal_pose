@@ -20,15 +20,15 @@ evaluation_iterations = 1000
 # input_joints shape (None, 17, 3)
 def build_input_3d(input_center, nJoints=17, batch_size=4, size=64, stddev=2.0, name="input_vols"):
     with tf.variable_scope(name):
-        raw_arr_y = np.reshape(np.repeat(np.arange(0, size, 1), size*size), [size, size, size]).astype(np.float32)
+        raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, size, 1), size*size), [size, size, size]).astype(np.float32), name="raw_arr_y")
 
-        arr_y = np.repeat(raw_arr_y[np.newaxis], batch_size, axis=0)
-        arr_x = np.repeat(np.transpose(raw_arr_y, [1, 0, 2])[np.newaxis], batch_size, axis=0)
-        arr_z = np.repeat(np.transpose(raw_arr_y, [2, 1, 0])[np.newaxis], batch_size, axis=0)
+        arr_y = tf.tile(raw_arr_y[np.newaxis], [batch_size, 1, 1, 1])
+        arr_x = tf.tile(tf.transpose(raw_arr_y, perm=[1, 0, 2])[np.newaxis], [batch_size, 1, 1, 1])
+        arr_z = tf.tile(tf.transpose(raw_arr_y, perm=[2, 1, 0])[np.newaxis], [batch_size, 1, 1, 1])
 
-        const_x = tf.constant(arr_x, dtype=tf.float32)
-        const_y = tf.constant(arr_y, dtype=tf.float32)
-        const_z = tf.constant(arr_z, dtype=tf.float32)
+        const_x = arr_x
+        const_y = arr_y
+        const_z = arr_z
 
         all_vols = []
         for j_idx in range(nJoints):
@@ -41,15 +41,19 @@ def build_input_3d(input_center, nJoints=17, batch_size=4, size=64, stddev=2.0, 
 
 if __name__ == "__main__":
 
-    input_center = tf.placeholder(shape=[batch_size, nJoints, 3], dtype=tf.float32)
+    input_batch_size = tf.placeholder(shape=[], dtype=np.int32)
+    input_center = tf.placeholder(shape=[None, nJoints, 3], dtype=tf.float32)
 
     sess = tf.Session()
     with tf.device("/device:GPU:0"):
-        output_vols = build_input_3d(input_center)
+        output_vols = build_input_3d(input_center, batch_size=input_batch_size)
 
-    gpu_vols = sess.run(output_vols, feed_dict={input_center: np.random.random([batch_size, nJoints, 3]) * (size - 1)})
+    gpu_vols = sess.run(output_vols, feed_dict={input_batch_size: 4, input_center: np.random.random([4, nJoints, 3]) * (size - 1)})
 
     for _ in range(evaluation_iterations):
+        batch_size = np.round(np.random.random(1) * 10).astype(np.int32).tolist()[0]
+        print(batch_size)
+
         centers_arr = np.round(np.random.random([batch_size, nJoints, 3]) * (size - 1))
         cpu_vols = np.zeros([batch_size, size, size, size*nJoints], dtype=np.float32)
 
@@ -61,7 +65,7 @@ if __name__ == "__main__":
         print(start_time)
 
         start_time = time.clock()
-        gpu_vols = sess.run(output_vols, feed_dict={input_center: centers_arr})
+        gpu_vols = sess.run(output_vols, feed_dict={input_center: centers_arr, input_batch_size: batch_size})
         start_time = time.clock() - start_time
         print(start_time)
 
