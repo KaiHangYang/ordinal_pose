@@ -17,7 +17,7 @@ import time
              ratio: the gaussian ratio
 '''
 def make_gaussian(point, size=64, ratio=2):
-    if point[0] <= 0.000001 and point[1] <= 0.000001:
+    if point[0] < 0 or point[1] < 0 or point[0] >= size or point[1] >= size:
         return np.zeros((size, size), np.float32)
 
     x = np.arange(0, size, 1, np.float32)
@@ -30,7 +30,7 @@ def make_gaussian(point, size=64, ratio=2):
 
 ### Pay attentaion, the function is only used under (n, h, w, c) mode
 def make_gaussian_3d(point, size=64, ratio=2):
-    if point[0] < 0.0000001 and point[1] < 0.0000001 and point[2] < 0.0000001:
+    if point[0] < 0.000000 or point[1] < 0.000000 or point[2] < 0.000000 or point[0] >= size or point[1] >= size or point[2] >= size:
         return np.zeros((size, size, size), np.float32)
 
     z = np.arange(0, size, 1, np.float32)
