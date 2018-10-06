@@ -97,8 +97,8 @@ class mOrdinal_3_3(object):
 
         self.gt_joints = self.get_joints(input_volumes, name="gt_joints")
         self.pd_joints = self.get_joints(self.volumes, name="pd_joints")
-        # with tf.variable_scope("cal_accuracy"):
-            # self.accuracy = self.cal_accuracy(self.gt_joints, self.pd_joints)
+        with tf.variable_scope("cal_accuracy"):
+            self.accuracy = self.cal_accuracy(self.gt_joints, self.pd_joints)
 
         # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("loss", self.loss)

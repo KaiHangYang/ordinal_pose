@@ -47,7 +47,8 @@ def parse_configs(t, d):
     feature_map_size = 64
 
     nJoints = config_parser.getint("data", "nJoints")
-    batch_size = config_parser.getint("data", "batch_size")
+    # batch_size = config_parser.getint("data", "batch_size")
+    batch_size = 8 # use the big batch to speed up the evaluation
     img_size = config_parser.getint("data", "img_size")
 
     learning_rate = config_parser.getfloat("train", "learning_rate")

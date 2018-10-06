@@ -83,8 +83,6 @@ if __name__ == "__main__":
                 gt_joints_3d_arr = []
                 crop_joints_2d_arr = []
 
-                preprocess_time = time.clock()
-
                 for b in range(configs.batch_size):
                     img_path_for_show.append(os.path.basename(img_list[data_index.val]))
                     label_path_for_show.append(os.path.basename(lbl_list[data_index.val]))
@@ -112,41 +110,34 @@ if __name__ == "__main__":
                     hm_joint_2d = cur_joints[:, 0:2] / configs.coords_2d_scale
                     batch_centers_np[b] = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
-                preprocess_time = time.clock() - preprocess_time
-
-                forward_time = time.clock()
+                loss ,\
+                acc, \
                 gt_vol_joints, \
                 pd_vol_joints = sess.run(
                         [
+                         ordinal_model.loss,
+                         ordinal_model.accuracy,
                          ordinal_model.gt_joints,
                          ordinal_model.pd_joints
                         ],
                         feed_dict={input_images: batch_images_np, input_centers: batch_centers_np})
 
-                forward_time = time.clock() - forward_time
+                print("Iteration: {:07d} \nVolume Joints accuracy: {:07f}\n\n".format(global_steps, acc))
+                print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
-                # print("Iteration: {:07d} \nVolume Joints accuracy: {:07f}\n\n".format(global_steps, acc))
-                # print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
-                print("Forward time: {:07f}. Preprocess time: {:07f}".format(forward_time, preprocess_time))
+                pd_depth = (pd_vol_joints[:, :, 2] - pd_vol_joints[:, 0, 2][:, np.newaxis]) * configs.depth_scale
+                pd_coords_2d = pd_vol_joints[:, :, 0:2] * configs.coords_2d_scale
 
-                # pd_depth = (pd_vol_joints[:, :, 2] - pd_vol_joints[:, 0, 2]) * configs.depth_scale
-                # pd_coords_2d = pd_vol_joints[:, :, 0:2] * configs.coords_2d_scale
-
-                # gt_depth = (gt_vol_joints[:, :, 2] - gt_vol_joints[:, 0, 2]) * configs.depth_scale
-                # gt_coords_2d = gt_vol_joints[:, :, 0:2] * configs.coords_2d_scale
+                gt_depth = (gt_vol_joints[:, :, 2] - gt_vol_joints[:, 0, 2][:, np.newaxis]) * configs.depth_scale
+                gt_coords_2d = gt_vol_joints[:, :, 0:2] * configs.coords_2d_scale
 
                 # ############# evaluate the coords recovered from the gt 2d and gt root depth
+                for b in range(configs.batch_size):
+                    c_j_2d_pd, c_j_3d_pd, _ = volume_utils.local_to_global(pd_depth[b], depth_root_arr[b], pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    c_j_2d_gt, c_j_3d_gt, _ = volume_utils.local_to_global(gt_depth[b], depth_root_arr[b], gt_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    coords_eval.add(c_j_3d_gt, c_j_3d_pd)
 
-                # eval_time = time.clock()
-                # for b in range(configs.batch_size):
-                    # c_j_2d_pd, c_j_3d_pd, _ = volume_utils.local_to_global(pd_depth[b], depth_root_arr[b], pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    # c_j_2d_gt, c_j_3d_gt, _ = volume_utils.local_to_global(gt_depth[b], depth_root_arr[b], gt_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    # coords_eval.add(c_j_3d_gt, c_j_3d_pd)
-
-                # eval_time = time.clock() - eval_time
-
-                # print("eval_time: {:07f}".format(eval_time))
-                # coords_eval.printMean()
-                # print("\n\n")
+                coords_eval.printMean()
+                print("\n\n")
 
             coords_eval.save("../eval_result/gt_3_3/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
