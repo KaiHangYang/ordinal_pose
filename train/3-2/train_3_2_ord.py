@@ -123,7 +123,7 @@ if __name__ == "__main__":
                 cur_joints_2d = cur_joints[:, 0:2].copy()
                 cur_joints_3d = cur_joints[:, 2:5].copy()
 
-                batch_coords_2d_np[b] = (cur_joints_2d / configs.coords_2d_scale).copy()
+                batch_coords_2d_np[b] = ((cur_joints_2d - configs.coords_2d_offset) / configs.coords_2d_scale).copy()
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints_3d[:, 2])
                 batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 

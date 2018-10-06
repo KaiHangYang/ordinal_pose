@@ -5,6 +5,7 @@ import sys
 #### Training Parameters ####
 coords_scale = None
 coords_2d_scale = None
+coords_2d_offset = None
 
 nJoints = None
 train_batch_size = None
@@ -31,7 +32,7 @@ valid_iter = None
 # t means gt(0) or ord(1)
 def parse_configs(t):
 
-    global coords_scale, coords_2d_scale, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter 
+    global coords_scale, coords_2d_scale, coords_2d_offset, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter 
     train_type = ["gt", "ord"][t]
 
     TRAIN_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,7 +41,8 @@ def parse_configs(t):
     config_parser.read(os.path.join(TRAIN_ROOT_DIR, "train.conf"))
 
     coords_scale = 1000.0
-    coords_2d_scale = 255.0
+    coords_2d_scale = 100.0
+    coords_2d_offset = 127.5
     # coords_2d_scale = 1.0
 
     nJoints = config_parser.getint("data", "nJoints")
@@ -73,10 +75,10 @@ def parse_configs(t):
     model_path = model_path_fn("")[0:-1]
 
 def print_configs():
-    global coords_scale, coords_2d_scale, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter
+    global coords_scale, coords_2d_scale, coords_2d_offset, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter
     print("##################### Training Parameters #####################")
     print("##### Data Parameters")
-    print("coords_scale: {}\ncoords_2d_scale: {}\nnJoints: {}\ntrain_batch_size: {}\nvalid_batch_size: {}\nimg_size: {}\ntrain_iter: {}\nvalid_iter: {}".format(coords_scale, coords_2d_scale, nJoints, train_batch_size, valid_batch_size, img_size, train_iter, valid_iter))
+    print("coords_scale: {}\ncoords_2d_scale: {}\ncoords_2d_offset: {}\nnJoints: {}\ntrain_batch_size: {}\nvalid_batch_size: {}\nimg_size: {}\ntrain_iter: {}\nvalid_iter: {}".format(coords_scale, coords_2d_scale, coords_2d_offset, nJoints, train_batch_size, valid_batch_size, img_size, train_iter, valid_iter))
     print("##### Learn Parameters")
     print("learning_rate: {}\nlr_decay_rate: {}\nlr_decay_step: {}".format(learning_rate, lr_decay_rate, lr_decay_step))
     print("log_dir: {}".format(log_dir))
