@@ -44,7 +44,7 @@ def parse_configs(t, d):
 
     coords_scale = 1000.0
     coords_2d_scale = 100.0
-    coords_2d_offset = 127.5
+    coords_2d_offset = 0
 
     nJoints = config_parser.getint("data", "nJoints")
     batch_size = config_parser.getint("data", "batch_size")

@@ -103,9 +103,11 @@ if __name__ == "__main__":
                     ###################################################
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
+                    cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, do_rotate=False, is_training=False)
+
+                    batch_images_np[b] = cur_img
                     batch_coords_2d_np[b] = (cur_joints[:, 0:2] - configs.coords_2d_offset) / configs.coords_2d_scale
                     batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
-                    batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 scale_acc_2d, \
                 scale_loss, \
@@ -177,9 +179,11 @@ if __name__ == "__main__":
 
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
+                    cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, do_rotate=False, is_training=False)
+
+                    batch_images_np[b] = cur_img
                     batch_coords_2d_np[b] = (cur_joints[:, 0:2] - configs.coords_2d_offset) / configs.coords_2d_scale
                     batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
-                    batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 acc_2d, \
                 loss, \

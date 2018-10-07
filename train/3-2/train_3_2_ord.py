@@ -119,13 +119,13 @@ if __name__ == "__main__":
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"]], axis=1)
 
-                # cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, do_rotate=True)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, do_rotate=True, is_training=not is_valid)
                 cur_joints_2d = cur_joints[:, 0:2].copy()
                 cur_joints_3d = cur_joints[:, 2:5].copy()
 
+                batch_images_np[b] = cur_img
                 batch_coords_2d_np[b] = ((cur_joints_2d - configs.coords_2d_offset) / configs.coords_2d_scale).copy()
                 batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints_3d[:, 2])
-                batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
                 ############### Visualize the augmentated datas
                 # show_img = cur_img.copy().astype(np.uint8)
