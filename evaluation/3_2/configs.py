@@ -5,6 +5,7 @@ import sys
 #### Evaluation Parameters ####
 global coords_scale
 global coords_2d_scale
+global coords_2d_offset
 
 global weight_scale
 global nJoints
@@ -31,7 +32,7 @@ scale_lbl_path_fn = None
 # t means gt(0) or ord(1)
 # d means validset(0) or trainset(1)
 def parse_configs(t, d):
-    global coords_scale, coords_2d_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global coords_scale, coords_2d_scale, coords_2d_offset, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     eval_type = ["gt", "ord"][t]
     data_source = ["valid", "train"][d]
@@ -42,7 +43,8 @@ def parse_configs(t, d):
     config_parser.read(os.path.join(EVAL_ROOT_DIR, "eval.conf"))
 
     coords_scale = 1000.0
-    coords_2d_scale = 255.0
+    coords_2d_scale = 100.0
+    coords_2d_offset = 127.5
 
     nJoints = config_parser.getint("data", "nJoints")
     batch_size = config_parser.getint("data", "batch_size")
@@ -67,10 +69,10 @@ def parse_configs(t, d):
     restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), "3_2_{}/".format(eval_type) + config_parser.get("model", "prefix").format("3_2", eval_type, x))
 
 def print_configs():
-    global coords_scale, coords_2d_scale, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global coords_scale, coords_2d_scale, coords_2d_offset, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
     print("##################### Evaluation Parameters #####################")
     print("##### Data Parameters")
-    print("coords_scale: {}\ncoords_2d_scale: {}\nnJoints: {}\nbatch_size: {}\nimg_size: {}".format(coords_scale, coords_2d_scale, nJoints, batch_size, img_size))
+    print("coords_scale: {}\ncoords_2d_scale: {}\ncoords_2d_offset: {}\nnJoints: {}\nbatch_size: {}\nimg_size: {}".format(coords_scale, coords_2d_scale, coords_2d_offset, nJoints, batch_size, img_size))
     print("##### Learn Parameters")
     print("learning_rate: {}\nlr_decay_rate: {}\nlr_decay_step: {}".format(learning_rate, lr_decay_rate, lr_decay_step))
     print("log_dir: {}".format(log_dir))

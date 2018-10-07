@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(1, 0)
 configs.print_configs()
 
-evaluation_models = [300000]
+evaluation_models = [175000, 200000, 225000, 300000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     input_loss_table_pow = tf.placeholder(shape=[None, configs.nJoints, configs.nJoints], dtype=tf.float32, name="input_loss_table_pow")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=False, coords_2d_scale=configs.coords_2d_scale, rank_loss_weight=1.0, keyp_loss_weight=100.0)
+    ordinal_model = ordinal_3_2.mOrdinal_3_2(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=False, coords_2d_scale=configs.coords_2d_scale, coords_2d_offset=configs.coords_2d_offset, rank_loss_weight=1.0, keyp_loss_weight=1000.0)
 
     with tf.Session() as sess:
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                     ###################################################
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
-                    batch_coords_2d_np[b] = cur_joints[:, 0:2] / configs.coords_2d_scale
+                    batch_coords_2d_np[b] = (cur_joints[:, 0:2] - configs.coords_2d_offset) / configs.coords_2d_scale
                     batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
                     batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
                     cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
 
-                    batch_coords_2d_np[b] = cur_joints[:, 0:2] / configs.coords_2d_scale
+                    batch_coords_2d_np[b] = (cur_joints[:, 0:2] - configs.coords_2d_offset) / configs.coords_2d_scale
                     batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
                     batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
                 # multiply the scale
                 result_depth = result[:, :, 2].copy()
-                result_coords_2d = result[:, :, 0:2] * configs.coords_2d_scale
+                result_coords_2d = result[:, :, 0:2] * configs.coords_2d_scale + configs.coords_2d_offset
 
                 result_depth = result_depth - result_depth[:, 0]
                 result_depth = cur_depth_scale * result_depth

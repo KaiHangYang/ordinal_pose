@@ -12,7 +12,7 @@ import hourglass
 # is_training is a tensor or a python bool
 class mOrdinal_3_2(object):
 
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, coords_scale=1000.0, coords_2d_scale=255.0, keyp_loss_weight=100.0, rank_loss_weight=1.0, coords_loss_weight=1000.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, coords_scale=1000.0, coords_2d_scale=255.0, coords_2d_offset=127.5, keyp_loss_weight=100.0, rank_loss_weight=1.0, coords_loss_weight=1000.0):
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -22,6 +22,7 @@ class mOrdinal_3_2(object):
         self.batch_size = batch_size
         self.coords_scale = coords_scale
         self.coords_2d_scale = coords_2d_scale
+        self.coords_2d_offset = coords_2d_offset
 
         self.coords_loss_weight = coords_loss_weight
         self.keyp_loss_weight = keyp_loss_weight
@@ -62,6 +63,7 @@ class mOrdinal_3_2(object):
         accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(self.coords_scale * gt_joints - self.coords_scale * pd_joints, 2), axis=2)))
         return accuracy
 
+    # The offset is gone after the '-'
     def cal_accuracy_2d(self, gt_joints_2d, pd_joints_2d):
         accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(self.coords_2d_scale * gt_joints_2d - self.coords_2d_scale * pd_joints_2d, 2), axis=2)))
         return accuracy
