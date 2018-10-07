@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
         is_valid = False
         valid_count = 0
-        write_log_iter = 5
+        write_log_iter = configs.valid_iter
 
         while True:
             global_steps = sess.run(ordinal_model.global_steps)
@@ -156,7 +156,7 @@ if __name__ == "__main__":
                         feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
-                if global_step % write_log_iter == 0:
+                if global_steps % write_log_iter == 0:
                     acc, \
                     _,\
                     loss,\
