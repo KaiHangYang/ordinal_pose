@@ -41,7 +41,7 @@ def parse_configs(t):
     config_parser.read(os.path.join(TRAIN_ROOT_DIR, "train.conf"))
 
     coords_scale = 1000.0
-    coords_2d_scale = 100.0
+    coords_2d_scale = 255.0
     coords_2d_offset = 0
     # coords_2d_scale = 1.0
 

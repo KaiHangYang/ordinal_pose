@@ -43,7 +43,7 @@ def parse_configs(t, d):
     config_parser.read(os.path.join(EVAL_ROOT_DIR, "eval.conf"))
 
     coords_scale = 1000.0
-    coords_2d_scale = 100.0
+    coords_2d_scale = 255.0
     coords_2d_offset = 0
 
     nJoints = config_parser.getint("data", "nJoints")

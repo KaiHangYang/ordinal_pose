@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [225000, 200000, 175000, 150000]
+evaluation_models = [25000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -106,7 +106,7 @@ if __name__ == "__main__":
                     cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=False)
 
                     batch_images_np[b] = cur_img
-                    hm_joint_2d = cur_joints[:, 0:2] / configs.coords_2d_scale
+                    hm_joint_2d = np.round(cur_joints[:, 0:2] / configs.coords_2d_scale)
                     batch_centers_np[b] = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
                 loss ,\
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                         ],
                         feed_dict={input_images: batch_images_np, input_centers: batch_centers_np})
 
-                print("Iteration: {:07d} \nVolume Joints accuracy: {:07f}\n\n".format(global_steps, acc))
+                print("Iteration: {:07d} \nVolume Joints accuracy: {:07f}\nLoss: {:07f}\n\n".format(global_steps, acc, loss))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
                 pd_depth = (pd_vol_joints[:, :, 2] - pd_vol_joints[:, 0, 2][:, np.newaxis]) * configs.depth_scale
