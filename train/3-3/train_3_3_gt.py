@@ -82,6 +82,7 @@ if __name__ == "__main__":
 
         is_valid = False
         valid_count = 0
+        write_log_iter = 5
 
         while True:
             global_steps = sess.run(ordinal_model.global_steps)
@@ -112,42 +113,78 @@ if __name__ == "__main__":
                 label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
 
                 cur_img = cv2.imread(cur_data_batch[0][b])
+                display_imgs_raw = cur_img.copy()
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
                 cur_joints_zidx = (cur_label["joints_zidx"] - 1).copy() # cause lua is from 1 to n not 0 to n-1
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_joints_zidx[:, np.newaxis]], axis=1)
 
-                # Cause the dataset is to large, test no augment first
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints)
-                batch_images_np[b] = preprocessor.img2train(cur_img, [-1, 1])
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid)
 
-                hm_joint_2d = cur_joints[:, 0:2] / configs.coords_2d_scale
+                # currently the cur_img is in range [0, 1]
+                batch_images_np[b] = cur_img
+                hm_joint_2d = np.round(cur_joints[:, 0:2] / configs.coords_2d_scale)
                 batch_centers_np[b] = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
+                ############# Visualize and debug the augmented datas #############
+                # display_imgs = batch_images_np[b].copy()
+                # display_imgs = display_utils.drawLines(display_imgs, batch_centers_np[b][:, 0:2]*configs.coords_2d_scale)
+                # display_imgs = display_utils.drawPoints(display_imgs, batch_centers_np[b][:, 0:2]*configs.coords_2d_scale)
+
+                # display_imgs_raw = display_utils.drawLines(display_imgs_raw, cur_label["joints_2d"])
+                # display_imgs_raw = display_utils.drawPoints(display_imgs_raw, cur_label["joints_2d"])
+
+                # print("augged: {}".format(batch_centers_np[b][:, 2]))
+                # print("raw: {}".format(cur_joints_zidx))
+                # cv2.imshow("raw_img", display_imgs_raw)
+                # cv2.imshow("cur_img", display_imgs)
+                # cv2.waitKey()
+
+            acc = 0
+
             if is_valid:
+                acc, \
                 loss, \
                 lr, \
                 summary  = sess.run(
-                        [ordinal_model.loss,
+                        [
+                         ordinal_model.accuracy,
+                         ordinal_model.loss,
                          ordinal_model.lr,
                          ordinal_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
-                _,\
-                loss,\
-                lr,\
-                summary  = sess.run(
-                        [ordinal_model.train_op,
-                         ordinal_model.loss,
-                         ordinal_model.lr,
-                         ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
-                train_log_writer.add_summary(summary, global_steps)
+                if global_step % write_log_iter == 0:
+                    acc, \
+                    _,\
+                    loss,\
+                    lr,\
+                    summary  = sess.run(
+                            [
+                             ordinal_model.accuracy,
+                             ordinal_model.train_op,
+                             ordinal_model.loss,
+                             ordinal_model.lr,
+                             ordinal_model.merged_summary],
+                            feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                    train_log_writer.add_summary(summary, global_steps)
+                else:
+                    _,\
+                    loss,\
+                    lr = sess.run(
+                            [
+                             ordinal_model.train_op,
+                             ordinal_model.loss,
+                             ordinal_model.lr],
+                            feed_dict={input_images: batch_images_np, input_centers: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+
+
+            # assert((gt_joints_vol == batch_centers_np).all())
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
-            print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\n\n".format(global_steps, lr, loss))
+            print("Iteration: {:07d} \nlearning_rate: {:07f} \nLoss : {:07f}\nAccuracy : {:07f}\n\n".format(global_steps, lr, loss, acc))
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 

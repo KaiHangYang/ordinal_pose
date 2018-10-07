@@ -75,7 +75,7 @@ class mOrdinal_3_3(object):
                 cur_vol =  (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
                 all_vols.append(cur_vol)
 
-            vol_labels = tf.concat(all_vols, axis=3, name="joints")
+            vol_labels = tf.concat(all_vols, axis=3, name="volumes")
 
         return vol_labels
 
@@ -85,7 +85,7 @@ class mOrdinal_3_3(object):
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.variable_scope("loss"):
-            self.loss = tf.nn.l2_loss(input_volumes - self.volumes, name="volume_loss") / self.batch_size * self.loss_weight_volume
+            self.loss = tf.nn.l2_loss(self.volumes - input_volumes, name="volume_loss") / self.batch_size * self.loss_weight_volume
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
@@ -95,12 +95,18 @@ class mOrdinal_3_3(object):
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, self.global_steps)
 
-        self.gt_joints = self.get_joints(input_volumes, name="gt_joints")
-        self.pd_joints = self.get_joints(self.volumes, name="pd_joints")
+        with tf.variable_scope("parser_joints"):
+            combined_volumes = tf.concat([input_volumes, self.volumes], axis=0, name="volume_combine")
+            all_joints  = self.get_joints(combined_volumes, name="all_joints")
+
+            cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
+            self.gt_joints = all_joints[0:cur_batch_size]
+            self.pd_joints = all_joints[cur_batch_size:cur_batch_size*2]
+
         with tf.variable_scope("cal_accuracy"):
             self.accuracy = self.cal_accuracy(self.gt_joints, self.pd_joints)
 
-        # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
         tf.summary.scalar("loss", self.loss)
         tf.summary.scalar("learning_rate", self.lr)
 

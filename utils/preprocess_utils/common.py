@@ -74,13 +74,15 @@ def augment_data_2d(img, annots, settings = {
     pad_color = settings["pad_color"]
     flip_array = settings["flip_array"] # contain the joints pairs which need to be exchanged if do flip
 
-    scale_size = (-1 if random.random() >= 0.5 else 1) * random.random() * scale_range
-    rotate_size = (-1 if random.random() >= 0.5 else 1) * random.random() * rotate_range
+    scale_size = (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * scale_range
+    rotate_size = (0 if random.uniform(0, 1) >= 0.4 else 1) * (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * rotate_range
 
-    shift_size_l = (-1 if random.random() >= 0.5 else 1) * random.random() * shift_range
-    shift_size_t = (-1 if random.random() >= 0.5 else 1) * random.random() * shift_range
+    shift_size_l = (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * shift_range
+    shift_size_t = (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * shift_range
 
-    do_flip = (0 if random.random() >= 0.5 else 1) * is_flip
+    do_flip = (0 if random.uniform(0, 1) >= 0.5 else 1) * is_flip
+
+    # print("scale_size: {}\n. rotate_size: {}\n do_flip: {}".format(scale_size, rotate_size, do_flip))
 
     if do_flip:
         assert(flip_array is not None)
