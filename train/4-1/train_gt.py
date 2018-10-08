@@ -16,7 +16,8 @@ from utils.visualize_utils import display_utils
 import configs
 
 # t means gt(0) or ord(1)
-configs.parse_configs(0, 1)
+# ver means version
+configs.parse_configs(t=0, ver=1)
 configs.print_configs()
 
 train_log_dir = os.path.join(configs.log_dir, "train")
