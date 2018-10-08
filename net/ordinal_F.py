@@ -104,7 +104,7 @@ class mOrdinal_F(object):
         return heatmaps_labels
 
     # input_joints shape (None, 17, 3)
-    def build_input_volumes(self, input_centers, stddev=2.0, name="input_vols"):
+    def build_input_volumes(self, input_centers, stddev=2.0, name="input_volumes"):
         with tf.variable_scope(name):
             raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size*self.feature_size), [self.feature_size, self.feature_size, self.feature_size]).astype(np.float32), name="raw_arr_y")
 
