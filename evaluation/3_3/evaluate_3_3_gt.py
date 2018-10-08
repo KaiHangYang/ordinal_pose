@@ -19,10 +19,10 @@ import configs
 
 # t means gt(0) or ord(1)
 # d means validset(0) or trainset(1)
-configs.parse_configs(0, 0)
+configs.parse_configs(0, 1)
 configs.print_configs()
 
-evaluation_models = [25000]
+evaluation_models = [225000]
 ###############################################################
 
 if __name__ == "__main__":

@@ -37,6 +37,7 @@ def build_input_2d(input_center, nJoints=17, batch_size=4, size=64, stddev=2.0, 
 
     return heatmaps_labels
 
+
 if __name__ == "__main__":
 
     input_batch_size = tf.placeholder(shape=[], dtype=np.int32)
@@ -73,7 +74,5 @@ if __name__ == "__main__":
             for j_idx in range(nJoints):
                 assert(np.argmax(cpu_heatmaps[b, :, :, j_idx]) == np.argmax(gpu_heatmaps[b, :, :, j_idx]))
                 assert(np.argmax(cpu_heatmaps[b, :, :, j_idx]) == size*centers_arr[b, j_idx, 1] + centers_arr[b, j_idx, 0])
-                print(np.max(cpu_heatmaps[b, :, :, j_idx]), np.max(gpu_heatmaps[b, :, :, j_idx]))
-                if not np.max(cpu_heatmaps[b, :, :, j_idx]) == np.max(gpu_heatmaps[b, :, :, j_idx]):
-                    print("test")
+                # print(np.max(cpu_heatmaps[b, :, :, j_idx]), np.max(gpu_heatmaps[b, :, :, j_idx]))
                 assert(np.max(cpu_heatmaps[b, :, :, j_idx]) == np.max(gpu_heatmaps[b, :, :, j_idx]))

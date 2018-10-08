@@ -21,7 +21,7 @@ class mOrdinal_F(object):
         self.is_training = is_training
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
-
+        self.feature_size = 64
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
@@ -52,13 +52,76 @@ class mOrdinal_F(object):
             lin3 = mConvBnRelu(inputs=hg2, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3")
             lin4 = mConvBnRelu(inputs=lin3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
 
-            self.volumes = tf.layers.conv2d(inputs=lin4, filters=self.nJoints*64, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
+            self.volumes = tf.layers.conv2d(inputs=lin4, filters=self.nJoints*self.feature_size, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 
+    def get_joints_hm(self, heatmaps, batch_size, name="heatmap_to_joints"):
+        with tf.variable_scope(name):
+            with tf.device("/device:GPU:0"):
+                max_indices = tf.argmax(tf.reshape(heatmaps, [batch_size, -1, self.nJoints]), axis=1)
 
-    def cal_accuracy(self, gt_volume, pd_volume):
-        # accuracy = tf.reduce_mean(tf.abs(self.depth_scale * gt_depth - self.depth_scale * pd_depth))
-        # return accuracy
-        pass
+            # currently the unravel_index only support cpu.
+            with tf.device("cpu:0"):
+                cur_joints = tf.unravel_index(tf.reshape(max_indices, [-1]), [self.feature_size, self.feature_size])
+            cur_joints = tf.reshape(tf.transpose(cur_joints), [-1, self.nJoints, 2])[:, :, ::-1]
+
+        return tf.cast(cur_joints, tf.float32)
+
+    def get_joints_vol(self, volumes, batch_size, name="volume_to_joints"):
+        # volume shape (batch_size, feature_size, feature_size, feature_size * nJoints)
+        with tf.device("/device:GPU:0"):
+            with tf.variable_scope(name):
+                cur_volumes = tf.reshape(tf.transpose(tf.reshape(volumes, [batch_size, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3]), [batch_size, -1, self.nJoints])
+                cur_argmax_index = tf.reshape(tf.argmax(cur_volumes, axis=1), [-1])
+
+                with tf.device("/cpu:0"):
+                    cur_joints = tf.unravel_index(cur_argmax_index, [self.feature_size, self.feature_size, self.feature_size])
+
+                cur_joints = tf.reshape(tf.transpose(cur_joints), [-1, self.nJoints, 3])
+                cur_joints = tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, tf.newaxis]], axis=2)
+                return tf.cast(cur_joints, tf.float32)
+
+    def cal_accuracy(self, gt_joints, pd_joints, name="accuracy"):
+        with tf.variable_scope(name):
+            accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
+        return accuracy
+
+    # input_joints shape (None, 17, 2)
+    def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps"):
+        with tf.variable_scope(name):
+            raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size), [self.feature_size, self.feature_size, 1]).astype(np.float32), name="raw_arr_y")
+
+            const_y = tf.tile(raw_arr_y[np.newaxis], [self.batch_size, 1, 1, 1])
+            const_x = tf.tile(tf.transpose(raw_arr_y, perm=[1, 0, 2])[np.newaxis], [self.batch_size, 1, 1, 1])
+
+            all_heatmaps = []
+            for j_idx in range(nJoints):
+                # cur_heatmaps = (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                cur_heatmaps = tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                all_heatmaps.append(cur_heatmaps)
+
+            heatmaps_labels = tf.concat(all_heatmaps, axis=3, name="heatmaps")
+
+        return heatmaps_labels
+
+    # input_joints shape (None, 17, 3)
+    def build_input_volumes(self, input_centers, stddev=2.0, name="input_vols"):
+        with tf.variable_scope(name):
+            raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size*self.feature_size), [self.feature_size, self.feature_size, self.feature_size]).astype(np.float32), name="raw_arr_y")
+
+            const_y = tf.tile(raw_arr_y[np.newaxis], [self.batch_size, 1, 1, 1], name="const_y")
+            const_x = tf.tile(tf.transpose(raw_arr_y, perm=[1, 0, 2])[np.newaxis], [self.batch_size, 1, 1, 1], name="const_x")
+            const_z = tf.tile(tf.transpose(raw_arr_y, perm=[2, 1, 0])[np.newaxis], [self.batch_size, 1, 1, 1], name="const_z")
+
+            all_vols = []
+            for j_idx in range(self.nJoints):
+                # cur_vol =  (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                cur_vol = tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                all_vols.append(cur_vol)
+
+            vol_labels = tf.concat(all_vols, axis=3, name="volumes")
+
+        return vol_labels
+
 
     # ordinal_F with ground true volumes
     def build_loss_gt(self, input_heatmaps, input_volumes, lr, lr_decay_step, lr_decay_rate):
@@ -73,27 +136,43 @@ class mOrdinal_F(object):
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
-
-        # for g, v in grads_n_vars:
-            # tf.summary.histogram(v.name, v)
-            # tf.summary.histogram(v.name+"_grads", g)
-
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         print("Update_ops num {}".format(len(update_ops)))
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.total_loss, self.global_steps)
 
-        # with tf.variable_scope("cal_accuracy"):
-            # self.accuracy = self.cal_accuracy(input_depth, self.result)
+        with tf.variable_scope("parser_joints"):
+            cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
 
-        # tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+            with tf.variable_scope("parser_hm"):
+                combined_heatmaps = tf.concat([input_heatmaps, self.heatmaps], axis=0, name="heatmaps_combine")
+                all_joints_hm = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="all_joints_hm")
+
+                self.gt_joints_hm = all_joints_hm[0:cur_batch_size]
+                self.pd_joints_hm = all_joints_hm[cur_batch_size:cur_batch_size*2]
+
+            with tf.variable_scope("parser_vol"):
+                combined_volumes = tf.concat([input_volumes, self.volumes], axis=0, name="volumes_combine")
+                all_joints_vol  = self.get_joints_vol(combined_volumes, batch_size=2*cur_batch_size, name="all_joints_vol")
+
+                self.gt_joints_vol = all_joints_vol[0:cur_batch_size]
+                self.pd_joints_vol = all_joints_vol[cur_batch_size:cur_batch_size*2]
+
+        with tf.variable_scope("cal_accuracy"):
+            self.accuracy_vol = self.cal_accuracy(self.gt_joints_vol, self.pd_joints_vol, name="vol_joints_accuracy")
+            self.accuracy_hm = self.cal_accuracy(self.gt_joints_hm, self.pd_joints_hm, name="hm_joints_accuracy")
+
+        tf.summary.scalar("volume_joints_accuracy", self.accuracy_vol)
+        tf.summary.scalar("heatmap_joints_accuracy", self.accuracy_hm)
+
         tf.summary.scalar("total_loss_scalar", self.total_loss)
         tf.summary.scalar("heatmap_loss_scalar", self.heatmap_loss)
         tf.summary.scalar("volume_loss_scalar", self.volume_loss)
         tf.summary.scalar("learning_rate", self.lr)
 
         self.merged_summary = tf.summary.merge_all()
+
     # def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr):
         # self.global_steps = tf.train.get_or_create_global_step()
 

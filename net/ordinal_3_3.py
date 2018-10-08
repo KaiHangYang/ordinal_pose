@@ -40,22 +40,36 @@ class mOrdinal_3_3(object):
 
             self.volumes = tf.layers.conv2d(inputs=lin2, filters=self.nJoints*self.feature_size, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 
-    # It is too slow, so when training, don't use it !!!!!!
-
-    def get_joints(self, volumes, name="volume_to_joints"):
+    # new fast version 40ms for batch_size 4
+    def get_joints(self, volumes, batch_size, name="volume_to_joints"):
         # volume shape (batch_size, feature_size, feature_size, feature_size * nJoints)
         with tf.device("/device:GPU:0"):
             with tf.variable_scope(name):
-                all_joints = []
-                for i in range(self.nJoints):
-                    cur_volume = volumes[:, :, :, self.feature_size*i:self.feature_size*(i+1)]
-                    cur_argmax_index = tf.argmax(tf.layers.flatten(cur_volume), axis=1)
+                cur_volumes = tf.reshape(tf.transpose(tf.reshape(volumes, [batch_size, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3]), [batch_size, -1, self.nJoints])
+                cur_argmax_index = tf.reshape(tf.argmax(cur_volumes, axis=1), [-1])
 
-                    with tf.device("cpu:0"):
-                        cur_joints = tf.transpose(tf.unravel_index(cur_argmax_index, [self.feature_size, self.feature_size, self.feature_size]))[:, np.newaxis]
-                    all_joints.append(tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, np.newaxis]], axis=2))
+                with tf.device("/cpu:0"):
+                    cur_joints = tf.unravel_index(cur_argmax_index, [self.feature_size, self.feature_size, self.feature_size])
 
-                return tf.cast(tf.concat(all_joints, axis=1), tf.float32)
+                cur_joints = tf.reshape(tf.transpose(cur_joints), [-1, self.nJoints, 3])
+                cur_joints = tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, tf.newaxis]], axis=2)
+                return tf.cast(cur_joints, tf.float32)
+
+    # 100ms for batch_size 4
+    # def get_joints(self, volumes, name="volume_to_joints"):
+        # # volume shape (batch_size, feature_size, feature_size, feature_size * nJoints)
+        # with tf.device("/device:GPU:0"):
+            # with tf.variable_scope(name):
+                # all_joints = []
+                # for i in range(self.nJoints):
+                    # cur_volume = volumes[:, :, :, self.feature_size*i:self.feature_size*(i+1)]
+                    # cur_argmax_index = tf.argmax(tf.layers.flatten(cur_volume), axis=1)
+
+                    # with tf.device("cpu:0"):
+                        # cur_joints = tf.transpose(tf.unravel_index(cur_argmax_index, [self.feature_size, self.feature_size, self.feature_size]))[:, np.newaxis]
+                    # all_joints.append(tf.concat([cur_joints[:, :, 0:2][:, :, ::-1], cur_joints[:, :, 2][:, :, np.newaxis]], axis=2))
+
+                # return tf.cast(tf.concat(all_joints, axis=1), tf.float32)
 
     def cal_accuracy(self, gt_joints, pd_joints):
         accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
@@ -98,16 +112,16 @@ class mOrdinal_3_3(object):
 
         with tf.variable_scope("parser_joints"):
             combined_volumes = tf.concat([input_volumes, self.volumes], axis=0, name="volume_combine")
-            all_joints  = self.get_joints(combined_volumes, name="all_joints")
-
             cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
+            all_joints  = self.get_joints(combined_volumes, batch_size=2*cur_batch_size, name="all_joints")
+
             self.gt_joints = all_joints[0:cur_batch_size]
             self.pd_joints = all_joints[cur_batch_size:cur_batch_size*2]
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy = self.cal_accuracy(self.gt_joints, self.pd_joints)
 
-        tf.summary.scalar("depth_accuracy(mm)", self.accuracy)
+        tf.summary.scalar("volume_joints_accuracy", self.accuracy)
         tf.summary.scalar("loss", self.loss)
         tf.summary.scalar("learning_rate", self.lr)
 
