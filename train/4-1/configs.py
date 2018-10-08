@@ -47,7 +47,7 @@ def parse_configs(t, ver):
     depth_scale = 1000.0 / 32.0
     coords_2d_scale = 4
 
-    loss_weight_heatmap = 1.0
+    loss_weight_heatmap = 10.0
     loss_weight_volume = 1.0
     feature_map_size = 64
 

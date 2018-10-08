@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -48,11 +48,11 @@ if __name__ == "__main__":
         train_data_iter, train_data_init_op = ordinal_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=configs.train_batch_size, name="train_reader")
         valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
-    input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32)
-    input_centers_hm = tf.placeholder(shape=[None, configs.nJoints, 2], dtype=tf.float32)
-    input_centers_vol = tf.placeholder(shape=[None, configs.nJoints, 3], dtype=tf.float32)
-    input_is_training = tf.placeholder(shape=[], dtype=tf.bool)
-    input_batch_size = tf.placeholder(shape=[], dtype=tf.float32)
+    input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
+    input_centers_hm = tf.placeholder(shape=[None, configs.nJoints, 2], dtype=tf.float32, name="input_centers_hm")
+    input_centers_vol = tf.placeholder(shape=[None, configs.nJoints, 3], dtype=tf.float32, name="input_centers_vol")
+    input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
+    input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
     ordinal_model = ordinal_F.mOrdinal_F(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_volume=configs.loss_weight_volume)
 
@@ -85,6 +85,8 @@ if __name__ == "__main__":
 
         is_valid = False
         valid_count = 0
+
+        write_log_iter = configs.valid_iter
 
         while True:
             global_steps = sess.run(ordinal_model.global_steps)
@@ -129,6 +131,9 @@ if __name__ == "__main__":
                 hm_joint_3d = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
                 batch_centers_np[b] = hm_joint_3d
 
+            acc_hm = 0
+            acc_vol = 0
+
             if is_valid:
                 acc_hm, \
                 acc_vol, \
@@ -148,25 +153,40 @@ if __name__ == "__main__":
                         feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
-                _,\
-                acc_hm,
-                acc_vol,
-                loss,\
-                heatmap_loss, \
-                volume_loss, \
-                lr,\
-                summary  = sess.run(
-                        [
-                         ordinal_model.train_op,
-                         ordinal_model.accuracy_hm,
-                         ordinal_model.accuracy_vol,
-                         ordinal_model.total_loss,
-                         ordinal_model.heatmap_loss,
-                         ordinal_model.volume_loss,
-                         ordinal_model.lr,
-                         ordinal_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
-                train_log_writer.add_summary(summary, global_steps)
+                if global_steps % write_log_iter == 0:
+                    _, \
+                    acc_hm, \
+                    acc_vol, \
+                    loss,\
+                    heatmap_loss, \
+                    volume_loss, \
+                    lr,\
+                    summary  = sess.run(
+                            [
+                             ordinal_model.train_op,
+                             ordinal_model.accuracy_hm,
+                             ordinal_model.accuracy_vol,
+                             ordinal_model.total_loss,
+                             ordinal_model.heatmap_loss,
+                             ordinal_model.volume_loss,
+                             ordinal_model.lr,
+                             ordinal_model.merged_summary],
+                            feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                    train_log_writer.add_summary(summary, global_steps)
+                else:
+                    _, \
+                    loss,\
+                    heatmap_loss, \
+                    volume_loss, \
+                    lr = sess.run(
+                            [
+                             ordinal_model.train_op,
+                             ordinal_model.total_loss,
+                             ordinal_model.heatmap_loss,
+                             ordinal_model.volume_loss,
+                             ordinal_model.lr,
+                             ],
+                            feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmap Loss: {:07f}\nVolume Loss: {:07f}\n\n".format(global_steps, lr, loss, heatmap_loss, volume_loss))
