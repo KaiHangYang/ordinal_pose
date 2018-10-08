@@ -4,6 +4,9 @@ import os
 import sys
 
 from common import *
+import common
+
+flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
 def preprocess(img, annots, is_training=True):
     settings = {
@@ -15,7 +18,7 @@ def preprocess(img, annots, is_training=True):
         "shift_range": 0, # pixel
         "is_flip": 1,
         "pad_color": [0.5, 0.5, 0.5],
-        "flip_array": np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
+        "flip_array": flip_array
     }
 
     img = img.astype(np.float32).copy()
@@ -38,3 +41,9 @@ def preprocess(img, annots, is_training=True):
 
     return aug_img, aug_annot
 
+
+def flip_data(img, annots, size=64):
+    return common._flip_data(img, annots, flip_array, size)
+
+def flip_annot(annots, size=64):
+    return common._flip_annot(annots, flip_array, size=size)

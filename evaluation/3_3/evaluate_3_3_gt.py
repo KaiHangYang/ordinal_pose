@@ -22,12 +22,15 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [375000]
+evaluation_models = [300000]
 ###############################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
+
+    network_batch_size = configs.batch_size * 2
+
     range_arr = np.load(configs.range_file)
     data_from = 0
     data_to = len(range_arr)
@@ -35,9 +38,10 @@ if __name__ == "__main__":
     img_list = [configs.img_path_fn(i) for i in range_arr]
     lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
 
-    input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
-    input_centers = tf.placeholder(shape=[configs.batch_size, configs.nJoints, 3], dtype=tf.float32)
-    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False)
+    input_images = tf.placeholder(shape=[network_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
+    input_centers = tf.placeholder(shape=[network_batch_size, configs.nJoints, 3], dtype=tf.float32)
+
+    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=network_batch_size, is_training=False)
 
     with tf.Session() as sess:
 
@@ -71,7 +75,10 @@ if __name__ == "__main__":
                 global_steps = sess.run(ordinal_model.global_steps)
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_images_flipped_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+
                 batch_centers_np = np.zeros([configs.batch_size, configs.nJoints, 3], dtype=np.float32)
+                batch_centers_flipped_np = np.zeros([configs.batch_size, configs.nJoints, 3], dtype=np.float32)
 
                 img_path_for_show = []
                 label_path_for_show = []
@@ -109,6 +116,8 @@ if __name__ == "__main__":
                     hm_joint_2d = np.round(cur_joints[:, 0:2] / configs.coords_2d_scale)
                     batch_centers_np[b] = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
 
+                    batch_images_flipped_np[b], batch_centers_flipped_np[b] = preprocessor.flip_data(batch_images_np[b], batch_centers_np[b])
+
                 loss ,\
                 acc, \
                 gt_vol_joints, \
@@ -119,10 +128,19 @@ if __name__ == "__main__":
                          ordinal_model.gt_joints,
                          ordinal_model.pd_joints
                         ],
-                        feed_dict={input_images: batch_images_np, input_centers: batch_centers_np})
+                        # feed_dict={input_images: batch_images_np, input_centers: batch_centers_np})
+                        feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0), input_centers: np.concatenate([batch_centers_np, batch_centers_flipped_np], axis=0)})
 
                 print("Iteration: {:07d} \nVolume Joints accuracy: {:07f}\nLoss: {:07f}\n\n".format(global_steps, acc, loss))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+                ###### Calculate the mean of the result
+
+                for b in range(configs.batch_size):
+                    pd_vol_joints[b] = (preprocessor.flip_annot(pd_vol_joints[b+configs.batch_size]) + pd_vol_joints[b]) / 2.0
+                    gt_vol_joints[b] = (preprocessor.flip_annot(gt_vol_joints[b+configs.batch_size]) + gt_vol_joints[b]) / 2.0
+
+                pd_vol_joints = pd_vol_joints[0:configs.batch_size]
+                gt_vol_joints = gt_vol_joints[0:configs.batch_size]
 
                 pd_depth = (pd_vol_joints[:, :, 2] - pd_vol_joints[:, 0, 2][:, np.newaxis]) * configs.depth_scale
                 pd_coords_2d = pd_vol_joints[:, :, 0:2] * configs.coords_2d_scale

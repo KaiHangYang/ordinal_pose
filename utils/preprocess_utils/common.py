@@ -236,3 +236,27 @@ def get_relation_table(joints_z):
                 loss_table_pow[i, j] = 0
 
     return relation_table, loss_table_log, loss_table_pow
+
+def _flip_data(img, annots, flip_array, size):
+    flipped_img = img.copy()
+    flipped_annots = annots.copy()
+
+    flipped_img = cv2.flip(flipped_img, 1)
+    flipped_annots = _flip_annot(flipped_annots, flip_array, size)
+
+    return flipped_img, flipped_annots
+
+def _flip_annot(annots, flip_array, size):
+    flipped_annots = annots.copy()
+
+    for a_num in range(flipped_annots.shape[0]):
+        cur_annot = flipped_annots[a_num][0:2]
+        flipped_annots[a_num][0:2] = np.array([size - 1 - cur_annot[0], cur_annot[1]])
+
+    for flip_pair in flip_array:
+        tmp_annot = flipped_annots[flip_pair[0]].copy()
+        flipped_annots[flip_pair[0]] = flipped_annots[flip_pair[1]].copy()
+        flipped_annots[flip_pair[1]] = tmp_annot
+
+    return flipped_annots
+
