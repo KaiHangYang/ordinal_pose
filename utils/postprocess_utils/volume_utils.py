@@ -3,8 +3,12 @@ import sys
 import cv2
 import numpy as np
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(CUR_DIR))
 from common_utils import h36m_camera
+
+voxel_z_limits = np.load(os.path.join(CUR_DIR, "voxel_limits.npy"))
+voxel_z_centers = (voxel_limits[0:64] + voxel_limits[1:65]) / 2
 
 # The depths is related to the root joints
 def local_to_global(depths, root_depth, joints_2d, source_str, center, scale, crop_box_size=256):
