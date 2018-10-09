@@ -145,6 +145,8 @@ if __name__ == "__main__":
                 global_steps = sess.run(ordinal_model.global_steps)
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_images_flipped_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+
                 batch_coords_2d_np = np.zeros([configs.scale_batch_size, configs.nJoints, 2], dtype=np.float32)
                 batch_relation_table_np = np.zeros([configs.batch_size, configs.nJoints, configs.nJoints], dtype=np.float32)
                 batch_loss_table_log_np = np.zeros([configs.batch_size, configs.nJoints, configs.nJoints], dtype=np.float32)
@@ -182,6 +184,8 @@ if __name__ == "__main__":
                     cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, do_rotate=False, is_training=False)
 
                     batch_images_np[b] = cur_img
+                    batch_images_flipped_np[b] = preprocessor.flip_img(batch_images_np[b])
+
                     batch_coords_2d_np[b] = (cur_joints[:, 0:2] - configs.coords_2d_offset) / configs.coords_2d_scale
                     batch_relation_table_np[b], batch_loss_table_log_np[b], batch_loss_table_pow_np[b] = preprocessor.get_relation_table(cur_joints[:, 2])
 
@@ -193,12 +197,24 @@ if __name__ == "__main__":
                          ordinal_model.result],
                         feed_dict={input_images: batch_images_np, input_coords_2d: batch_coords_2d_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_batch_size: configs.batch_size})
 
+                result_flipped = sess.run(
+                        [
+                         ordinal_model.result],
+                        feed_dict={input_images: batch_images_flipped_np})
+
                 print("Iter: {:07d}. Loss : {:07f}. Accuracy 2D : {:07f}\n\n".format(data_index.val, loss, acc_2d))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
-                # multiply the scale
+                ##### multiply the x, y scale first
+                result[:, :, 0:2] = result[:, :, 0:2] * configs.coords_2d_scale + configs.coords_2d_offset
+                result_flipped[:, :, 0:2] = result_flipped[:, :, 0:2] * configs.coords_2d_scale + configs.coords_2d_offset
+
+                ##### flip the result back and calculate the means
+                for b in range(configs.batch_size):
+                    result[b] = (preprocessor.flip_annot(result_flipped[b]) + result[b]) / 2.0
+
                 result_depth = result[:, :, 2].copy()
-                result_coords_2d = result[:, :, 0:2] * configs.coords_2d_scale + configs.coords_2d_offset
+                result_coords_2d = result[:, :, 0:2]
 
                 result_depth = result_depth - result_depth[:, 0]
                 result_depth = cur_depth_scale * result_depth

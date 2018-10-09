@@ -246,6 +246,9 @@ def _flip_data(img, annots, flip_array, size):
 
     return flipped_img, flipped_annots
 
+def flip_img(img):
+    return cv2.flip(img.copy(), 1)
+
 def _flip_annot(annots, flip_array, size):
     flipped_annots = annots.copy()
 

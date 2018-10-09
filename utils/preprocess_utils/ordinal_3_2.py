@@ -5,6 +5,8 @@ import sys
 
 from common import *
 
+flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
+
 def preprocess(img, annots, do_rotate=False, is_training=True):
     settings = {
         "img_size": 256,
@@ -38,3 +40,9 @@ def preprocess(img, annots, do_rotate=False, is_training=True):
 
     return aug_img, aug_annot
 
+
+def flip_data(img, annots, size=256):
+    return common._flip_data(img, annots, flip_array, size)
+
+def flip_annot(annots, size=256):
+    return common._flip_annot(annots, flip_array, size=size)
