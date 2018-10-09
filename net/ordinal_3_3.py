@@ -94,6 +94,36 @@ class mOrdinal_3_3(object):
 
         return vol_labels
 
+    def flip_volumes(self, vols, flip_array, name="flip_volume"):
+        with tf.variable_scope(name):
+            # flip the features map first
+            flipped_vols = tf.image.flip_left_right(vols)
+            # get the new vol orders
+            old_order = np.arange(0, self.nJoints, 1)
+            cur_order = old_order.copy()
+
+            cur_order[flip_array[:, 0]] = old_order[flip_array[:, 1]]
+            cur_order[flip_array[:, 1]] = old_order[flip_array[:, 0]]
+
+            cur_vols = []
+            for j in range(self.nJoints):
+                cur_idx = cur_order[j]
+                cur_vols.append(flipped_vols[:, :, :, self.feature_size*cur_idx:self.feature_size*(cur_idx+1)])
+
+            return tf.concat(cur_vols, axis=3, name="flipped_vols")
+
+    # eval_batch_size mean the real batch_size(normally 0.5 * self.batch_size)
+    # input_volumes
+    def build_evaluation(self, eval_batch_size, flip_array):
+        self.global_steps = tf.train.get_or_create_global_step()
+        # The self.volumes contains [raw_img_outputs, flipped_img_outputs]
+        with tf.variable_scope("parser_joints"):
+            raw_vol_batchs = self.volumes[0:eval_batch_size]
+            flipped_vol_batchs = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
+            mean_volumes = (raw_vol_batchs + flipped_vol_batchs) / 2.0
+            self.mean_joints  = self.get_joints(mean_volumes, batch_size=eval_batch_size, name="mean_joints")
+            self.raw_joints = self.get_joints(raw_vol_batchs, batch_size=eval_batch_size, name="raw_joints")
+
     # ordinal_3_3 with ground true volumes
     def build_loss_gt(self, input_volumes, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()

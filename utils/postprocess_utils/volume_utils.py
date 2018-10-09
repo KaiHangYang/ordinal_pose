@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(CUR_DIR))
 from common_utils import h36m_camera
 
 voxel_z_limits = np.load(os.path.join(CUR_DIR, "voxel_limits.npy"))
-voxel_z_centers = (voxel_limits[0:64] + voxel_limits[1:65]) / 2
+voxel_z_centers = (voxel_z_limits[0:64] + voxel_z_limits[1:65]) / 2
 
 # The depths is related to the root joints
 def local_to_global(depths, root_depth, joints_2d, source_str, center, scale, crop_box_size=256):
@@ -77,3 +77,4 @@ def get_joints_from_volume(volumes, volume_size=64, nJoints=17):
         joints[j_idx] = [vol_joints[1], vol_joints[0], vol_joints[2]]
 
     return joints
+
