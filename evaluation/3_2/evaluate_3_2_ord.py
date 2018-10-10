@@ -19,7 +19,7 @@ import configs
 
 # t means gt(0) or ord(1)
 # d means validset(0) or trainset(1)
-configs.parse_configs(1, 1)
+configs.parse_configs(1, 0)
 configs.print_configs()
 
 evaluation_models = [250000, 300000, 400000, 500000]
