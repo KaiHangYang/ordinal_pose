@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -19,10 +19,10 @@ import configs
 
 # t means gt(0) or ord(1)
 # d means validset(0) or trainset(1)
-configs.parse_configs(1, 0)
+configs.parse_configs(1, 1)
 configs.print_configs()
 
-evaluation_models = [175000, 200000, 225000, 300000]
+evaluation_models = [250000, 300000, 400000, 500000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -137,8 +137,12 @@ if __name__ == "__main__":
             cur_depth_scale = cur_model_depth_scale.cur_average[0]
             print("Scale used to evaluate: {:07f}".format(cur_depth_scale))
 
-            depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
-            coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+            mean_depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
+            mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+
+            raw_depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
+            raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
             while not data_index.isEnd():
@@ -198,8 +202,7 @@ if __name__ == "__main__":
                         feed_dict={input_images: batch_images_np, input_coords_2d: batch_coords_2d_np, input_relation_table: batch_relation_table_np, input_loss_table_log: batch_loss_table_log_np, input_loss_table_pow: batch_loss_table_pow_np, input_batch_size: configs.batch_size})
 
                 result_flipped = sess.run(
-                        [
-                         ordinal_model.result],
+                        ordinal_model.result,
                         feed_dict={input_images: batch_images_flipped_np})
 
                 print("Iter: {:07d}. Loss : {:07f}. Accuracy 2D : {:07f}\n\n".format(data_index.val, loss, acc_2d))
@@ -207,28 +210,49 @@ if __name__ == "__main__":
 
                 ##### multiply the x, y scale first
                 result[:, :, 0:2] = result[:, :, 0:2] * configs.coords_2d_scale + configs.coords_2d_offset
+                raw_result = result.copy()
                 result_flipped[:, :, 0:2] = result_flipped[:, :, 0:2] * configs.coords_2d_scale + configs.coords_2d_offset
 
                 ##### flip the result back and calculate the means
                 for b in range(configs.batch_size):
                     result[b] = (preprocessor.flip_annot(result_flipped[b]) + result[b]) / 2.0
 
-                result_depth = result[:, :, 2].copy()
-                result_coords_2d = result[:, :, 0:2]
+                ##### the mean results
+                mean_result_depth = result[:, :, 2].copy()
+                mean_result_depth = cur_depth_scale * (mean_result_depth - mean_result_depth[:, 0])
 
-                result_depth = result_depth - result_depth[:, 0]
-                result_depth = cur_depth_scale * result_depth
+                mean_result_coords_2d = result[:, :, 0:2]
 
-                depth_eval.add(np.array(gt_depth_arr), result_depth)
-                depth_eval.printMean()
+                mean_depth_eval.add(np.array(gt_depth_arr), mean_result_depth)
+                sys.stdout.write("Mean: ")
+                mean_depth_eval.printMean()
+
+                ##### The raw results
+                raw_result_depth = raw_result[:, :, 2].copy()
+                raw_result_depth = cur_depth_scale * (raw_result_depth - raw_result_depth[:, 0])
+
+                raw_result_coords_2d = raw_result[:, :, 0:2]
+
+                raw_depth_eval.add(np.array(gt_depth_arr), raw_result_depth)
+                sys.stdout.write("Raw: ")
+                raw_depth_eval.printMean()
 
                 ############# evaluate the coords recovered from the pd 2d and gt root depth
                 for b in range(configs.batch_size):
-                    c_j_2d, c_j_3d, _ = volume_utils.local_to_global(result_depth[b], depth_root_arr[b], result_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], c_j_3d - c_j_3d[0])
+                    mean_c_j_2d, mean_c_j_3d, _ = volume_utils.local_to_global(mean_result_depth[b], depth_root_arr[b], mean_result_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], mean_c_j_3d - mean_c_j_3d[0])
 
-                coords_eval.printMean()
+                    raw_c_j_2d, raw_c_j_3d, _ = volume_utils.local_to_global(raw_result_depth[b], depth_root_arr[b], raw_result_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], raw_c_j_3d - raw_c_j_3d[0])
+
+                sys.stdout.write("Mean: ")
+                mean_coords_eval.printMean()
+                sys.stdout.write("Raw: ")
+                raw_coords_eval.printMean()
                 print("\n\n")
 
-            depth_eval.save("../eval_result/ord_3_2/depth_eval_{}w.npy".format(cur_model_iterations / 10000))
-            coords_eval.save("../eval_result/ord_3_2/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
+            mean_depth_eval.save("../eval_result/ord_3_2/depth_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
+            mean_coords_eval.save("../eval_result/ord_3_2/coord_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
+
+            raw_depth_eval.save("../eval_result/ord_3_2/depth_eval_{}w_raw.npy".format(cur_model_iterations / 10000))
+            raw_coords_eval.save("../eval_result/ord_3_2/coord_eval_{}w_raw.npy".format(cur_model_iterations / 10000))

@@ -4,6 +4,7 @@ import os
 import sys
 
 from common import *
+import common
 
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
