@@ -11,7 +11,7 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mOrdinal_3_3(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_volume=1.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_volume=1.0, rank_loss_weight=1.0, hm_loss_weight=100.0):
         self.loss_weight_volume = loss_weight_volume
         self.nJoints = nJoints
         self.img_size = img_size
@@ -21,8 +21,8 @@ class mOrdinal_3_3(object):
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
         self.feature_size = 64
-        self.rank_loss_weight = 1.0
-        self.hm_loss_weight = 100.0
+        self.rank_loss_weight = rank_loss_weight
+        self.hm_loss_weight = hm_loss_weight
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
@@ -110,7 +110,7 @@ class mOrdinal_3_3(object):
         return heatmaps_labels
 
     # input_joints shape (None, 17, 3)
-    def build_input_volumes(self, input_centers, stddev=2.0, name="input_vols"):
+    def build_input_volumes(self, input_centers, stddev=2.0, name="input_vols", gaussian_coefficient=False):
         with tf.variable_scope(name):
             raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size*self.feature_size), [self.feature_size, self.feature_size, self.feature_size]).astype(np.float32), name="raw_arr_y")
 
@@ -120,8 +120,10 @@ class mOrdinal_3_3(object):
 
             all_vols = []
             for j_idx in range(self.nJoints):
-                # cur_vol =  (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
-                cur_vol = tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                if gaussian_coefficient:
+                    cur_vol =  (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                else:
+                    cur_vol = tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
                 all_vols.append(cur_vol)
 
             vol_labels = tf.concat(all_vols, axis=3, name="volumes")

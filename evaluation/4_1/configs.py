@@ -21,7 +21,7 @@ img_path_fn = None
 lbl_path_fn = None
 
 model_dir = None
-model_path_fn = None
+restore_model_path_fn = None
 model_path = None
 
 ###############################
@@ -31,7 +31,7 @@ model_path = None
 # d the data source valid(0) train(1)
 def parse_configs(t, ver, d):
 
-    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale
+    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale
 
     eval_type = ["gt", "ord"][t]
     cur_prefix = "f_{}".format(ver)
@@ -66,13 +66,13 @@ def parse_configs(t, ver, d):
     lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/labels/{}.npy".format(x)
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(cur_prefix, eval_type))
-    model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format(cur_prefix, eval_type, x))
+    restore_model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format(cur_prefix, eval_type, x))
 
     # remove the '-'
-    model_path = model_path_fn("")[0:-1]
+    model_path = restore_model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale
+    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale
     print("##################### Evaluation Parameters #####################")
     print("##### Data Parameters")
     print("loss_weight_heatmap: {}\nloss_weight_volume: {}\nnJoints: {}\nbatch_size: {}\nimg_size: {}".format(loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size))
@@ -86,6 +86,6 @@ def print_configs():
     print("lbl_path: {}".format(lbl_path_fn("{}")))
 
     print("model_dir: {}".format(model_dir))
-    print("model_path_fn: {}".format(model_path_fn("{}")))
+    print("restore_model_path_fn: {}".format(restore_model_path_fn("{}")))
     print("model_path: {}".format(model_path))
 
