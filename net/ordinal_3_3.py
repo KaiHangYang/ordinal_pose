@@ -85,8 +85,9 @@ class mOrdinal_3_3(object):
 
                 # return tf.cast(tf.concat(all_joints, axis=1), tf.float32)
 
-    def cal_accuracy(self, gt_joints, pd_joints):
-        accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
+    def cal_accuracy(self, gt_joints, pd_joints, name="accuracy"):
+        with tf.variable_scope(name):
+            accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
         return accuracy
 
     # input_joints shape (None, 17, 2)
@@ -150,6 +151,33 @@ class mOrdinal_3_3(object):
 
     # eval_batch_size mean the real batch_size(normally 0.5 * self.batch_size)
     # input_volumes
+
+    def build_evaluation_nogt(self, eval_batch_size, flip_array):
+        self.global_steps = tf.train.get_or_create_global_step()
+        # The self.volumes contains [raw_img_outputs, flipped_img_outputs]
+        with tf.variable_scope("parser_joints"):
+            raw_volumes = self.volumes[0:eval_batch_size]
+            flipped_vol_batchs = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
+            mean_volumes = (raw_volumes + flipped_vol_batchs) / 2.0
+
+            with tf.variable_scope("data_postprocess"):
+                volumes_z_indices = tf.tile(np.arange(0.0, self.feature_size, 1.0).astype(np.float32)[np.newaxis, :, np.newaxis], [self.batch_size, 1, self.nJoints])
+
+                mean_reshaped_volumes = tf.transpose(tf.reshape(mean_volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
+                mean_softmaxed_volumes = tf.reshape(tf.nn.softmax(tf.reshape(mean_reshaped_volumes, [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.feature_size, self.nJoints])
+                mean_volumes_xy = tf.reduce_sum(mean_softmaxed_volumes, axis=[3])
+                mean_volumes_z_arrs = tf.reduce_sum(mean_softmaxed_volumes, axis=[1, 2])
+                self.mean_volumes_z = tf.reduce_sum(mean_volumes_z_arrs * volumes_z_indices, axis=1)
+
+                raw_reshaped_volumes = tf.transpose(tf.reshape(raw_volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
+                raw_softmaxed_volumes = tf.reshape(tf.nn.softmax(tf.reshape(raw_reshaped_volumes, [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.feature_size, self.nJoints])
+                raw_volumes_xy = tf.reduce_sum(raw_softmaxed_volumes, axis=[3])
+                raw_volumes_z_arrs = tf.reduce_sum(raw_softmaxed_volumes, axis=[1, 2])
+                self.raw_volumes_z = tf.reduce_sum(raw_volumes_z_arrs * volumes_z_indices, axis=1)
+
+            self.mean_joints_2d  = self.get_joints_hm(mean_volumes_xy, batch_size=eval_batch_size, name="mean_joints_2d")
+            self.raw_joints_2d = self.get_joints_hm(raw_volumes_xy, batch_size=eval_batch_size, name="raw_joints_2d")
+
     def build_evaluation(self, eval_batch_size, flip_array):
         self.global_steps = tf.train.get_or_create_global_step()
         # The self.volumes contains [raw_img_outputs, flipped_img_outputs]
