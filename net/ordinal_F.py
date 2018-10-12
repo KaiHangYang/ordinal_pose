@@ -149,8 +149,12 @@ class mOrdinal_F(object):
             raw_vol_batchs = self.volumes[0:eval_batch_size]
             flipped_vol_batchs = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
             mean_volumes = (raw_vol_batchs + flipped_vol_batchs) / 2.0
-            self.mean_joints  = self.get_joints_vol(mean_volumes, batch_size=eval_batch_size, name="mean_joints")
-            self.raw_joints = self.get_joints_vol(raw_vol_batchs, batch_size=eval_batch_size, name="raw_joints")
+
+            combined_volumes = tf.concat([mean_volumes, raw_vol_batchs], axis=0, name="combined_volumes")
+            all_joints = self.get_joints_vol(combined_volumes, batch_size=2*eval_batch_size, name="all_joints")
+
+            self.mean_joints = all_joints[0:eval_batch_size]
+            self.raw_joints = all_joints[eval_batch_size:2*eval_batch_size]
 
     # ordinal_F with ground true volumes
     def build_loss_gt(self, input_heatmaps, input_volumes, lr, lr_decay_step, lr_decay_rate):

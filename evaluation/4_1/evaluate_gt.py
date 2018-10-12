@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -23,8 +23,7 @@ import configs
 configs.parse_configs(t=0, ver=1, d=0)
 configs.print_configs()
 
-# evaluation_models = [250000, 300000, 350000, 400000, 450000, 500000, 550000, 600000]
-evaluation_models = [275000, 325000, 375000, 425000, 475000, 525000, 575000, 625000]
+evaluation_models = [875000]
 ###############################################################
 
 if __name__ == "__main__":
