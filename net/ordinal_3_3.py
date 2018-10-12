@@ -160,7 +160,7 @@ class mOrdinal_3_3(object):
             flipped_volumes = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
             # mean_volumes = (raw_volumes + flipped_vol_batchs) / 2.0
 
-            with tf.variable_scope("data_postprocess"):
+            with tf.variable_scope("data_decompositon"):
                 volumes_z_indices = tf.tile(np.arange(0.0, self.feature_size, 1.0).astype(np.float32)[np.newaxis, :, np.newaxis], [eval_batch_size, 1, self.nJoints])
 
                 flipped_reshaped_volumes = tf.transpose(tf.reshape(flipped_volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
@@ -234,7 +234,7 @@ class mOrdinal_3_3(object):
 
         with tf.variable_scope("vol_loss"):
             self.vol_loss = 0
-            with tf.variable_scope("data_postprocess"):
+            with tf.variable_scope("data_decomposition"):
                 reshaped_volumes = tf.transpose(tf.reshape(self.volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
                 softmaxed_volumes = tf.reshape(tf.nn.softmax(tf.reshape(reshaped_volumes, [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.feature_size, self.nJoints])
 

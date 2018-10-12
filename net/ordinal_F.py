@@ -11,9 +11,15 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mOrdinal_F(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_volume=1.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_volume=1.0, loss_weight_rank=1.0, loss_weight_2d=1000.0):
+
         self.loss_weight_heatmap = loss_weight_heatmap
         self.loss_weight_volume = loss_weight_volume
+
+        # Loss weight for no gt training
+        self.loss_weight_rank = loss_weight_rank
+        self.loss_weight_2d = loss_weight_2d
+
         self.nJoints = nJoints
         self.img_size = img_size
         self.is_use_bias = True
@@ -206,29 +212,67 @@ class mOrdinal_F(object):
 
         self.merged_summary = tf.summary.merge_all()
 
-    # def build_loss_no_gt(self, relation_table, loss_table_log, loss_table_pow, lr):
-        # self.global_steps = tf.train.get_or_create_global_step()
+    def build_loss_no_gt(self, input_heatmaps, relation_table, loss_table_log, loss_table_pow, lr, lr_decay_step, lr_decay_rate):
+        self.global_steps = tf.train.get_or_create_global_step()
+        self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase=True, name="learning_rate")
 
-        # with tf.device("/device:GPU:0"):
-            # with tf.variable_scope("rank_loss"):
-                # self.loss = 0
-                # row_val = tf.tile(self.result[:, :, tf.newaxis], [1, 1, self.nJoints])
-                # col_val = tf.tile(self.result[:, tf.newaxis], [1, self.nJoints, 1])
+        with tf.variable_scope("losses"):
+            with tf.variable_scope("hm_loss"):
+                self.hm_loss = tf.nn.l2_loss(self.heatmaps - input_heatmaps) / self.batch_size * self.loss_weight_heatmap
 
-                # rel_distance = (row_val - col_val)
+            with tf.variable_scope("vol_loss"):
+                self.vol_loss = 0
+                with tf.variable_scope("data_decomposition"):
+                    reshaped_volumes = tf.transpose(tf.reshape(self.volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
+                    softmaxed_volumes = tf.reshape(tf.nn.softmax(tf.reshape(reshaped_volumes, [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.feature_size, self.nJoints])
 
-                # self.loss = tf.reduce_sum(loss_table_log * tf.log(1 + tf.exp(relation_table * rel_distance)) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size
+                    volumes_xy = tf.reduce_sum(softmaxed_volumes, axis=[3])
+                    volumes_z_arrs = tf.reduce_sum(softmaxed_volumes, axis=[1, 2])
+                    volumes_z_indices = tf.tile(np.arange(0.0, self.feature_size, 1.0).astype(np.float32)[np.newaxis, :, np.newaxis], [self.batch_size, 1, self.nJoints])
 
-            # with tf.variable_scope("grad"):
+                    volumes_z = tf.reduce_sum(volumes_z_arrs * volumes_z_indices, axis=1)
 
-                # # NOTICE: The dependencies must be added, because of the BN used in the residual 
-                # # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
-                # self.optimizer = tf.train.RMSPropOptimizer(learning_rate=lr)
-                # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                # with tf.control_dependencies(update_ops):
-                    # grads_n_vars = self.optimizer.compute_gradients(self.loss)
-                    # self.train_op = self.optimizer.apply_gradients(grads_n_vars, self.global_steps)
+                with tf.variable_scope("loss_rank"):
+                    row_val = tf.tile(volumes_z[:, :, tf.newaxis], [1, 1, self.nJoints])
+                    col_val = tf.tile(volumes_z[:, tf.newaxis], [1, self.nJoints, 1])
 
-        # with tf.device("/cpu:0"):
-            # tf.summary.scalar("loss", self.loss)
-            # self.merged_summary = tf.summary.merge_all()
+                    rel_distance = (row_val - col_val)
+                    # Softplus is log(1 + exp(x)) and without overflow
+                    self.loss_rank = tf.reduce_sum(loss_table_log * tf.math.softplus(relation_table * rel_distance) + loss_table_pow * tf.pow(rel_distance, 2)) / self.batch_size * self.loss_weight_rank
+
+                with tf.variable_scope("2d_loss"):
+                    self.loss_2d = tf.nn.l2_loss(volumes_xy - input_heatmaps) / self.batch_size * self.loss_weight_2d
+
+                self.vol_loss = self.loss_rank + self.loss_2d
+
+            self.total_loss = self.vol_loss + self.hm_loss
+
+        # NOTICE: The dependencies must be added, because of the BN used in the residual 
+        # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
+        self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.lr)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        print("Update_ops num {}".format(len(update_ops)))
+        with tf.control_dependencies(update_ops):
+            self.train_op = self.optimizer.minimize(self.total_loss, self.global_steps)
+
+        with tf.variable_scope("parser_joints"):
+            cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
+
+            with tf.variable_scope("parser_hm"):
+                combined_heatmaps = tf.concat([input_heatmaps, volumes_xy], axis=0, name="heatmaps_combine")
+                all_joints_hm = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="all_joints_hm")
+
+                self.gt_joints_hm = all_joints_hm[0:cur_batch_size]
+                self.pd_joints_hm = all_joints_hm[cur_batch_size:cur_batch_size*2]
+
+        with tf.variable_scope("cal_accuracy"):
+            self.accuracy_hm = self.cal_accuracy(self.gt_joints_hm, self.pd_joints_hm, name="hm_joints_accuracy")
+
+        tf.summary.scalar("heatmap_joints_accuracy", self.accuracy_hm)
+        tf.summary.scalar("loss_hm", self.hm_loss)
+        tf.summary.scalar("vol_loss", self.vol_loss)
+        tf.summary.scalar("loss_rank", self.loss_rank)
+        tf.summary.scalar("loss_2d", self.loss_2d)
+        tf.summary.scalar("learning_rate", self.lr)
+
+        self.merged_summary = tf.summary.merge_all()
