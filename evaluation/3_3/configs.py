@@ -23,13 +23,20 @@ model_dir = None
 restore_model_path_fn = None
 model_path = None
 
+##### The parameters below only used in the ordinal mode
+scale_batch_size = None
+scale_range_file = None
+scale_img_path_fn = None
+scale_lbl_path_fn = None
+###############################
+
 ###############################
 
 # t means gt(0) or ord(1)
 # d means validset(0) or trainset(1)
 def parse_configs(t, d):
 
-    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale
+    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     eval_type = ["gt", "ord"][t]
     data_source = ["valid", "train"][d]
@@ -47,8 +54,10 @@ def parse_configs(t, d):
     feature_map_size = 64
 
     nJoints = config_parser.getint("data", "nJoints")
-    # batch_size = config_parser.getint("data", "batch_size")
-    batch_size = 2 # use the big batch to speed up the evaluation
+    batch_size = config_parser.getint("data", "batch_size")
+    scale_batch_size = batch_size
+
+    # batch_size = 2 # use the big batch to speed up the evaluation
     img_size = config_parser.getint("data", "img_size")
 
     learning_rate = config_parser.getfloat("train", "learning_rate")
@@ -66,15 +75,20 @@ def parse_configs(t, d):
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "3_3_{}".format(eval_type))
     restore_model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format("3_3", eval_type, x))
 
+    # Parameters used in ordinal mode
+    scale_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "scale_range.npy")
+    scale_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images/{}.jpg".format(x)
+    scale_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/labels/{}.npy".format(x)
+
     # remove the '-'
     model_path = restore_model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale
+    global loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, depth_scale, coords_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     print("##################### Parameters #####################")
     print("##### Data Parameters")
-    print("loss_weight_heatmap: {}\nloss_weight_volume: {}\nnJoints: {}\nbatch_size: {}\nimg_size: {}\n".format(loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, img_size))
+    print("loss_weight_heatmap: {}\nloss_weight_volume: {}\nnJoints: {}\nbatch_size: {}\nscale_batch_size: {}\nimg_size: {}\n".format(loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, scale_batch_size, img_size))
     print("feature_map_size: {}".format(feature_map_size))
     print("depth_scale: {}\ncoords_2d_scale: {}".format(depth_scale, coords_2d_scale))
     print("##### Learn Parameters")

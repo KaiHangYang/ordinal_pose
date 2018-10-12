@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -22,15 +22,15 @@ import configs
 configs.parse_configs(1, 0)
 configs.print_configs()
 
-evaluation_models = [250000, 300000, 400000, 500000]
+evaluation_models = [250000, 300000]
 ###############################################################
 
 if __name__ == "__main__":
 
     ################### Initialize the data reader ###################
     #### Used for valid
+    network_batch_size = 2*configs.batch_size
 
-    network_batch_size = configs.batch_size * 2
     range_arr = np.load(configs.range_file)
     data_from = 0
     data_to = len(range_arr)
@@ -47,17 +47,15 @@ if __name__ == "__main__":
     scale_lbl_list = [configs.scale_lbl_path_fn(i) for i in scale_range_arr]
     ##################################################################
 
-    input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
-    input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
-    input_eval_batch_size = tf.placeholder(shape=[],dtype=tf.int32, name="input_eval_batch_size")
+    input_images = tf.placeholder(shape=[network_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
 
-    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=False)
+    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=network_batch_size, is_training=False)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-            ordinal_model.build_evaluation_nogt(input_eval_batch_size, preprocessor.flip_array)
+            ordinal_model.build_evaluation_nogt(configs.batch_size, preprocessor.flip_array)
 
         print("Network built!")
         # log_writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
@@ -81,12 +79,12 @@ if __name__ == "__main__":
             cur_model_depth_scale = my_utils.mAverageCounter(shape=[1])
             scale_data_index = my_utils.mRangeVariable(min_val=scale_data_from, max_val=scale_data_to-1, initial_val=scale_data_from)
             while not scale_data_index.isEnd():
-                batch_images_np = np.zeros([configs.scale_batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-                batch_images_flipped_np = np.zeros([configs.scale_batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_images_flipped_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
                 ##### The depth is all related to the root
                 gt_depth_arr = []
 
-                for b in range(configs.scale_batch_size):
+                for b in range(configs.batch_size):
 
                     cur_img = cv2.imread(scale_img_list[scale_data_index.val])
                     cur_label = np.load(scale_lbl_list[scale_data_index.val]).tolist()
@@ -108,13 +106,13 @@ if __name__ == "__main__":
                          ordinal_model.mean_volumes_z,
                          ordinal_model.raw_volumes_z
                         ],
-                        feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0), input_eval_batch_size: configs.scale_batch_size, input_batch_size: 2*configs.scale_batch_size})
+                        feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
 
                 scale_for_show = []
 
                 scale_depth = mean_scale_depth
 
-                for b in range(configs.scale_batch_size):
+                for b in range(configs.batch_size):
                     scale_depth_related_to_root = scale_depth[b] - scale_depth[b][0]
                     cur_scale = (np.max(gt_depth_arr[b]) - np.min(gt_depth_arr[b])) / (np.max(scale_depth_related_to_root) - np.min(scale_depth_related_to_root) + 1e-7)
                     cur_model_depth_scale.add(cur_scale)
@@ -127,6 +125,7 @@ if __name__ == "__main__":
 
             ##### Then evaluate it #####
             cur_depth_scale = cur_model_depth_scale.cur_average[0]
+            # cur_depth_scale = 122.0
             print("Scale used to evaluate: {:07f}".format(cur_depth_scale))
 
             mean_depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
@@ -186,21 +185,21 @@ if __name__ == "__main__":
                          ordinal_model.mean_joints_2d,
                          ordinal_model.raw_volumes_z,
                          ordinal_model.raw_joints_2d],
-                        feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0), input_eval_batch_size: configs.batch_size, input_batch_size: 2*configs.batch_size})
+                        feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
 
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
 
                 ##### the mean results
-                mean_depth = cur_depth_scale * (mean_depth - mean_depth[:, 0])
-                mean_joints_2d = mean_joints_2d * configs.coords_2d_scale + configs.coords_2d_offset
+                mean_depth = cur_depth_scale * (mean_depth - mean_depth[:, 0][:, np.newaxis])
+                mean_joints_2d = mean_joints_2d * configs.coords_2d_scale
 
                 mean_depth_eval.add(np.array(gt_depth_arr), mean_depth)
                 sys.stdout.write("Mean: ")
                 mean_depth_eval.printMean()
 
                 ##### The raw results
-                raw_depth = cur_depth_scale * (raw_depth - raw_depth[:, 0])
-                raw_joints_2d = raw_joints_2d * configs.coords_2d_scale + configs.coords_2d_offset
+                raw_depth = cur_depth_scale * (raw_depth - raw_depth[:, 0][:, np.newaxis])
+                raw_joints_2d = raw_joints_2d * configs.coords_2d_scale
 
                 raw_depth_eval.add(np.array(gt_depth_arr), raw_depth)
                 sys.stdout.write("raw: ")
