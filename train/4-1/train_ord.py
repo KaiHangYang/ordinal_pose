@@ -49,7 +49,7 @@ if __name__ == "__main__":
         valid_data_iter, valid_data_init_op = ordinal_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
-    input_centers_hm = tf.placeholder(shape=[None, configs.nJoints, 2], dtype=tf.float32, name="input_centers_hm")
+    input_centers_2d = tf.placeholder(shape=[None, configs.nJoints, 2], dtype=tf.float32, name="input_centers_2d")
 
     input_relation_table = tf.placeholder(shape=[None, configs.nJoints, configs.nJoints], dtype=tf.float32, name="input_relation_table")
     input_loss_table_log = tf.placeholder(shape=[None, configs.nJoints, configs.nJoints], dtype=tf.float32, name="input_loss_table_log")
@@ -58,13 +58,13 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    ordinal_model = ordinal_F.mOrdinal_F(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=100.0, loss_weight_volume=1.0, loss_weight_rank=1.0, loss_weight_2d=1000.0)
+    ordinal_model = ordinal_F.mOrdinal_F(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=1.0, loss_weight_volume=1.0, loss_weight_rank=1.0, loss_weight_2d=1.0)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_hm)
+            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_2d, stddev=2.0, gaussian_coefficient=False)
 
         ordinal_model.build_loss_no_gt(input_heatmaps=input_heatmaps, relation_table=input_relation_table, loss_table_log=input_loss_table_log, loss_table_pow=input_loss_table_pow, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 

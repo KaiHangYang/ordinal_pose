@@ -92,7 +92,7 @@ class mOrdinal_F(object):
         return accuracy
 
     # input_joints shape (None, 17, 2)
-    def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps"):
+    def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps", gaussian_coefficient=False):
         with tf.variable_scope(name):
             raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size), [self.feature_size, self.feature_size, 1]).astype(np.float32), name="raw_arr_y")
 
@@ -101,8 +101,12 @@ class mOrdinal_F(object):
 
             all_heatmaps = []
             for j_idx in range(self.nJoints):
-                # cur_heatmaps = (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
-                cur_heatmaps = tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+
+                if gaussian_coefficient:
+                    cur_heatmaps = (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                else:
+                    cur_heatmaps = tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+
                 all_heatmaps.append(cur_heatmaps)
 
             heatmaps_labels = tf.concat(all_heatmaps, axis=3, name="heatmaps")
@@ -110,7 +114,7 @@ class mOrdinal_F(object):
         return heatmaps_labels
 
     # input_joints shape (None, 17, 3)
-    def build_input_volumes(self, input_centers, stddev=2.0, name="input_volumes"):
+    def build_input_volumes(self, input_centers, stddev=2.0, name="input_volumes", gaussian_coefficient=False):
         with tf.variable_scope(name):
             raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size*self.feature_size), [self.feature_size, self.feature_size, self.feature_size]).astype(np.float32), name="raw_arr_y")
 
@@ -120,8 +124,10 @@ class mOrdinal_F(object):
 
             all_vols = []
             for j_idx in range(self.nJoints):
-                # cur_vol =  (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
-                cur_vol = tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                if gaussian_coefficient:
+                    cur_vol =  (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                else:
+                    cur_vol = tf.exp(-(tf.pow(const_x - tf.reshape(input_centers[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_centers[:, j_idx, 1], [-1, 1, 1, 1]), 2) + tf.pow(const_z - tf.reshape(input_centers[:, j_idx, 2], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
                 all_vols.append(cur_vol)
 
             vol_labels = tf.concat(all_vols, axis=3, name="volumes")
