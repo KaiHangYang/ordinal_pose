@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -56,13 +56,13 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, rank_loss_weight=1.0, hm_loss_weight=1000.0)
+    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, rank_loss_weight=1.0, hm_loss_weight=10.0)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_2d, stddev=2.0, gaussian_coefficient=True, name="input_heatmaps")
+            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_2d, stddev=2.0, gaussian_coefficient=False, name="input_heatmaps")
         ordinal_model.build_loss_no_gt(input_heatmaps=input_heatmaps, relation_table=input_relation_table, loss_table_log=input_loss_table_log, loss_table_pow=input_loss_table_pow, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
                 # Now use the 100mm range to generate the relation table
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_label["joints_3d"][:, 2][:, np.newaxis]], axis=1)
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid, is_rotate=False)
 
                 # currently the cur_img is in range [0, 1]
                 batch_images_np[b] = cur_img
@@ -195,7 +195,7 @@ if __name__ == "__main__":
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
-            if global_steps % 25000 == 0 and not is_valid:
+            if global_steps % 20000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=configs.model_path, global_step=global_steps)
 
             if global_steps >= configs.train_iter and not is_valid:

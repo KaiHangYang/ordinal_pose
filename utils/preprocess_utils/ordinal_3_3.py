@@ -8,13 +8,13 @@ import common
 
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
-def preprocess(img, annots, is_training=True):
+def preprocess(img, annots, is_training=True, is_rotate=True):
     settings = {
         "img_size": 256,
         "crop_box_size": 256,
         "num_of_joints": 17,
         "scale_range": 0.25,# max is 0.5
-        "rotate_range": 30, # max 45
+        "rotate_range": 30.0 if is_rotate else 0.0, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
         "pad_color": [0.5, 0.5, 0.5],
@@ -40,7 +40,6 @@ def preprocess(img, annots, is_training=True):
         aug_annot = annots
 
     return aug_img, aug_annot
-
 
 def flip_data(img, annots, size=64):
     return common._flip_data(img, annots, flip_array, size)
