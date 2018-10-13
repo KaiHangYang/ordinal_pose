@@ -152,6 +152,38 @@ class mOrdinal_F(object):
 
             return tf.concat(cur_vols, axis=3, name="flipped_vols")
 
+    def build_evaluation_nogt(self, eval_batch_size, flip_array):
+        self.global_steps = tf.train.get_or_create_global_step()
+        # The self.volumes contains [raw_img_outputs, flipped_img_outputs]
+        with tf.variable_scope("parser_joints"):
+            raw_volumes = self.volumes[0:eval_batch_size]
+            flipped_volumes = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
+            # mean_volumes = (raw_volumes + flipped_vol_batchs) / 2.0
+
+            with tf.variable_scope("data_decompositon"):
+                volumes_z_indices = tf.tile(np.arange(0.0, self.feature_size, 1.0).astype(np.float32)[np.newaxis, :, np.newaxis], [eval_batch_size, 1, self.nJoints])
+
+                flipped_reshaped_volumes = tf.transpose(tf.reshape(flipped_volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
+                flipped_softmaxed_volumes = tf.reshape(tf.nn.softmax(tf.reshape(flipped_reshaped_volumes, [eval_batch_size, -1, self.nJoints]), axis=1), [eval_batch_size, self.feature_size, self.feature_size, self.feature_size, self.nJoints])
+                flipped_volumes_xy = tf.reduce_sum(flipped_softmaxed_volumes, axis=[3])
+                flipped_volumes_z_arrs = tf.reduce_sum(flipped_softmaxed_volumes, axis=[1, 2])
+                self.flipped_volumes_z = tf.reduce_sum(flipped_volumes_z_arrs * volumes_z_indices, axis=1)
+
+                raw_reshaped_volumes = tf.transpose(tf.reshape(raw_volumes, [-1, self.feature_size, self.feature_size, self.nJoints, self.feature_size]), perm=[0, 1, 2, 4, 3])
+                raw_softmaxed_volumes = tf.reshape(tf.nn.softmax(tf.reshape(raw_reshaped_volumes, [eval_batch_size, -1, self.nJoints]), axis=1), [eval_batch_size, self.feature_size, self.feature_size, self.feature_size, self.nJoints])
+                raw_volumes_xy = tf.reduce_sum(raw_softmaxed_volumes, axis=[3])
+                raw_volumes_z_arrs = tf.reduce_sum(raw_softmaxed_volumes, axis=[1, 2])
+                self.raw_volumes_z = tf.reduce_sum(raw_volumes_z_arrs * volumes_z_indices, axis=1)
+
+            combined_heatmaps = tf.concat([flipped_volumes_xy, raw_volumes_xy], axis=0)
+            all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*eval_batch_size, name="all_joints_2d")
+
+            self.flipped_joints_2d = all_joints_2d[0:eval_batch_size]
+            self.raw_joints_2d = all_joints_2d[eval_batch_size:2*eval_batch_size]
+
+            self.mean_joints_2d = (self.flipped_joints_2d + self.raw_joints_2d) / 2.0
+            self.mean_volumes_z = (self.raw_volumes_z + self.flipped_volumes_z) / 2.0
+
     # eval_batch_size mean the real batch_size(normally 0.5 * self.batch_size)
     # input_volumes
     def build_evaluation(self, eval_batch_size, flip_array):
