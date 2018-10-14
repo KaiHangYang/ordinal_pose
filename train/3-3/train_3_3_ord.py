@@ -56,13 +56,13 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, rank_loss_weight=1.0, hm_loss_weight=10.0)
+    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, rank_loss_weight=1.0, hm_loss_weight=1000.0)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_2d, stddev=2.0, gaussian_coefficient=False, name="input_heatmaps")
+            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_2d, stddev=2.0, gaussian_coefficient=True, name="input_heatmaps")
         ordinal_model.build_loss_no_gt(input_heatmaps=input_heatmaps, relation_table=input_relation_table, loss_table_log=input_loss_table_log, loss_table_pow=input_loss_table_pow, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
