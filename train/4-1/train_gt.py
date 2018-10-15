@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -60,8 +60,8 @@ if __name__ == "__main__":
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
-            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_hm)
-            input_volumes = ordinal_model.build_input_volumes(input_centers_vol)
+            input_heatmaps = ordinal_model.build_input_heatmaps(input_centers_hm, stddev=2.0, gaussian_coefficient=False)
+            input_volumes = ordinal_model.build_input_volumes(input_centers_vol, stddev=2.0, gaussian_coefficient=False)
 
         ordinal_model.build_loss_gt(input_heatmaps=input_heatmaps, input_volumes=input_volumes, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_joints_zidx[:, np.newaxis]], axis=1)
 
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid, is_rotate=False)
                 # generate the heatmaps and volumes
                 batch_images_np[b] = cur_img
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
-            if global_steps % 25000 == 0 and not is_valid:
+            if global_steps % 20000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=configs.model_path, global_step=global_steps)
 
             if global_steps >= configs.train_iter and not is_valid:
