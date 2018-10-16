@@ -158,6 +158,7 @@ class mOrdinal_3_3(object):
         with tf.variable_scope("parser_joints"):
             raw_volumes = self.volumes[0:eval_batch_size]
             flipped_volumes = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
+            # The mean_volumes way will get very bad result
             # mean_volumes = (raw_volumes + flipped_vol_batchs) / 2.0
 
             with tf.variable_scope("data_decompositon"):

@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
                 cur_joints = np.concatenate([cur_label["joints_2d"], cur_joints_zidx[:, np.newaxis]], axis=1)
 
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid, is_rotate=False)
 
                 # currently the cur_img is in range [0, 1]
                 batch_images_np[b] = cur_img
