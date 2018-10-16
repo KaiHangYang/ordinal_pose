@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(t=1, ver=1, d=0)
 configs.print_configs()
 
-evaluation_models = [425000, 450000, 475000, 500000, 525000, 550000, 575000]
+evaluation_models = [260000, 280000, 300000, 320000, 340000, 360000, 380000, 400000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -75,7 +75,7 @@ if __name__ == "__main__":
                 print("The prev model is not existing!")
                 quit()
 
-            ##################### First get the depth scale from the subset of the training set ######################
+            #################### First get the depth scale from the subset of the training set ######################
             cur_model_depth_scale = my_utils.mAverageCounter(shape=[1])
             scale_data_index = my_utils.mRangeVariable(min_val=scale_data_from, max_val=scale_data_to-1, initial_val=scale_data_from)
             while not scale_data_index.isEnd():
@@ -125,7 +125,6 @@ if __name__ == "__main__":
 
             ##### Then evaluate it #####
             cur_depth_scale = cur_model_depth_scale.cur_average[0]
-            # cur_depth_scale = 122.0
             print("Scale used to evaluate: {:07f}".format(cur_depth_scale))
 
             mean_depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
