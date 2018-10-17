@@ -115,6 +115,27 @@ class mVNectOutput(object):
 
         return xyzmaps
 
+    # heatmaps: stack is 1, xyzmaps: stack is 3
+    def flip_maps(self, maps, flip_array, map_stacks=1, name="flip_maps"):
+        with tf.variable_scope(name):
+            # flip the features map first
+            flipped_maps = tf.image.flip_left_right(maps)
+            # get the new maps orders
+            old_order = np.arange(0, self.nJoints, 1)
+            cur_order = old_order.copy()
+
+            cur_order[flip_array[:, 0]] = old_order[flip_array[:, 1]]
+            cur_order[flip_array[:, 1]] = old_order[flip_array[:, 0]]
+
+            cur_maps = []
+
+            for s in range(map_stacks):
+                for j in range(self.nJoints):
+                    cur_idx = cur_order[j]
+                    cur_maps.append(flipped_maps[:, :, :, cur_idx + self.nJoints * s])
+
+            return tf.concat(cur_maps, axis=3, name="flipped_maps")
+
     # input_joints shape (None, 17, 2)
     def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps", gaussian_coefficient=False):
         with tf.variable_scope(name):
@@ -141,15 +162,27 @@ class mVNectOutput(object):
         self.global_steps = tf.train.get_or_create_global_step()
         # The self.volumes contains [raw_img_outputs, flipped_img_outputs]
         with tf.variable_scope("parser_joints"):
-            raw_vol_batchs = self.volumes[0:eval_batch_size]
-            flipped_vol_batchs = self.flip_volumes(self.volumes[eval_batch_size:2*eval_batch_size], flip_array=flip_array)
-            mean_volumes = (raw_vol_batchs + flipped_vol_batchs) / 2.0
 
-            combined_volumes = tf.concat([mean_volumes, raw_vol_batchs], axis=0, name="combined_volumes")
-            all_joints = self.get_joints_vol(combined_volumes, batch_size=2*eval_batch_size, name="all_joints")
+            raw_heatmaps = self.heatmaps[0:eval_batch_size]
+            flipped_heatmaps = self.flip_maps(self.heatmaps[eval_batch_size:2*eval_batch_size], flip_array=flip_array, map_stacks=1, name="flipped_heatmaps")
 
-            self.mean_joints = all_joints[0:eval_batch_size]
-            self.raw_joints = all_joints[eval_batch_size:2*eval_batch_size]
+            raw_xyzmaps = self.xyzmaps[0:eval_batch_size]
+            flipped_xyzmaps = self.flip_maps(self.xyzmaps[eval_batch_size:2*eval_batch_size], flip_array=flip_array, map_stacks=3, name="flipped_xyzmaps")
+
+            mean_heatmaps = (raw_heatmaps + flipped_heatmaps) / 2.0
+            mean_xyzmaps = (raw_xyzmaps + flipped_xyzmaps) / 2.0
+
+            combined_heatmaps = tf.concat([mean_heatmaps, raw_heatmaps], axis=0, name="combined_heatmaps")
+            all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*eval_batch_size, name="all_joints_2d")
+
+            self.mean_joints_2d = all_joints_2d[0:eval_batch_size]
+            self.raw_joints_2d = all_joints_2d[eval_batch_size:2*eval_batch_size]
+
+            combined_xyzmaps = tf.concat([mean_xyzmaps, raw_xyzmaps], axis=0, name="combined_xyzmaps")
+            all_joints_3d = self.get_joints_xyzm(all_joints_2d, combined_xyzmaps, batch_size=2*eval_batch_size, name="all_joints_3d")
+
+            self.mean_joints_3d = all_joints_3d[0:eval_batch_size]
+            self.raw_joints_3d = all_joints_3d[eval_batch_size:2*eval_batch_size]
 
     # with ground true xyzmaps
     def build_loss(self, input_heatmaps, input_xyzmaps, lr, lr_decay_step, lr_decay_rate):
