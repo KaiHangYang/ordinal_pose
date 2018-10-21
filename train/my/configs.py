@@ -47,8 +47,8 @@ def parse_configs(t, ver):
     joints_3d_scale = 1000.0
     joints_2d_scale = 4.0
 
-    loss_weight_heatmap = 1.0
-    loss_weight_xyzmap = 1.0
+    loss_weight_heatmap = 3.0
+    loss_weight_xyzmap = 10.0
 
     feature_map_size = 64
 
