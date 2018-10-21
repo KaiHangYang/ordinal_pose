@@ -14,9 +14,9 @@ from utils.postprocess_utils import volume_utils
 
 
 ############## some Parameters
-data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/"
+data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
 
-images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images"), "{}.jpg".format(x))
+images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images_syn"), "{}.jpg".format(x))
 annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels"), "{}.npy".format(x))
 
 
@@ -75,8 +75,8 @@ if __name__ == "__main__":
 
             m_btn_callback.reset()
 
-            # cur_index = data_index.val
-            cur_index = 628
+            cur_index = data_index.val
+            # cur_index = 628
 
             cropped_img = cv2.imread(images_file_fn(cur_index))
             cur_label = np.load(annots_file_fn(cur_index)).tolist()

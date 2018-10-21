@@ -13,7 +13,7 @@ from utils.defs import pose_defs
 ############## some Parameters
 data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
 
-images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images"), "{}.jpg".format(x))
+images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images_syn"), "{}.jpg".format(x))
 annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels"), "{}.npy".format(x))
 
 

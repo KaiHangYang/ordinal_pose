@@ -62,10 +62,10 @@ def parse_configs(t):
     train_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "train_range.npy")
     valid_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "valid_range.npy")
 
-    train_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images/{}.jpg".format(x)
+    train_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images_syn/{}.jpg".format(x)
     train_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/labels/{}.npy".format(x)
 
-    valid_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "valid") + "/images/{}.jpg".format(x)
+    valid_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "valid") + "/images_syn/{}.jpg".format(x)
     valid_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "valid") + "/labels/{}.npy".format(x)
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "3_2_{}".format(train_type))

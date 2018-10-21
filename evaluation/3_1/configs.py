@@ -53,12 +53,12 @@ def parse_configs(t, d):
 
     # Dataset Settings
     range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), data_source + "_range.npy")
-    img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/images/{}.jpg".format(x)
+    img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/images_syn/{}.jpg".format(x)
     lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/labels/{}.npy".format(x)
 
     # Parameters used in ordinal mode
     scale_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "scale_range.npy")
-    scale_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images/{}.jpg".format(x)
+    scale_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images_syn/{}.jpg".format(x)
     scale_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/labels/{}.npy".format(x)
 
     restore_model_path_fn = lambda x: os.path.join(config_parser.get("model", "base_dir"), "3_1_{}/".format(eval_type) + config_parser.get("model", "prefix").format("3_1", eval_type, x))
