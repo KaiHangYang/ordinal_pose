@@ -67,6 +67,7 @@ def get_cam_mat(s, c):
     focal_length = w1[6:8]
     focal_center = w1[8:10]
 
+    # cam_matrix is used to project the 3D joints to 2D
     cam_matrix = np.reshape([focal_length[0], 0, focal_center[0], 0,
                              0, focal_length[1], focal_center[1], 0,
                              0, 0, 1, 0,
@@ -74,6 +75,7 @@ def get_cam_mat(s, c):
 
     # rotate_mat = eulerToMat(w1[0:3])
     # return rotate_mat, w1[3:6]
+    # proj_mat is used for opengl renderring
     proj_mat = np.array([[2.0*cam_matrix[0][0] / wnd_width, 0, -1 + 2.0*cam_matrix[0][2] / wnd_width, 0.0],
                          [0, -2.0*cam_matrix[1][1] / wnd_height, 1 - 2.0*cam_matrix[1][2] / wnd_height, 0.0],
                          [0, 0, 1, -2 * cam_matrix[0][0]],

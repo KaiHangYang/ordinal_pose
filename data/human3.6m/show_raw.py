@@ -75,8 +75,11 @@ if __name__ == "__main__":
 
             m_btn_callback.reset()
 
-            cropped_img = cv2.imread(images_file_fn(data_index.val))
-            cur_label = np.load(annots_file_fn(data_index.val)).tolist()
+            # cur_index = data_index.val
+            cur_index = 628
+
+            cropped_img = cv2.imread(images_file_fn(cur_index))
+            cur_label = np.load(annots_file_fn(cur_index)).tolist()
 
             joints_3d = cur_label["joints_3d"]
             joints_2d = cur_label["joints_2d"]
