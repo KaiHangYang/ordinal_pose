@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -7,32 +7,28 @@ import cv2
 import time
 
 sys.path.append("../../")
-from net import ordinal_3_3
+from net import vnect_out
 from utils.preprocess_utils import ordinal_3_3 as preprocessor
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
-from utils.postprocess_utils import volume_utils
 
 ##################### Evaluation Configs ######################
 import configs
 
 # t means gt(0) or ord(1)
+# ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(0, 0)
+configs.parse_configs(t=0, ver=1, d=0)
 configs.print_configs()
 
-# evaluation_models = [275000, 325000, 425000, 475000, 500000, 600000, 625000]
-evaluation_models = [275000, 300000, 325000, 350000, 375000, 400000, 425000, 450000, 475000, 500000]
+evaluation_models = [20000]
 ###############################################################
 
 if __name__ == "__main__":
 
+    network_batch_size = 2*configs.batch_size
     ################### Initialize the data reader ###################
-
-    # another half batchs are the flipped batchs
-    network_batch_size = configs.batch_size * 2
-
     range_arr = np.load(configs.range_file)
     data_from = 0
     data_to = len(range_arr)
@@ -40,15 +36,16 @@ if __name__ == "__main__":
     img_list = [configs.img_path_fn(i) for i in range_arr]
     lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
 
-    input_images = tf.placeholder(shape=[network_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
+    input_images = tf.placeholder(shape=[network_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
 
-    ordinal_model = ordinal_3_3.mOrdinal_3_3(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=network_batch_size, is_training=False)
+    ordinal_model = vnect_out.mVNectOutput(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=network_batch_size, is_training=False, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_xyzmap=configs.loss_weight_xyzmap, joints_2d_scale=configs.joints_2d_scale, joints_3d_scale=configs.joints_3d_scale)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             ordinal_model.build_model(input_images)
             ordinal_model.build_evaluation(eval_batch_size=configs.batch_size, flip_array=preprocessor.flip_array)
+
 
         print("Network built!")
         # log_writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
@@ -65,6 +62,7 @@ if __name__ == "__main__":
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
+            ################# Restore the model ################
             if os.path.exists(configs.restore_model_path_fn(cur_model_iterations)+".index"):
                 print("#######################Restored all weights ###########################")
                 model_saver.restore(sess, configs.restore_model_path_fn(cur_model_iterations))
@@ -72,6 +70,7 @@ if __name__ == "__main__":
                 print(configs.restore_model_path_fn(cur_model_iterations))
                 print("The prev model is not existing!")
                 quit()
+            ####################################################
 
             while not data_index.isEnd():
                 global_steps = sess.run(ordinal_model.global_steps)
@@ -111,16 +110,15 @@ if __name__ == "__main__":
                     batch_images_np[b] = cur_img
                     batch_images_flipped_np[b] = preprocessor.flip_img(batch_images_np[b])
 
-                mean_vol_joints,\
-                raw_vol_joints = sess.run(
+                mean_vol_joints, \
+                raw_vol_joints  = sess.run(
                         [
                          ordinal_model.mean_joints,
                          ordinal_model.raw_joints
-                         ],
+                        ],
                         feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
 
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
-                # print(np.max(np.abs(raw_vol_joints - mean_vol_joints)))
 
                 mean_vol_joints = mean_vol_joints.astype(np.int32)
                 mean_pd_depth = np.array(map(lambda x: volume_utils.voxel_z_centers[x], mean_vol_joints[:, :, 2].tolist()))
@@ -148,5 +146,5 @@ if __name__ == "__main__":
 
                 print("\n\n")
 
-            mean_coords_eval.save("../eval_result/gt_3_3/coord_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
-            raw_coords_eval.save("../eval_result/gt_3_3/coord_eval_{}w_raw.npy".format(cur_model_iterations / 10000))
+            mean_coords_eval.save("../eval_result/f_4_1/coord_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
+            raw_coords_eval.save("../eval_result/f_4_1/coord_eval_{}w_raw.npy".format(cur_model_iterations / 10000))
