@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -159,7 +159,7 @@ if __name__ == "__main__":
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 
-            if global_steps % 25000 == 0 and not is_valid:
+            if global_steps % 20000 == 0 and not is_valid:
                 model_saver.save(sess=sess, save_path=configs.model_path, global_step=global_steps)
 
             if global_steps >= configs.train_iter and not is_valid:
