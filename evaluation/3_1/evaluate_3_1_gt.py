@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
                     cur_index = int(os.path.splitext(img_path_for_show[b])[0])
                     # save the pose related to the root
-                    pose_error_statistic.add_one(data_index=cur_index, pose_gt=gt_joints_3d_arr[b]-gt_joints_3d_arr[b][0], pose_pd=c_j_3d - c_j_3d[0], network_output=configs.depth_scale * depth[b])
+                    pose_error_statistic.add_one(data_index=cur_index, pose_gt=gt_joints_3d_arr[b], pose_pd=c_j_3d, network_output=configs.depth_scale * depth[b])
 
                 coords_eval.printMean()
                 print("\n\n")
