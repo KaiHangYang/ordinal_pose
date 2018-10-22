@@ -67,11 +67,14 @@ def parse_configs(t):
     train_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "train_range.npy")
     valid_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "valid_range.npy")
 
-    train_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images_syn/{}.jpg".format(x)
-    train_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/labels/{}.npy".format(x)
+    base_image_path = config_parser.get("dataset", "image_path")
+    base_label_path = config_parser.get("dataset", "label_path")
 
-    valid_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "valid") + "/images_syn/{}.jpg".format(x)
-    valid_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "valid") + "/labels/{}.npy".format(x)
+    train_img_path_fn = lambda x: (base_image_path.format("train", "{}")).format(x)
+    train_lbl_path_fn = lambda x: (base_label_path.format("train", "{}")).format(x)
+
+    valid_img_path_fn = lambda x: (base_image_path.format("valid", "{}")).format(x)
+    valid_lbl_path_fn = lambda x: (base_label_path.format("valid", "{}")).format(x)
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "3_3_{}".format(train_type))
     model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format("3_3", train_type, x))

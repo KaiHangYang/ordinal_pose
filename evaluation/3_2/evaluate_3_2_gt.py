@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [300000]
+evaluation_models = [60000, 160000, 260000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -104,4 +104,4 @@ if __name__ == "__main__":
                 coords_eval.printMean()
                 print("\n\n")
 
-            coords_eval.save("../eval_result/gt_3_2/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
+            coords_eval.save("../eval_result/syn_3_2/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
