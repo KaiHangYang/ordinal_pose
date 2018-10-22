@@ -6,16 +6,19 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 class mResultSaver(object):
-    def __init__(self, save_path):
-        self.save_path = save_path
+    def __init__(self):
         self.results = None
 
-    def restore(self):
-        self.results = np.load(self.save_path).tolist()
+    def restore(self, save_path):
+        assert(os.path.isdir(os.path.dirname(save_path)))
+        self.results = np.load(save_path).tolist()
 
-    def save(self):
+    def save(self, save_path):
         if self.results is not None:
-            np.save(os.path.splitext(self.save_path)[0], self.results)
+            if not os.path.exists(os.path.dirname(save_path)):
+                os.makedirs(os.path.dirname(save_path))
+
+            np.save(save_path, {"results": self.results})
 
     # Notice: the pose is related to the root
     # and pose_gt, pose_pd shape is (nJoint, 3)

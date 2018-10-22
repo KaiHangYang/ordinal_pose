@@ -80,8 +80,8 @@ def parse_configs(t, d):
 
     # Parameters used in ordinal mode
     scale_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "scale_range.npy")
-    scale_img_path_fn = (base_image_path.format("train", "{}")).format(x)
-    scale_lbl_path_fn = (base_label_path.format("train", "{}")).format(x)
+    scale_img_path_fn = lambda x: (base_image_path.format("train", "{}")).format(x)
+    scale_lbl_path_fn = lambda x: (base_label_path.format("train", "{}")).format(x)
 
     # remove the '-'
     model_path = restore_model_path_fn("")[0:-1]

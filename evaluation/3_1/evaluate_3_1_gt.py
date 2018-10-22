@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -14,6 +14,7 @@ from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
 from utils.postprocess_utils import volume_utils
+from utils.statistic_utils import pose_error
 
 ##################### Evaluation Configs ######################
 import configs
@@ -23,7 +24,7 @@ import configs
 configs.parse_configs(0, 0)
 configs.print_configs()
 
-evaluation_models = [60000, 160000, 260000]
+evaluation_models = [300000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -56,6 +57,7 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
 
+            pose_error_statistic = pose_error.mResultSaver()
             depth_eval = evaluators.mEvaluatorDepth(nJoints=configs.nJoints)
             coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
 
@@ -121,8 +123,14 @@ if __name__ == "__main__":
                     c_j_2d, c_j_3d, _ = volume_utils.local_to_global(configs.depth_scale * depth[b], depth_root_arr[b], crop_joints_2d_arr[b], source_txt_arr[b], center_arr[b], scale_arr[b])
                     coords_eval.add(gt_joints_3d_arr[b], c_j_3d)
 
+                    cur_index = int(os.path.splitext(img_path_for_show[b])[0])
+                    # save the pose related to the root
+                    pose_error_statistic.add_one(data_index=cur_index, pose_gt=gt_joints_3d_arr[b]-gt_joints_3d_arr[b][0], pose_pd=c_j_3d - c_j_3d[0], network_output=configs.depth_scale * depth[b])
+
                 coords_eval.printMean()
                 print("\n\n")
 
+
+            pose_error_statistic.save("../eval_result/syn_3_1/result_eval_{}w.npy".format(cur_model_iterations / 10000))
             depth_eval.save("../eval_result/syn_3_1/depth_eval_{}w.npy".format(cur_model_iterations / 10000))
             coords_eval.save("../eval_result/syn_3_1/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
