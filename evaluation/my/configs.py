@@ -67,17 +67,19 @@ def parse_configs(t, ver, d):
     # Dataset Settings
     range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), data_source+"_range.npy")
 
-    img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/images/{}.jpg".format(x)
-    lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), data_source) + "/labels/{}.npy".format(x)
+    base_image_path = config_parser.get("dataset", "image_path")
+    base_label_path = config_parser.get("dataset", "label_path")
+
+    img_path_fn = lambda x: (base_image_path.format(data_source, "{}")).format(x)
+    lbl_path_fn = lambda x: (base_label_path.format(data_source, "{}")).format(x)
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(cur_prefix, eval_type))
     restore_model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format(cur_prefix, eval_type, x))
 
     # Parameters used in ordinal mode
     scale_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "scale_range.npy")
-    scale_img_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/images/{}.jpg".format(x)
-    scale_lbl_path_fn = lambda x: os.path.join(config_parser.get("dataset", "base_dir"), "train") + "/labels/{}.npy".format(x)
-
+    scale_img_path_fn = lambda x:(base_image_path.format("train", "{}")).format(x)
+    scale_lbl_path_fn = lambda x:(base_label_path.format("train", "{}")).format(x)
     # remove the '-'
     model_path = restore_model_path_fn("")[0:-1]
 

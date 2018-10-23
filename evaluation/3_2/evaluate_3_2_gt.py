@@ -13,6 +13,7 @@ from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
 from utils.postprocess_utils import volume_utils
+from utils.statistic_utils import pose_error
 
 ##################### Evaluation Configs ######################
 import configs
@@ -56,6 +57,7 @@ if __name__ == "__main__":
         for cur_model_iterations in evaluation_models:
 
             coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+            pose_error_statistic = pose_error.mResultSaver()
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
@@ -104,4 +106,9 @@ if __name__ == "__main__":
                 coords_eval.printMean()
                 print("\n\n")
 
+                for b in range(configs.batch_size):
+                    cur_index = int(os.path.splitext(img_path_for_show[b])[0])
+                    pose_error_statistic.add_one(data_index=cur_index, pose_gt=configs.coords_scale * batch_coords_np[b], pose_pd=configs.coords_scale * coords[b], network_output=configs.coords_scale * coords[b])
+
+            pose_error_statistic.save("../eval_result/gt_3_2/result_eval_{}w.npy".format(cur_model_iterations / 10000))
             coords_eval.save("../eval_result/gt_3_2/coord_eval_{}w.npy".format(cur_model_iterations / 10000))
