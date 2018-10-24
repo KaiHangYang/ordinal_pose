@@ -30,7 +30,8 @@ class mOrdinal_3_1(object):
                                  inputs=input_images,
                                  filters=64,
                                  kernel_size=7,
-                                 strides=2,
+                                 # strides=2, # TODO temporarily remove the pooling
+                                 strides=1,
                                  padding="SAME",
                                  use_bias=self.is_use_bias,
                                  activation=None,
@@ -39,7 +40,8 @@ class mOrdinal_3_1(object):
                 first_conv = tf.contrib.layers.batch_norm(first_conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
 
             net = self.res_utils.residual_block(first_conv, 128, name="res1")
-            net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
+            # TODO temporarily remove the pooling
+            # net = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
             net = self.res_utils.residual_block(net, 128, name="res2")
             net = self.res_utils.residual_block(net, 128, name="res3")
             net = self.res_utils.residual_block(net, 256, name="res4")
