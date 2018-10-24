@@ -134,7 +134,7 @@ class mResultVisualizer(object):
                 ax = fig.add_subplot(1, 1, 1)
                 text = ax.text(1, 1, '')
 
-                plt.title("Error histogram for mean per frame")
+                plt.title("Mean error histogram")
                 plt.xlabel("Error(mm)")
                 plt.ylabel("The number of datas")
 
@@ -266,7 +266,7 @@ class mResultVisualizer(object):
                 ax.set_ylabel("The number of datas")
             # text = ax.text(1, 1, 1, '')
 
-            plt.title("Error histogram for mean per frame")
+            plt.title("Mean error histogram")
             ax.set_xlabel("Error(mm)")
 
             bins = np.arange(0, data_max, data_step)
@@ -463,7 +463,7 @@ class mResultVisualizer(object):
                 if event.key == "a":
                     # save_current fig
                     extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-                    fig.savefig(os.path.join(save_dir, "frame_mean_error.png"), bbox_inches=extent.expanded(1.2, 1.3))
+                    fig.savefig(os.path.join(save_dir, "data_error_dist.png"), bbox_inches=extent.expanded(1.2, 1.3))
 
             fig.canvas.mpl_connect("key_press_event", save_callback)
             plt.show()
@@ -520,7 +520,7 @@ class mResultVisualizer(object):
                 ax.set_xlabel("data index")
                 ax.set_ylabel("Error(mm)")
 
-                for cur_idx, cur_data in enumerate(hist_arr):
+                for cur_idx, cur_data in enumerate(statistic_datas):
                     ax.plot(cur_data[:, 1], cur_data[:, 0], color=colors[cur_idx], label=result_names[cur_idx])
                 plt.legend()
 
@@ -532,7 +532,7 @@ class mResultVisualizer(object):
                 if event.key == "a":
                     # save_current fig
                     extent = cur_ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-                    fig.savefig(os.path.join(save_dir, "joint_{}_error.png".format(cur_joint_index)), bbox_inches=extent.expanded(1.2, 1.3))
+                    fig.savefig(os.path.join(save_dir, "joint_{}_error_dist.png".format(cur_joint_index)), bbox_inches=extent.expanded(1.2, 1.3))
 
 
             for j_idx in range(nJoints):
