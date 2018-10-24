@@ -13,15 +13,18 @@ nJoints = None
 train_batch_size = None
 valid_batch_size = None
 img_size = None
+syn_img_size = None
 learning_rate = None
 lr_decay_rate = None
 lr_decay_step = None
 log_dir = None
 train_range_file = None
 train_img_path_fn = None
+train_syn_img_path_fn = None
 train_lbl_path_fn = None
 valid_range_file = None
 valid_img_path_fn = None
+valid_syn_img_path_fn = None
 valid_lbl_path_fn = None
 model_dir = None
 model_path_fn = None
@@ -34,10 +37,10 @@ valid_iter = None
 # t means gt(0) or ord(1)
 def parse_configs(t, ver):
 
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_syn_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_syn_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
 
     train_type = ["gt", "ord"][t]
-    cur_prefix = "my_{}".format(ver)
+    cur_prefix = "syn_{}".format(ver)
 
     TRAIN_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ### The train.conf is in the same directory with this script
@@ -55,7 +58,8 @@ def parse_configs(t, ver):
     nJoints = config_parser.getint("data", "nJoints")
     train_batch_size = config_parser.getint("data", "train_batch_size")
     valid_batch_size = config_parser.getint("data", "valid_batch_size")
-    img_size = config_parser.getint("data", "img_size")
+    img_size = 256
+    syn_img_size = 64
     train_iter = config_parser.getint("data", "train_iter")
     valid_iter = config_parser.getint("data", "valid_iter")
 
@@ -69,13 +73,18 @@ def parse_configs(t, ver):
     train_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "train_range.npy")
     valid_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "valid_range.npy")
 
-    base_image_path = config_parser.get("dataset", "image_path")
-    base_label_path = config_parser.get("dataset", "label_path")
+    # base_image_path = config_parser.get("dataset", "image_path")
+    # base_label_path = config_parser.get("dataset", "label_path")
+    base_image_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/images/{}.jpg"
+    base_syn_image_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/images_syn_64x64/{}.jpg"
+    base_label_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/{}/labels/{}.npy"
 
     train_img_path_fn = lambda x: (base_image_path.format("train", "{}")).format(x)
+    train_syn_img_path_fn = lambda x: (base_syn_image_path.format("train", "{}")).format(x)
     train_lbl_path_fn = lambda x: (base_label_path.format("train", "{}")).format(x)
 
     valid_img_path_fn = lambda x: (base_image_path.format("valid", "{}")).format(x)
+    valid_syn_img_path_fn = lambda x: (base_syn_image_path.format("valid", "{}")).format(x)
     valid_lbl_path_fn = lambda x: (base_label_path.format("valid", "{}")).format(x)
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(cur_prefix, train_type))
@@ -85,10 +94,10 @@ def parse_configs(t, ver):
     model_path = model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_syn_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_syn_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
     print("##################### Training Parameters #####################")
     print("##### Data Parameters")
-    print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\ntrain_batch_size: {}\nvalid_batch_size: {}\nimg_size: {}\ntrain_iter: {}\nvalid_iter: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, train_iter, valid_iter))
+    print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\ntrain_batch_size: {}\nvalid_batch_size: {}\nimg_size: {}\nsyn_img_size: {}\ntrain_iter: {}\nvalid_iter: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, train_iter, valid_iter))
     print("feature_map_size: {}".format(feature_map_size))
     print("joints_3d_scale: {}\njoints_2d_scale: {}".format(joints_3d_scale, joints_2d_scale))
     print("##### Learn Parameters")
@@ -96,10 +105,12 @@ def print_configs():
     print("log_dir: {}".format(log_dir))
     print("train_range_file: {}".format(train_range_file))
     print("train_img_path: {}".format(train_img_path_fn("{}")))
+    print("train_syn_img_path: {}".format(train_syn_img_path_fn("{}")))
     print("train_lbl_path: {}".format(train_lbl_path_fn("{}")))
 
     print("valid_range_file: {}".format(valid_range_file))
     print("valid_img_path: {}".format(valid_img_path_fn("{}")))
+    print("valid_syn_img_path: {}".format(valid_syn_img_path_fn("{}")))
     print("valid_lbl_path: {}".format(valid_lbl_path_fn("{}")))
 
     print("model_dir: {}".format(model_dir))
