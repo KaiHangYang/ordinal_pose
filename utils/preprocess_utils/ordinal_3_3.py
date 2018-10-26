@@ -10,14 +10,14 @@ flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
 def preprocess(img, annots, is_training=True, is_rotate=True):
     settings = {
-        "img_size": 256,
-        "crop_box_size": 256,
+        "img_size": 64,
+        "crop_box_size": 64,
         "num_of_joints": 17,
         "scale_range": 0.25,# max is 0.5
         "rotate_range": 30.0 if is_rotate else 0.0, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
-        "pad_color": [0.5, 0.5, 0.5],
+        "pad_color": [0.2, 0.2, 0.2],
         "flip_array": flip_array
     }
 
@@ -29,11 +29,10 @@ def preprocess(img, annots, is_training=True, is_rotate=True):
 
     if is_training:
         # augment the color of the images
-        img[:, :, 0] *= np.random.uniform(0.8, 1.2)
-        img[:, :, 1] *= np.random.uniform(0.8, 1.2)
-        img[:, :, 2] *= np.random.uniform(0.8, 1.2)
-        img = np.clip(img, 0.0, 1.0)
-
+        # img[:, :, 0] *= np.random.uniform(0.8, 1.2)
+        # img[:, :, 1] *= np.random.uniform(0.8, 1.2)
+        # img[:, :, 2] *= np.random.uniform(0.8, 1.2)
+        # img = np.clip(img, 0.0, 1.0)
         aug_img, aug_annot = augment_data_2d(img, annots, settings)
     else:
         aug_img = img
