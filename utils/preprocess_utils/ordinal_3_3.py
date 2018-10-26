@@ -8,10 +8,10 @@ import common
 
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
-def preprocess(img, annots, is_training=True, is_rotate=True):
+def preprocess(img, annots, is_training=True, is_rotate=True, img_size=256):
     settings = {
-        "img_size": 64,
-        "crop_box_size": 64,
+        "img_size": img_size,
+        "crop_box_size": img_size,
         "num_of_joints": 17,
         "scale_range": 0.25,# max is 0.5
         "rotate_range": 30.0 if is_rotate else 0.0, # max 45

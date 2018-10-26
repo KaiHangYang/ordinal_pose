@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -121,13 +121,24 @@ if __name__ == "__main__":
 
                 cur_joints_zidx = (cur_label["joints_zidx"] - 1).copy() # cause lua is from 1 to n not 0 to n-1
 
-                cur_joints = np.concatenate([cur_label["joints_2d"], cur_joints_zidx[:, np.newaxis]], axis=1)
+                # When Train the 64x64 input, I need to scale the coord_2d before augmentate
+                if configs.img_size == 64:
+                    cur_joints = np.concatenate([cur_label["joints_2d"] / configs.coords_2d_scale, cur_joints_zidx[:, np.newaxis]], axis=1)
+                elif configs.img_size == 256:
+                    cur_joints = np.concatenate([cur_label["joints_2d"], cur_joints_zidx[:, np.newaxis]], axis=1)
+                else:
+                    print("Current image size is not support!")
+                    exit()
 
-                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid, is_rotate=False)
+                cur_img, cur_joints = preprocessor.preprocess(cur_img, cur_joints, is_training=not is_valid, is_rotate=False, img_size=configs.img_size)
                 # generate the heatmaps and volumes
                 batch_images_np[b] = cur_img
 
-                hm_joint_2d = np.round(cur_joints[:, 0:2] / configs.coords_2d_scale)
+                if configs.img_size == 64:
+                    hm_joint_2d = np.round(cur_joints[:, 0:2])
+                elif configs.img_size == 256:
+                    hm_joint_2d = np.round(cur_joints[:, 0:2] / configs.coords_2d_scale)
+
                 hm_joint_3d = np.concatenate([hm_joint_2d, cur_joints[:, 2][:, np.newaxis]], axis=1)
                 batch_centers_np[b] = hm_joint_3d
 

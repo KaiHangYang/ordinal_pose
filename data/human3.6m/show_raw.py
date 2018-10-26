@@ -16,7 +16,7 @@ from utils.postprocess_utils import volume_utils
 ############## some Parameters
 data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
 
-images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images_syn"), "{}.jpg".format(x))
+images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images_syn_64x64"), "{}.jpg".format(x))
 annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels"), "{}.npy".format(x))
 
 
@@ -78,7 +78,8 @@ if __name__ == "__main__":
             cur_index = data_index.val
             # cur_index = 628
 
-            cropped_img = cv2.imread(images_file_fn(cur_index))
+            # cropped_img = cv2.imread(images_file_fn(cur_index))
+            cropped_img = cv2.resize(cv2.imread(images_file_fn(cur_index)), (256, 256))
             cur_label = np.load(annots_file_fn(cur_index)).tolist()
 
             joints_3d = cur_label["joints_3d"]

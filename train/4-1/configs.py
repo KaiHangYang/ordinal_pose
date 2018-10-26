@@ -49,6 +49,7 @@ def parse_configs(t, ver):
 
     loss_weight_heatmap = 10.0
     loss_weight_volume = 1.0
+
     feature_map_size = 64
 
     nJoints = config_parser.getint("data", "nJoints")
