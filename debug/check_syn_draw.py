@@ -21,11 +21,23 @@ if __name__ == "__main__":
         cur_image = cv2.imread(image_dir_fn("{}.jpg".format(cur_label_name.split(".")[0])))
         cur_real_image = cv2.imread(real_image_dir_fn("{}.jpg".format(cur_label_name.split(".")[0])))
 
-        joints_2d = cur_label["joints_2d"]
+        joints_2d = cur_label["joints_2d"] * 4
         bone_status = cur_label["bone_status"]
         bone_order = cur_label["bone_order"]
 
+        print(bone_order)
+
         SYN_TIME = time.time()
+
+        # Test the preprocess scripts
+        nJoints = joints_2d.shape[0]
+
+        cur_real_image, joints_2d, bone_status, bone_order = syn_preprocess.preprocess(cur_real_image, joints_2d=joints_2d, bone_status=bone_status, bone_order=bone_order, is_training=True)
+
+        joints_2d = joints_2d / 4
+
+        print(bone_order)
+
         synmap, sep_synmaps = syn_preprocess.draw_syn_img(joints_2d, bone_status, bone_order)
         SYN_TIME = time.time() - SYN_TIME
 
