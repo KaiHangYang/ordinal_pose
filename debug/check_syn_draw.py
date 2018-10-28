@@ -39,12 +39,22 @@ if __name__ == "__main__":
         print(bone_order)
 
         synmap, sep_synmaps = syn_preprocess.draw_syn_img(joints_2d, bone_status, bone_order)
+
+        sep_synmaps = np.concatenate(sep_synmaps, axis=2)
+
         SYN_TIME = time.time() - SYN_TIME
 
         cv2.imshow("painted_img", cv2.resize(cur_image, (256, 256)))
         cv2.imshow("synmap", cv2.resize(synmap, (256, 256)))
         cv2.imshow("real_img", cur_real_image)
         cv2.waitKey()
+
+
+        for i in range(sep_synmaps.shape[2]/3):
+            cv2.imshow("synmap", cv2.resize(sep_synmaps[:, :, 3*i:3*i+3], (256, 256)))
+            cv2.waitKey()
+
+
         print("SYN_TIME", SYN_TIME)
 
         print(cur_label["source"])

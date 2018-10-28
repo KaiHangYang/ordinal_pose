@@ -16,8 +16,8 @@ from utils.postprocess_utils import volume_utils
 ############## some Parameters
 data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
 
-images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images_syn_64x64"), "{}.jpg".format(x))
-annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels"), "{}.npy".format(x))
+images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images"), "{}.jpg".format(x))
+annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels_syn"), "{}.npy".format(x))
 
 
 ############## function to handle the keyboard event
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             cur_label = np.load(annots_file_fn(cur_index)).tolist()
 
             joints_3d = cur_label["joints_3d"]
-            joints_2d = cur_label["joints_2d"]
+            joints_2d = cur_label["joints_2d"] * 4
 
             cur_depth = joints_3d[:, 2] - joints_3d[0, 2]
             root_depth = joints_3d[0, 2]

@@ -3,23 +3,22 @@ import sys
 import tensorflow as tf
 import numpy as np
 
-def get_data_iterator(img_list, syn_img_list, lbl_list, batch_size, name="", is_shuffle=True):
+def get_data_iterator(img_list, lbl_list, batch_size, name="", is_shuffle=True):
     data_sum = len(img_list)
     print("DataSet: {}. Sum: {}. BatchSize: {}. Shuffle: {}".format(name, data_sum, batch_size, is_shuffle))
 
     with tf.name_scope(name):
-        assert(len(img_list) == len(lbl_list) == len(syn_img_list))
+        assert(len(img_list) == len(lbl_list))
         for i in range(len(img_list)):
-            assert(os.path.basename(img_list[i]).split(".")[0] == os.path.basename(lbl_list[i]).split(".")[0] == os.path.basename(syn_img_list[i]).split(".")[0])
+            assert(os.path.basename(img_list[i]).split(".")[0] == os.path.basename(lbl_list[i]).split(".")[0])
 
         img_dataset = tf.data.Dataset.from_tensor_slices(img_list)
-        syn_img_dataset = tf.data.Dataset.from_tensor_slices(syn_img_list)
         lbl_dataset = tf.data.Dataset.from_tensor_slices(lbl_list)
 
         if is_shuffle:
-            dataset = tf.data.Dataset.zip((img_dataset, syn_img_dataset, lbl_dataset)).shuffle(data_sum).repeat().batch(batch_size)
+            dataset = tf.data.Dataset.zip((img_dataset, lbl_dataset)).shuffle(data_sum).repeat().batch(batch_size)
         else:
-            dataset = tf.data.Dataset.zip((img_dataset, syn_img_dataset, lbl_dataset)).repeat().batch(batch_size)
+            dataset = tf.data.Dataset.zip((img_dataset, lbl_dataset)).repeat().batch(batch_size)
 
         iterator = tf.data.Iterator.from_structure(output_types=dataset.output_types, output_shapes=dataset.output_shapes)
 

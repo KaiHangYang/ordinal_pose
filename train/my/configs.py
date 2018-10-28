@@ -77,7 +77,7 @@ def parse_configs(t, ver):
     # base_label_path = config_parser.get("dataset", "label_path")
     base_image_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/images/{}.jpg"
     base_syn_image_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/images_syn_64x64/{}.jpg"
-    base_label_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/{}/labels/{}.npy"
+    base_label_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/labels_syn/{}.npy"
 
     train_img_path_fn = lambda x: (base_image_path.format("train", "{}")).format(x)
     train_syn_img_path_fn = lambda x: (base_syn_image_path.format("train", "{}")).format(x)
