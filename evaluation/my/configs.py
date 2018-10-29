@@ -12,6 +12,7 @@ loss_weight_xyzmap = None
 nJoints = None
 batch_size = None
 img_size = None
+syn_img_size = None
 learning_rate = None
 lr_decay_rate = None
 lr_decay_step = None
@@ -36,10 +37,10 @@ scale_lbl_path_fn = None
 # d the data source valid(0) train(1)
 def parse_configs(t, ver, d):
 
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     eval_type = ["gt", "ord"][t]
-    cur_prefix = "f_{}".format(ver)
+    cur_prefix = "syn_{}".format(ver)
     data_source = ["valid", "train"][d]
 
     EVAL_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,8 +56,9 @@ def parse_configs(t, ver, d):
     feature_map_size = 64
 
     nJoints = config_parser.getint("data", "nJoints")
-    batch_size = config_parser.getint("data", "batch_size")
-    img_size = config_parser.getint("data", "img_size")
+    batch_size = 1 
+    img_size = 256
+    syn_img_size = 64
 
     learning_rate = config_parser.getfloat("train", "learning_rate")
     lr_decay_rate = config_parser.getfloat("train", "lr_decay_rate")
@@ -67,8 +69,11 @@ def parse_configs(t, ver, d):
     # Dataset Settings
     range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), data_source+"_range.npy")
 
-    base_image_path = config_parser.get("dataset", "image_path")
-    base_label_path = config_parser.get("dataset", "label_path")
+    # base_image_path = config_parser.get("dataset", "image_path")
+    # base_label_path = config_parser.get("dataset", "label_path")
+
+    base_image_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/images/{}.jpg"
+    base_label_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/{}/labels_syn/{}.npy"
 
     img_path_fn = lambda x: (base_image_path.format(data_source, "{}")).format(x)
     lbl_path_fn = lambda x: (base_label_path.format(data_source, "{}")).format(x)
@@ -84,10 +89,10 @@ def parse_configs(t, ver, d):
     model_path = restore_model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
     print("##################### Evaluation Parameters #####################")
     print("##### Data Parameters")
-    print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\nbatch_size: {}\nscale_batch_size: {}\nimg_size: {}".format(loss_weight_heatmap, loss_weight_volume, nJoints, batch_size, scale_batch_size, img_size))
+    print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\nbatch_size: {}\nscale_batch_size: {}\nimg_size: {}\nsyn_img_size: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, scale_batch_size, img_size, syn_img_size))
     print("feature_map_size: {}".format(feature_map_size))
     print("joints_3d_scale: {}\njoints_2d_scale: {}".format(joints_3d_scale, joints_2d_scale))
     print("##### Learn Parameters")
