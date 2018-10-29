@@ -14,7 +14,7 @@ def preprocess(img, joints_2d, bone_status, bone_order, is_training=True):
         "img_size": 256,
         "crop_box_size": 256,
         "num_of_joints": 17,
-        "scale_range": 0.1,# max is 0.5 no scale now
+        "scale_range": 0.3,# max is 0.5 no scale now
         "rotate_range": 30.0, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
