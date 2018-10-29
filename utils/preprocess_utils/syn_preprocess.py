@@ -109,7 +109,7 @@ bone_colors = np.array([
 
 def draw_syn_img(joints_2d, bone_status, bone_order, size=64, bg_color=0.2, bone_width=1, joint_ratio=1):
 
-    assert(joints_2d.max() < size)
+    # assert(joints_2d.max() < size)
 
     bone_sum = bone_status.shape[0]
     bg_color = int(bg_color * 255)
