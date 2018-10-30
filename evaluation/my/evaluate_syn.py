@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(t=0, ver=1, d=0)
 configs.print_configs()
 
-evaluation_models = [720000]
+evaluation_models = [40000]
 special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases/{}".format(x)
 #################################################################
 
@@ -92,7 +92,8 @@ if __name__ == "__main__":
                     img_path_for_show[b] = os.path.basename(img_list[data_index.val])
                     label_path_for_show[b] = os.path.basename(lbl_list[data_index.val])
 
-                    cur_img = cv2.imread(img_list[data_index.val])
+                    # cur_img = cv2.imread(img_list[data_index.val])
+                    cur_img = cv2.imread("/home/kaihang/Desktop/a.jpg")
                     cur_label = np.load(lbl_list[data_index.val]).tolist()
 
                     # the joints_2d in the label_syn is resize in [64, 64]
@@ -128,22 +129,13 @@ if __name__ == "__main__":
                         feed_dict={input_images: batch_images_np, input_sep_synmaps: batch_sep_synmaps_np, input_synmap: batch_synmap_np})
 
 
-                synmap_pairs_for_show = np.clip(255 * np.concatenate([batch_images_np[0], cv2.resize(batch_synmap_np[0], (256, 256), interpolation=cv2.INTER_NEAREST), cv2.resize(synmap[0], (256, 256), interpolation=cv2.INTER_NEAREST), cv2.resize(all_synmaps[0, :, :, -3:], (256, 256), interpolation=cv2.INTER_NEAREST)], axis=1), 0, 255).astype(np.uint8)
+                synmap_pairs_for_show = np.clip(255 * np.concatenate([batch_images_np[0], cv2.resize(batch_synmap_np[0], (256, 256), interpolation=cv2.INTER_NEAREST), cv2.resize(all_synmaps[0, :, :, -3:], (256, 256), interpolation=cv2.INTER_NEAREST), cv2.resize(synmap[0], (256, 256), interpolation=cv2.INTER_NEAREST)], axis=1), 0, 255).astype(np.uint8)
 
                 sep_result_arr = []
                 for i in range(16):
                     sep_result_arr.append([batch_sep_synmaps_np[0, :, :, 3*i:3*i+3], sep_synmaps[0, :, :, 3*i:3*i+3], all_synmaps[0, :, :, 3*i:3*i+3]])
 
-                sep_result_arr = np.array(sep_result_arr) # 16, 2, 64, 64, 3
-                sep_result_arr = np.reshape(np.transpose(sep_result_arr, axes=[0, 2, 1, 3, 4]), [sep_result_arr.shape[0], sep_result_arr.shape[2], -1, sep_result_arr.shape[4]])
-                # reshaped Them in a single images
-                sep_result_arr = np.concatenate(np.reshape(np.transpose(np.reshape(sep_result_arr, [8, 2, sep_result_arr.shape[1], sep_result_arr.shape[2], sep_result_arr.shape[3]]), [0, 2, 1, 3, 4]), [8, sep_result_arr.shape[1], -1, sep_result_arr.shape[3]]), axis=0)
-                sep_result_arr = np.clip(255 * sep_result_arr, 0, 255).astype(np.uint8)
-
-                sep_result_arr = []
-                for i in range(16):
-                    sep_result_arr.append([batch_sep_synmaps_np[0, :, :, 3*i:3*i+3], sep_synmaps[0, :, :, 3*i:3*i+3]])
-                sep_result_arr = np.array(sep_result_arr) # 16, 2, 64, 64, 3
+                sep_result_arr = np.array(sep_result_arr) # 16, 3, 64, 64, 3
                 sep_result_arr = np.reshape(np.transpose(sep_result_arr, axes=[0, 2, 1, 3, 4]), [sep_result_arr.shape[0], sep_result_arr.shape[2], -1, sep_result_arr.shape[4]])
                 # reshaped Them in a single images
                 sep_result_arr = np.concatenate(np.reshape(np.transpose(np.reshape(sep_result_arr, [8, 2, sep_result_arr.shape[1], sep_result_arr.shape[2], sep_result_arr.shape[3]]), [0, 2, 1, 3, 4]), [8, sep_result_arr.shape[1], -1, sep_result_arr.shape[3]]), axis=0)
