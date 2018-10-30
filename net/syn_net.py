@@ -43,7 +43,7 @@ class mSynNet(object):
 
             # Output the separated bone maps
             # three channel value !!!!
-            self.sep_synmaps = tf.layers.conv2d(inputs=lin2, filters=3*(self.nJoints-1), kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="sep_synmaps")
+            self.sep_synmaps = tf.layers.conv2d(inputs=lin2, filters=3*(self.nJoints-1), kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="sep_synmaps")
             out1_ = tf.layers.conv2d(inputs=self.sep_synmaps, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out1_")
 
             with tf.variable_scope("concat_1"):
@@ -57,7 +57,7 @@ class mSynNet(object):
             lin4 = mConvBnRelu(inputs=lin3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
 
             # three channel value !!!!
-            self.synmap = tf.layers.conv2d(inputs=lin4, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
+            self.synmap = tf.layers.conv2d(inputs=lin4, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
 
     def build_loss(self, input_sep_synmaps, input_synmap, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
