@@ -22,17 +22,20 @@ import configs
 configs.parse_configs(t=0, ver=1, d=0)
 configs.print_configs()
 
-evaluation_models = [360000]
+evaluation_models = [720000]
 special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases/{}".format(x)
 #################################################################
+
+keep_showing = False
+
 
 if __name__ == "__main__":
 
     network_batch_size = configs.batch_size
     ################### Initialize the data reader ####################
     range_arr = np.load(configs.range_file)
-    # data_from = 14997
-    data_from = 50000
+    data_from = 0
+    # data_from = 50000
     data_to = len(range_arr)
 
     img_list = [configs.img_path_fn(i) for i in range_arr]
@@ -91,7 +94,6 @@ if __name__ == "__main__":
 
                     cur_img = cv2.imread(img_list[data_index.val])
                     cur_label = np.load(lbl_list[data_index.val]).tolist()
-                    data_index.val += 1
 
                     # the joints_2d in the label_syn is resize in [64, 64]
 
@@ -138,19 +140,35 @@ if __name__ == "__main__":
                 cv2.imshow("raw_gt_pd_pair", result_pairs_for_show)
                 cv2.imshow("sep_gt_pd_pair", cv2.resize(sep_result_arr, dsize=(0, 0), fx=2.0, fy=2.0, interpolation=cv2.INTER_NEAREST))
 
-                cv2.waitKey(2)
-                # while True:
-                    # key = cv2.waitKey()
+                # cv2.waitKey(2)
 
-                    # if key == ord("s"):
-                        # cur_save_dir = special_case_save_dir(data_index.val - 1)
-                        # if not os.path.exists(cur_save_dir):
-                            # os.makedirs(cur_save_dir)
+                while True:
+                    if keep_showing:
+                        key = cv2.waitKey(3)
+                        data_index.val += 1
 
-                        # cv2.imwrite(os.path.join(cur_save_dir, "raw_gt_pd_synmap.jpg"), result_pairs_for_show)
-                        # cv2.imwrite(os.path.join(cur_save_dir, "gt_pd_sep_synmap.jpg"), sep_result_arr)
-                    # elif key == ord(" "):
-                        # break
+                        if key == ord(" "):
+                            keep_showing = not keep_showing
+                        break
+                    else:
+                        key = cv2.waitKey()
+
+                    if key == ord("s"):
+                        cur_save_dir = special_case_save_dir(data_index.val - 1)
+                        if not os.path.exists(cur_save_dir):
+                            os.makedirs(cur_save_dir)
+
+                        cv2.imwrite(os.path.join(cur_save_dir, "raw_gt_pd_synmap.jpg"), result_pairs_for_show)
+                        cv2.imwrite(os.path.join(cur_save_dir, "gt_pd_sep_synmap.jpg"), sep_result_arr)
+                    elif key == ord("j"):
+                        data_index.val += 1
+                        break;
+                    elif key == ord("k"):
+                        data_index.val -= 1
+                        break;
+                    elif key == ord(" "):
+                        keep_showing = not keep_showing
+                        break
 
                 print("Iteration: {:07d} \nSep synmaps Loss: {:07f}\nSynmap Loss: {:07f}\n\n".format(global_steps, sep_synmaps_loss, synmap_loss))
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
