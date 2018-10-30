@@ -36,14 +36,13 @@ class mSynNet(object):
             net = self.res_utils.residual_block(net, 128, name="res3")
             net = self.res_utils.residual_block(net, 256, name="res4")
 
+            ####### hourglass 1 fit the coarse features for separate bone maps #######
             hg1 = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
 
-            lin1 = mConvBnRelu(inputs=hg1, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin1")
+            lin1 = mConvBnRelu(inputs=hg1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin1")
             lin2 = mConvBnRelu(inputs=lin1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin2")
 
-            # Output the separated bone maps
-            # three channel value !!!!
-            self.sep_synmaps = tf.layers.conv2d(inputs=lin2, filters=3*(self.nJoints-1), kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="sep_synmaps")
+            self.sep_synmaps = tf.layers.conv2d(inputs=lin2, filters=(self.nJoints-1)*3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="sep_synmaps")
             out1_ = tf.layers.conv2d(inputs=self.sep_synmaps, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out1_")
 
             with tf.variable_scope("concat_1"):
@@ -51,21 +50,44 @@ class mSynNet(object):
                 cat1_ = tf.layers.conv2d(inputs=cat1, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv")
                 int1 = tf.add_n([cat1_, out1_])
 
+            ####### hourglass 2 refine the features for separate bone maps and supervise the coarse combined bone map ######
             hg2 = hourglass.build_hourglass(int1, 256, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils)
 
             lin3 = mConvBnRelu(inputs=hg2, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3")
-            lin4 = mConvBnRelu(inputs=lin3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
+            lin4 = mConvBnRelu(inputs=lin3, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
 
-            # three channel value !!!!
-            self.synmap = tf.layers.conv2d(inputs=lin4, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
+            # all refined separate bone maps with coarsed combined bone map
+            self.all_synmaps = tf.layers.conv2d(inputs=lin4, filters=3*self.nJoints, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="all_synmaps")
+            out2_ = tf.layers.conv2d(inputs=self.all_synmaps, filters=512, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out2_")
+
+            with tf.variable_scope("concat_2"):
+                cat2 = tf.concat([lin4, int1], axis=3)
+                cat2_ = tf.layers.conv2d(inputs=cat2, filters=512, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv")
+                int2 = tf.add_n([cat2_, out2_])
+
+            ####### hourglass 3 for the refined synmap ########
+            # Here I use the lower hourglass to refine the result just for test
+            hg3 = hourglass.build_hourglass(int2, 512, 2, name="hg_3", is_training=self.is_training, res_utils=self.res_utils)
+
+            lin5 = mConvBnRelu(inputs=hg3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin5")
+            lin6 = mConvBnRelu(inputs=lin5, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin6")
+
+            self.synmap = tf.layers.conv2d(inputs=lin6, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
 
     def build_loss(self, input_sep_synmaps, input_synmap, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.variable_scope("losses"):
-            self.sep_synmaps_loss = tf.nn.l2_loss(self.sep_synmaps - input_sep_synmaps, name="sep_synmaps_loss") / self.batch_size * self.loss_weight_sep_synmaps
-            self.synmap_loss = tf.nn.l2_loss(self.synmap - input_synmap, name="synmap_loss") / self.batch_size * self.loss_weight_synmap
+            with tf.variable_scope("sep_synmaps_loss"):
+                self.sep_synmaps_loss = tf.nn.l2_loss(self.sep_synmaps - input_sep_synmaps, name="coarse_loss")
+                self.sep_synmaps_loss += tf.nn.l2_loss(self.all_synmaps[:, :, :, 0:-3] - input_sep_synmaps, name="refined_loss")
+                self.sep_synmaps_loss = self.sep_synmaps_loss / self.batch_size * self.loss_weight_sep_synmaps
+
+            with tf.variable_scope("synmap_loss"):
+                self.synmap_loss = tf.nn.l2_loss(self.synmap - input_synmap, name="coarse_loss")
+                self.synmap_loss += tf.nn.l2_loss(self.all_synmaps[:, :, :, -3:] - input_synmap, name="refined_loss")
+                self.synmap_loss = self.synmap_loss / self.batch_size * self.loss_weight_synmap
 
             self.total_loss = self.sep_synmaps_loss + self.synmap_loss
 
