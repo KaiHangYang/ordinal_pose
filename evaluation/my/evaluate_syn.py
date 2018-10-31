@@ -19,17 +19,21 @@ import configs
 # t means gt(0) or ord(1)
 # ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(t=0, ver=1, d=0)
+configs.parse_configs(t=0, ver=1, d=1)
 configs.print_configs()
 
-evaluation_models = [40000]
-special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases/{}".format(x)
+evaluation_models = [260000]
+special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_sigmoid/{}".format(x)
 #################################################################
 
 keep_showing = False
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        initial_index = int(sys.argv[1])
+    else:
+        initial_index = 0
 
     network_batch_size = configs.batch_size
     ################### Initialize the data reader ####################
@@ -64,7 +68,7 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
             # reload the model
-            data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
+            data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=initial_index)
 
             ################# Restore the model ################
             if os.path.exists(configs.restore_model_path_fn(cur_model_iterations)+".index"):
@@ -92,8 +96,8 @@ if __name__ == "__main__":
                     img_path_for_show[b] = os.path.basename(img_list[data_index.val])
                     label_path_for_show[b] = os.path.basename(lbl_list[data_index.val])
 
-                    # cur_img = cv2.imread(img_list[data_index.val])
-                    cur_img = cv2.imread("/home/kaihang/Desktop/a.jpg")
+                    cur_img = cv2.imread(img_list[data_index.val])
+                    # cur_img = cv2.imread("/home/kaihang/Desktop/b.jpg")
                     cur_label = np.load(lbl_list[data_index.val]).tolist()
 
                     # the joints_2d in the label_syn is resize in [64, 64]
@@ -128,6 +132,8 @@ if __name__ == "__main__":
                          ],
                         feed_dict={input_images: batch_images_np, input_sep_synmaps: batch_sep_synmaps_np, input_synmap: batch_synmap_np})
 
+                # cv2.imshow("test", synmap[0])
+                # cv2.waitKey()
 
                 synmap_pairs_for_show = np.clip(255 * np.concatenate([batch_images_np[0], cv2.resize(batch_synmap_np[0], (256, 256), interpolation=cv2.INTER_NEAREST), cv2.resize(all_synmaps[0, :, :, -3:], (256, 256), interpolation=cv2.INTER_NEAREST), cv2.resize(synmap[0], (256, 256), interpolation=cv2.INTER_NEAREST)], axis=1), 0, 255).astype(np.uint8)
 
