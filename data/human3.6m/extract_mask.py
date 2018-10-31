@@ -17,7 +17,7 @@ settings = {
         "img_path": lambda x, y, z, n: "/home/kaihang/DataSet_2/Ordinal/human3.6m/raw_datas/"+train_or_valid+"/images/{}_{}.{}_{:06d}.jpg".format(x, y, z, n), # data path
         "img_list_file": "/home/kaihang/Projects/ordinal-pose3d/data/h36m/annot/"+train_or_valid+"_images.txt", # img list
         "mask_video_path": lambda x, y, z: "/home/kaihang/DataSet_2/DataSets/H3.6m/{}/MySegmentsMat/ground_truth_bs/{}.{}.mp4".format(x, y, z),
-        "target_mask": lambda x: "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/"+train_or_valid+"/images/{}.jpg".format(x),
+        "target_mask_path": lambda x, y, z, n: "/home/kaihang/DataSet_2/Ordinal/human3.6m/raw_datas/"+train_or_valid+"/masks/{}_{}.{}_{:06d}.jpg".format(x, y, z, n),
         }
 
 if __name__ == "__main__":
@@ -43,7 +43,9 @@ if __name__ == "__main__":
 
         img_dict[key].append(int(frame_index))
 
+    count = 0
     for cur_key in img_dict.keys():
+
         cur_mask_video_path = settings["mask_video_path"](*cur_key.split("_"))
 
         sub, act, cam = cur_key.split("_")
@@ -51,29 +53,26 @@ if __name__ == "__main__":
 
         cur_video = cv2.VideoCapture(cur_mask_video_path)
 
-        count = 0
         for cur_frame_num in img_dict[cur_key]:
-            if count % 10 == 0:
-                cur_video.set(cv2.CAP_PROP_POS_FRAMES, cur_frame_num-1)
-                _, cur_mask = cur_video.read()
-
-
-                morph_kernel = np.ones([5, 5])
-                cur_mask = cv2.morphologyEx(cur_mask, cv2.MORPH_OPEN, morph_kernel)
-
-                cur_mask = np.invert(cur_mask.astype(np.bool))
-
-                raw_img_path = settings["img_path"](sub, act, cam, cur_frame_num)
-                # print(raw_img_path)
-                cur_img = cv2.imread(raw_img_path)
-
-                cur_img[cur_mask] = 0
-
-                cv2.imshow("frame", cur_img)
-
-                cv2.waitKey(3)
-
+            sys.stderr.write("\rCurrent Process {}".format(count))
+            sys.stderr.flush()
             count += 1
+            cur_video.set(cv2.CAP_PROP_POS_FRAMES, cur_frame_num-1)
+            _, cur_mask = cur_video.read()
+
+            morph_kernel = np.ones([5, 5])
+            cur_mask = cv2.morphologyEx(cur_mask, cv2.MORPH_OPEN, morph_kernel)
+
+            cur_mask = np.invert(cur_mask.astype(np.bool))
+
+            raw_img_path = settings["img_path"](sub, act, cam, cur_frame_num)
+            target_mask_path = settings["target_mask_path"](sub, act, cam, cur_frame_num)
+            # print(raw_img_path)
+            # cur_img = cv2.imread(raw_img_path)
+            # cur_img[cur_mask] = 0
+            # cv2.imshow("frame", cur_img)
+            # cv2.waitKey(3)
+            cv2.imwrite(target_mask_path, cur_mask.astype(np.uint8) * 255)
 
 
     print("finished")
