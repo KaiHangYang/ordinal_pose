@@ -132,13 +132,11 @@ def augment_data_2d(img, annots, settings = {
             cur_p = np.dot(joints_rotate_mat, np.array([cur_p[0], cur_p[1], 1]))
             cur_p += np.array([pt_shift_l, pt_shift_t])
 
-            if (cur_p > 0).all() and (cur_p < crop_box_size).all():
-                if do_flip:
-                    annots[c_num][0:2] = np.array([crop_box_size - 1 - cur_p[0], cur_p[1]])
-                else:
-                    annots[c_num][0:2] = cur_p
+            if do_flip:
+                annots[c_num][0:2] = np.array([crop_box_size - 1 - cur_p[0], cur_p[1]])
             else:
-                annots[c_num][0:2] = 0
+                annots[c_num][0:2] = cur_p
+
     if do_flip:
         for flip_pair in flip_array:
             tmp_annot = annots[flip_pair[0]].copy()

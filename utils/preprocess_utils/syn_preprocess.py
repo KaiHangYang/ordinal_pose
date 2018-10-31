@@ -107,14 +107,19 @@ bone_colors = np.array([
     [0.300000, 0.200000, 0.800000]
 ])
 
-def draw_syn_img(joints_2d, bone_status, bone_order, size=64, bg_color=0.2, bone_width=1, joint_ratio=1):
-
+def draw_syn_img(joints_2d, bone_status, bone_order, size=256, sep_size=64, bg_color=0.2, bone_width=4, joint_ratio=4):
     # assert(joints_2d.max() < size)
 
     bone_sum = bone_status.shape[0]
     bg_color = int(bg_color * 255)
 
-    sep_synmaps = np.array([bg_color * np.ones([size, size, 3]) for _ in range(bone_sum)]).astype(np.uint8)
+    sep_scale = float(sep_size) / size
+
+    sep_joints_2d = sep_scale * joints_2d
+    sep_bone_width = int(np.round(bone_width * sep_scale))
+    sep_joint_ratio = int(np.round(joint_ratio * sep_scale))
+
+    sep_synmaps = np.array([bg_color * np.ones([sep_size, sep_size, 3]) for _ in range(bone_sum)]).astype(np.uint8)
     synmap = bg_color * np.ones([size, size, 3]).astype(np.uint8)
 
     for cur_bone in bone_order:
@@ -133,12 +138,19 @@ def draw_syn_img(joints_2d, bone_status, bone_order, size=64, bg_color=0.2, bone
 
         source_joint = joints_2d[bones_indices[cur_bone][0]]
         target_joint = joints_2d[bones_indices[cur_bone][1]]
+
+        sep_source_joint = sep_joints_2d[bones_indices[cur_bone][0]]
+        sep_target_joint = sep_joints_2d[bones_indices[cur_bone][1]]
         ###########################################
 
         dir_2d = (target_joint - source_joint) / (0.0000001 + np.linalg.norm(target_joint - source_joint))
+        sep_dir_2d = (sep_target_joint - sep_source_joint) / (0.0000001 + np.linalg.norm(sep_target_joint - sep_source_joint))
+
         w_vec = np.array([dir_2d[1], -dir_2d[0]])
+        sep_w_vec = np.array([sep_dir_2d[1], -sep_dir_2d[0]])
 
         joint_to_draw = tuple(np.round(target_joint).astype(np.int32))
+        sep_joint_to_draw = tuple(np.round(sep_target_joint).astype(np.int32))
 
         vertex_1 = source_joint - bone_width / 2.0 * w_vec;
         vertex_2 = source_joint + bone_width / 2.0 * w_vec;
@@ -146,15 +158,26 @@ def draw_syn_img(joints_2d, bone_status, bone_order, size=64, bg_color=0.2, bone
         vertex_3 = target_joint + bone_width / 2.0 * w_vec;
         vertex_4 = target_joint - bone_width / 2.0 * w_vec;
 
+        sep_vertex_1 = sep_source_joint - sep_bone_width / 2.0 * sep_w_vec;
+        sep_vertex_2 = sep_source_joint + sep_bone_width / 2.0 * sep_w_vec;
+
+        sep_vertex_3 = sep_target_joint + sep_bone_width / 2.0 * sep_w_vec;
+        sep_vertex_4 = sep_target_joint - sep_bone_width / 2.0 * sep_w_vec;
+
         vertices = np.array([[np.round(vertex_1[0]), np.round(vertex_1[1])],
                              [np.round(vertex_2[0]), np.round(vertex_2[1])],
                              [np.round(vertex_3[0]), np.round(vertex_3[1])],
                              [np.round(vertex_4[0]), np.round(vertex_4[1])]]).astype(np.int32)
 
+        sep_vertices = np.array([[np.round(sep_vertex_1[0]), np.round(sep_vertex_1[1])],
+                                 [np.round(sep_vertex_2[0]), np.round(sep_vertex_2[1])],
+                                 [np.round(sep_vertex_3[0]), np.round(sep_vertex_3[1])],
+                                 [np.round(sep_vertex_4[0]), np.round(sep_vertex_4[1])]]).astype(np.int32)
+
         synmap = cv2.fillConvexPoly(synmap, vertices, cur_bone_color, cv2.LINE_AA);
         synmap = cv2.circle(synmap, joint_to_draw, joint_ratio, cur_joint_color, cv2.FILLED, cv2.LINE_AA);
 
-        sep_synmaps[cur_bone] = cv2.fillConvexPoly(sep_synmaps[cur_bone], vertices, cur_bone_color, cv2.LINE_AA);
-        sep_synmaps[cur_bone] = cv2.circle(sep_synmaps[cur_bone], joint_to_draw, joint_ratio, cur_joint_color, cv2.FILLED, cv2.LINE_AA);
+        sep_synmaps[cur_bone] = cv2.fillConvexPoly(sep_synmaps[cur_bone], sep_vertices, cur_bone_color, cv2.LINE_AA);
+        sep_synmaps[cur_bone] = cv2.circle(sep_synmaps[cur_bone], sep_joint_to_draw, sep_joint_ratio, cur_joint_color, cv2.FILLED, cv2.LINE_AA);
 
     return synmap, sep_synmaps

@@ -53,11 +53,22 @@ class mSynNet(object):
 
             hg2 = hourglass.build_hourglass(int1, 256, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils)
 
-            lin3 = mConvBnRelu(inputs=hg2, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3")
-            lin4 = mConvBnRelu(inputs=lin3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
+            hg2_out_res1 = self.res_utils.residual_block(hg2, 256, name="hg2_out_res1")
+            hg2_out_res2 = self.res_utils.residual_block(hg2_out_res1, 256, name="hg2_out_res2")
 
-            # three channel value !!!!
-            self.synmap = tf.layers.conv2d(inputs=lin4, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
+            with tf.variable_scope("final_output"):
+                cur_shape = hg2_out_res2.get_shape()[1:3].as_list()
+                out2_resize1 = tf.image.resize_nearest_neighbor(hg2_out_res2, [cur_shape[0] * 2, cur_shape[1] * 2], name="out2_resize1")
+                out2_res1 = self.res_utils.residual_block(out2_resize1, 128, kernel_size=5, name="out2_res1")
+                cur_shape = out2_res1.get_shape()[1:3].as_list()
+                out2_resize2 = tf.image.resize_nearest_neighbor(out2_res1, [cur_shape[0] * 2, cur_shape[1] * 2], name="out2_resize2")
+                out2_res2 = self.res_utils.residual_block(out2_resize2, 64, kernel_size=7, name="out2_res2")
+
+                lin3 = mConvBnRelu(inputs=out2_res2, nOut=128, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3")
+                lin4 = mConvBnRelu(inputs=lin3, nOut=128, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
+
+                # three channel value !!!!
+                self.synmap = tf.layers.conv2d(inputs=lin4, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
 
     def build_loss(self, input_sep_synmaps, input_synmap, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()

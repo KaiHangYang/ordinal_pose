@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -26,7 +26,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = 340000
+restore_model_iteration = None
 #################################################################
 
 if __name__ == "__main__":
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
 
-    input_sep_synmaps = tf.placeholder(shape=[None, configs.syn_img_size, configs.syn_img_size, 3*(configs.nJoints - 1)], dtype=tf.float32, name="input_sep_synmaps")
+    input_sep_synmaps = tf.placeholder(shape=[None, configs.sep_syn_img_size, configs.sep_syn_img_size, 3*(configs.nJoints - 1)], dtype=tf.float32, name="input_sep_synmaps")
     input_synmap = tf.placeholder(shape=[None, configs.syn_img_size, configs.syn_img_size, 3], dtype=tf.float32, name="input_synmap")
 
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
@@ -107,7 +107,7 @@ if __name__ == "__main__":
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
 
             batch_synmap_np = np.zeros([batch_size, configs.syn_img_size, configs.syn_img_size, 3], dtype=np.float32)
-            batch_sep_synmaps_np = np.zeros([batch_size, configs.syn_img_size, configs.syn_img_size, 3 * (configs.nJoints - 1)], dtype=np.float32)
+            batch_sep_synmaps_np = np.zeros([batch_size, configs.sep_syn_img_size, configs.sep_syn_img_size, 3 * (configs.nJoints - 1)], dtype=np.float32)
 
             # Generate the data batch
             img_path_for_show = [[] for i in range(max(configs.train_batch_size, configs.valid_batch_size))]
@@ -128,10 +128,10 @@ if __name__ == "__main__":
 
                 cur_img, cur_joints_2d, cur_bone_status, cur_bone_order = syn_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_order=cur_bone_order, is_training=not is_valid)
 
-                cur_joints_2d = cur_joints_2d / configs.joints_2d_scale
+                cur_joints_2d = cur_joints_2d
 
                 # draw the synsetic imgs as the ground truth
-                cur_synmap, cur_sep_synmaps = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order)
+                cur_synmap, cur_sep_synmaps = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order, size=configs.syn_img_size, sep_size=configs.sep_syn_img_size, bone_width=4, joint_ratio=4)
                 batch_images_np[b] = cur_img
 
                 # make them [0, 1]
