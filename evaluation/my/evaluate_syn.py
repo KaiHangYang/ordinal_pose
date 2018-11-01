@@ -22,12 +22,11 @@ import configs
 configs.parse_configs(t=0, ver=1, d=1)
 configs.print_configs()
 
-evaluation_models = [260000]
-special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_sigmoid/{}".format(x)
+evaluation_models = [200000]
+special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_256/{}".format(x)
 #################################################################
 
 keep_showing = False
-
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     ###################################################################
     input_images = tf.placeholder(shape=[network_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
 
-    input_sep_synmaps = tf.placeholder(shape=[network_batch_size, configs.syn_img_size, configs.syn_img_size, 3*(configs.nJoints - 1)], dtype=tf.float32, name="input_sep_synmaps")
+    input_sep_synmaps = tf.placeholder(shape=[network_batch_size, configs.sep_syn_img_size, configs.sep_syn_img_size, 3*(configs.nJoints - 1)], dtype=tf.float32, name="input_sep_synmaps")
     input_synmap = tf.placeholder(shape=[network_batch_size, configs.syn_img_size, configs.syn_img_size, 3], dtype=tf.float32, name="input_synmap")
 
     syn_model = syn_net.mSynNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=network_batch_size, is_training=False, loss_weight_sep_synmaps=1.0, loss_weight_synmap=10.0)
@@ -86,7 +85,7 @@ if __name__ == "__main__":
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
 
                 batch_synmap_np = np.zeros([configs.batch_size, configs.syn_img_size, configs.syn_img_size, 3], dtype=np.float32)
-                batch_sep_synmaps_np = np.zeros([configs.batch_size, configs.syn_img_size, configs.syn_img_size, 3 * (configs.nJoints - 1)], dtype=np.float32)
+                batch_sep_synmaps_np = np.zeros([configs.batch_size, configs.sep_syn_img_size, configs.sep_syn_img_size, 3 * (configs.nJoints - 1)], dtype=np.float32)
 
                 # Generate the data batch
                 img_path_for_show = [[] for i in range(configs.batch_size)]
@@ -108,10 +107,10 @@ if __name__ == "__main__":
 
                     cur_img, cur_joints_2d, cur_bone_status, cur_bone_order = syn_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_order=cur_bone_order, is_training=False)
 
-                    cur_joints_2d = cur_joints_2d / configs.joints_2d_scale
+                    cur_joints_2d = cur_joints_2d
 
                     # draw the synsetic imgs as the ground truth
-                    cur_synmap, cur_sep_synmaps = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order)
+                    cur_synmap, cur_sep_synmaps = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order, size=configs.syn_img_size, sep_size=configs.sep_syn_img_size, bone_width=4, joint_ratio=4)
                     batch_images_np[b] = cur_img
 
                     # make them [0, 1]
