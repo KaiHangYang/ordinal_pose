@@ -13,6 +13,7 @@ nJoints = None
 batch_size = None
 img_size = None
 syn_img_size = None
+sep_syn_img_size = None
 learning_rate = None
 lr_decay_rate = None
 lr_decay_step = None
@@ -37,7 +38,7 @@ scale_lbl_path_fn = None
 # d the data source valid(0) train(1)
 def parse_configs(t, ver, d):
 
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     eval_type = ["gt", "ord"][t]
     cur_prefix = "syn_{}".format(ver)
@@ -56,9 +57,10 @@ def parse_configs(t, ver, d):
     feature_map_size = 64
 
     nJoints = config_parser.getint("data", "nJoints")
-    batch_size = 1 
+    batch_size = 1
     img_size = 256
-    syn_img_size = 64
+    syn_img_size = 256
+    sep_syn_img_size= 64
 
     learning_rate = config_parser.getfloat("train", "learning_rate")
     lr_decay_rate = config_parser.getfloat("train", "lr_decay_rate")
@@ -89,10 +91,10 @@ def parse_configs(t, ver, d):
     model_path = restore_model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
     print("##################### Evaluation Parameters #####################")
     print("##### Data Parameters")
-    print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\nbatch_size: {}\nscale_batch_size: {}\nimg_size: {}\nsyn_img_size: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, scale_batch_size, img_size, syn_img_size))
+    print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\nbatch_size: {}\nscale_batch_size: {}\nimg_size: {}\nsyn_img_size: {}\nsep_syn_img_size: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, scale_batch_size, img_size, syn_img_size, sep_syn_img_size))
     print("feature_map_size: {}".format(feature_map_size))
     print("joints_3d_scale: {}\njoints_2d_scale: {}".format(joints_3d_scale, joints_2d_scale))
     print("##### Learn Parameters")
