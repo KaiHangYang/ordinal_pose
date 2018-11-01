@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from network_utils import mResidualUtils
 from network_utils import mConvBnRelu
+from network_utils import m_l1_loss
 import hourglass
 
 # The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
@@ -75,8 +76,8 @@ class mSynNet(object):
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.variable_scope("losses"):
-            self.sep_synmaps_loss = tf.nn.l2_loss(self.sep_synmaps - input_sep_synmaps, name="sep_synmaps_loss") / self.batch_size * self.loss_weight_sep_synmaps
-            self.synmap_loss = tf.nn.l2_loss(self.synmap - input_synmap, name="synmap_loss") / self.batch_size * self.loss_weight_synmap
+            self.sep_synmaps_loss = m_l1_loss(self.sep_synmaps - input_sep_synmaps, name="sep_synmaps_loss") / self.batch_size * self.loss_weight_sep_synmaps
+            self.synmap_loss = m_l1_loss(self.synmap - input_synmap, name="synmap_loss") / self.batch_size * self.loss_weight_synmap
 
             self.total_loss = self.sep_synmaps_loss + self.synmap_loss
 

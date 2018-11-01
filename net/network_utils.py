@@ -62,3 +62,7 @@ def mConvBnRelu(inputs, nOut, kernel_size=1, strides=1, name="conv_bn_relu", is_
         normed = tf.contrib.layers.batch_norm(conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=is_training)
 
     return normed
+
+def m_l1_loss(dert_tensor, name="l1_norm"):
+    with tf.variable_scope(name):
+        return tf.reduce_sum(tf.abs(dert_tensor))
