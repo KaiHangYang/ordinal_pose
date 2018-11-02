@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(t=0, ver=1, d=1)
 configs.print_configs()
 
-evaluation_models = [200000]
+evaluation_models = [480000]
 special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_256/{}".format(x)
 #################################################################
 
