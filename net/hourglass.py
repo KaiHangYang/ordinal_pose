@@ -5,7 +5,7 @@ import sys
 
 from network_utils import mResidualUtils
 
-def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=True, res_utils=None):
+def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=True, nModules=3, res_utils=None):
     if res_utils is None:
         print("Use the default resblock settings!")
         res_utils = mResidualUtils(is_training=is_training, is_tiny=False, is_use_bias=True)
@@ -15,12 +15,12 @@ def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=
         up1 = inputs
 
         with tf.variable_scope("up_1"):
-            for i in range(3):
+            for i in range(nModules):
                 up1 = res_utils.residual_block(up1, nOut, name="res{}".format(i))
 
         with tf.variable_scope("low_1"):
             low1 = tf.layers.max_pooling2d(inputs, pool_size=2, strides=2, padding="VALID", name="down_samplint")
-            for i in range(3):
+            for i in range(nModules):
                 low1 = res_utils.residual_block(low1, nOut, name="res{}".format(i))
 
         if nPooling > 1:
@@ -30,11 +30,13 @@ def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=
             # contains only one residual block, but the paper contains three
             low2 = low1
             with tf.variable_scope("mid"):
-                for i in range(3):
+                for i in range(nModules):
                     low2 = res_utils.residual_block(low2, nOut, name="res{}".format(i))
 
         with tf.variable_scope("low_2"):
-            low3 = res_utils.residual_block(low2, nOut, name="res")
+            low3 = low2
+            for i in range(nModules):
+                low3 = res_utils.residual_block(low3, nOut, name="res{}".format(i))
 
         with tf.variable_scope("up_2"):
             cur_shape = low3.get_shape()[1:3].as_list()

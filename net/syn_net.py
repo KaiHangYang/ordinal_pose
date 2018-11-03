@@ -12,10 +12,11 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mSynNet(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_sep_synmaps=1.0, loss_weight_synmap=10.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0):
 
-        self.loss_weight_sep_synmaps = loss_weight_sep_synmaps
-        self.loss_weight_synmap = loss_weight_synmap
+        self.loss_weight_heatmaps = loss_weight_heatmaps
+        self.loss_weight_fb = loss_weight_fb
+        self.loss_weight_br = loss_weight_br
 
         self.nJoints = nJoints
         self.img_size = img_size
@@ -25,6 +26,10 @@ class mSynNet(object):
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
         self.batch_size = batch_size
         self.feature_size = 64
+        self.nModules = 2
+        self.nStacks = 2
+        self.nRegModules = 2
+        self.heatmaps = [None, None]
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
@@ -34,52 +39,92 @@ class mSynNet(object):
             net = self.res_utils.residual_block(net, 128, name="res1")
             net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
             net = self.res_utils.residual_block(net_pooled, 128, name="res2")
-            net = self.res_utils.residual_block(net, 128, name="res3")
-            net = self.res_utils.residual_block(net, 256, name="res4")
+            net = self.res_utils.residual_block(net, 256, name="res3")
+            inter = net
 
-            hg1 = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
+            for s_idx in range(self.nStacks):
+                with tf.variable_scope("hg_block_{}".format(s_idx)):
+                    hg = hourglass.build_hourglass(inter, 256, 4, name="hg", is_training=self.is_training, nModules=self.nModules, res_utils=self.res_utils)
+                    ll = hg
+                    with tf.variable_scope("ll_block"):
+                        for i in range(self.nModules):
+                            ll = self.res_utils.residual_block(ll, 256, name="res{}".format(i))
+                        ll = mConvBnRelu(inputs=ll, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin")
 
-            lin1 = mConvBnRelu(inputs=hg1, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin1")
-            lin2 = mConvBnRelu(inputs=lin1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin2")
+                    with tf.variable_scope("out"):
+                        # output the heatmaps
+                        self.heatmaps[s_idx] = tf.layers.conv2d(inputs=ll, filters=self.nJoints, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="heatmaps")
 
-            # Output the separated bone maps
-            # three channel value !!!!
-            self.sep_synmaps = tf.layers.conv2d(inputs=lin2, filters=3*(self.nJoints-1), kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="sep_synmaps")
-            out1_ = tf.layers.conv2d(inputs=self.sep_synmaps, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out1_")
+                        # add the features
+                        out_ = tf.layers.conv2d(inputs=self.heatmaps[s_idx], filters=256, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out_")
+                        ll_ = tf.layers.conv2d(inputs=ll, filters=256, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
 
-            with tf.variable_scope("concat_1"):
-                cat1 = tf.concat([lin2, net_pooled], axis=3)
-                cat1_ = tf.layers.conv2d(inputs=cat1, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv")
-                int1 = tf.add_n([cat1_, out1_])
+                        inter = tf.add_n([inter, ll_, out_])
+            reg = inter
 
-            hg2 = hourglass.build_hourglass(int1, 256, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils)
+            for i in range(4):
+                with tf.variable_scope("final_downsample_{}".format(i)):
+                    for j in range(self.nRegModules):
+                        reg = res_utils.residual_block(reg, 256, name="res{}".format(j))
+                    reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
 
-            hg2_out_res1 = self.res_utils.residual_block(hg2, 256, name="hg2_out_res1")
-            hg2_out_res2 = self.res_utils.residual_block(hg2_out_res1, 256, name="hg2_out_res2")
+            with tf.variable_scope("final_classify"):
+                reg = tf.layers.flatten(reg)
+                # fb information and br matrix (half matrix)
+                self.results = tf.layers.dense(inputs=reg, units= 3 * self.nJoints * (self.nJoints - 1) / 2, activation=None, kernel_initializer=tf.contrib.layers.xavier_initialzier(), name="fc")
 
-            with tf.variable_scope("final_output"):
-                cur_shape = hg2_out_res2.get_shape()[1:3].as_list()
-                out2_resize1 = tf.image.resize_nearest_neighbor(hg2_out_res2, [cur_shape[0] * 2, cur_shape[1] * 2], name="out2_resize1")
-                out2_res1 = self.res_utils.residual_block(out2_resize1, 128, kernel_size=5, name="out2_res1")
-                cur_shape = out2_res1.get_shape()[1:3].as_list()
-                out2_resize2 = tf.image.resize_nearest_neighbor(out2_res1, [cur_shape[0] * 2, cur_shape[1] * 2], name="out2_resize2")
-                out2_res2 = self.res_utils.residual_block(out2_resize2, 64, kernel_size=7, name="out2_res2")
+    # input_joints shape (None, 17, 2)
+    def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps", gaussian_coefficient=False):
+        with tf.variable_scope(name):
+            raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size), [self.feature_size, self.feature_size, 1]).astype(np.float32), name="raw_arr_y")
 
-                lin3 = mConvBnRelu(inputs=out2_res2, nOut=128, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3")
-                lin4 = mConvBnRelu(inputs=lin3, nOut=128, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
+            const_y = tf.tile(raw_arr_y[np.newaxis], [self.batch_size, 1, 1, 1])
+            const_x = tf.tile(tf.transpose(raw_arr_y, perm=[1, 0, 2])[np.newaxis], [self.batch_size, 1, 1, 1])
 
-                # three channel value !!!!
-                self.synmap = tf.layers.conv2d(inputs=lin4, filters=3, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="synmap")
+            all_heatmaps = []
+            for j_idx in range(self.nJoints):
 
-    def build_loss(self, input_sep_synmaps, input_synmap, lr, lr_decay_step, lr_decay_rate):
+                if gaussian_coefficient:
+                    cur_heatmaps = (1.0 / (2 * np.pi * stddev * stddev)) * tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+                else:
+                    cur_heatmaps = tf.exp(-(tf.pow(const_x - tf.reshape(input_center[:, j_idx, 0], [-1, 1, 1, 1]), 2) + tf.pow(const_y - tf.reshape(input_center[:, j_idx, 1], [-1, 1, 1, 1]), 2)) / 2.0 / stddev / stddev)
+
+                all_heatmaps.append(cur_heatmaps)
+
+            heatmaps_labels = tf.concat(all_heatmaps, axis=3, name="heatmaps")
+
+        return heatmaps_labels
+
+    def get_joints_hm(self, heatmaps, batch_size, name="heatmap_to_joints"):
+        with tf.variable_scope(name):
+            with tf.device("/device:GPU:0"):
+                max_indices = tf.argmax(tf.reshape(heatmaps, [batch_size, -1, self.nJoints]), axis=1)
+
+            # currently the unravel_index only support cpu.
+            with tf.device("cpu:0"):
+                cur_joints = tf.unravel_index(tf.reshape(max_indices, [-1]), [self.feature_size, self.feature_size])
+            cur_joints = tf.reshape(tf.transpose(cur_joints), [-1, self.nJoints, 2])[:, :, ::-1]
+
+        return tf.cast(cur_joints, tf.float32)
+
+    def build_loss(self, input_heatmaps, input_fb, input_br, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.variable_scope("losses"):
-            self.sep_synmaps_loss = m_l1_loss(self.sep_synmaps - input_sep_synmaps, name="sep_synmaps_loss") / self.batch_size * self.loss_weight_sep_synmaps
-            self.synmap_loss = m_l1_loss(self.synmap - input_synmap, name="synmap_loss") / self.batch_size * self.loss_weight_synmap
+            # 1 is forward, 0 is uncertain, -1 is backward
+            fb_info = self.results[:, 0:(self.nJoints-1) * 3]
+            # 1 is in front, 0 is unconcerned or unknown, -1 is behind
+            br_info = self.results[:, 3 * (self.nJoints-1):]
 
-            self.total_loss = self.sep_synmaps_loss + self.synmap_loss
+            self.fb_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_fb, logits=fb_info, dim=-1, name="fb_loss")) / self.batch_size * self.loss_weight_fb
+            self.br_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_br, logits=br_info, dim=-1, name="br_loss")) / self.batch_size * self.loss_weight_br
+
+            self.heatmaps_loss = 0
+            for i in range(len(self.heatmaps)):
+                self.heatmaps_loss += tf.nn.l2_loss(input_heatmaps - self.heatmaps[i], name="heatmaps_loss_{}".format(i)) / self.batch_size * self.loss_weight_heatmaps
+
+            self.total_loss = self.fb_loss + self.br_loss + self.heatmaps_loss
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
@@ -90,8 +135,10 @@ class mSynNet(object):
             self.train_op = self.optimizer.minimize(self.total_loss, self.global_steps)
 
         tf.summary.scalar("total_loss_scalar", self.total_loss)
-        tf.summary.scalar("sep_synmaps_loss_scalar", self.sep_synmaps_loss)
-        tf.summary.scalar("synmap_loss_scalar", self.synmap_loss)
+        tf.summary.scalar("heatmaps_loss_scalar", self.heatmaps_loss)
+        tf.summary.scalar("fb_loss_scalar", self.fb_loss)
+        tf.summary.scalar("br_loss_scalar", self.br_loss)
+
         tf.summary.scalar("learning_rate", self.lr)
 
         self.merged_summary = tf.summary.merge_all()
