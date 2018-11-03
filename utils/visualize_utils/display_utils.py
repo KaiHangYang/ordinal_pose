@@ -167,14 +167,14 @@ def visualizeNumber(number, window_name="Number show"):
     # must use cv2.waitKey after used this function
 
 
-def drawPoints(img, points, text_scale=0):
+def drawPoints(img, points, text_scale=0, point_color_table=point_color_table):
     shape = points.shape
     for num in range(shape[0]):
         if (points[num] != np.array([0, 0])).any():
             cur_x = int(points[num][0])
             cur_y = int(points[num][1])
 
-            img = cv2.circle(img, (cur_x, cur_y), 2, tuple(point_color_table[num]), thickness=3, lineType=cv2.LINE_AA)
+            img = cv2.circle(img, (cur_x, cur_y), 3, tuple(point_color_table[num]), thickness=cv2.FILLED, lineType=cv2.LINE_AA)
 
             if text_scale > 0:
                 cv2.putText(img, "%d" % num, (cur_x, cur_y), cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), 1)
