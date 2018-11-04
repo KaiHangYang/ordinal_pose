@@ -65,13 +65,14 @@ class mSynNet(object):
             for i in range(4):
                 with tf.variable_scope("final_downsample_{}".format(i)):
                     for j in range(self.nRegModules):
-                        reg = res_utils.residual_block(reg, 256, name="res{}".format(j))
+                        reg = self.res_utils.residual_block(reg, 256, name="res{}".format(j))
                     reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
 
             with tf.variable_scope("final_classify"):
                 reg = tf.layers.flatten(reg)
                 # fb information and br matrix (half matrix)
-                self.results = tf.layers.dense(inputs=reg, units= 3 * self.nJoints * (self.nJoints - 1) / 2, activation=None, kernel_initializer=tf.contrib.layers.xavier_initialzier(), name="fc")
+                self.results = tf.layers.dense(inputs=reg, units= 3 * self.nJoints * (self.nJoints - 1) / 2, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
+                self.results = tf.reshape(self.results, [self.batch_size, -1, 3])
 
     # input_joints shape (None, 17, 2)
     def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps", gaussian_coefficient=False):
@@ -113,9 +114,9 @@ class mSynNet(object):
 
         with tf.variable_scope("losses"):
             # 1 is forward, 0 is uncertain, -1 is backward
-            fb_info = self.results[:, 0:(self.nJoints-1) * 3]
+            fb_info = self.results[:, 0:self.nJoints-1]
             # 1 is in front, 0 is unconcerned or unknown, -1 is behind
-            br_info = self.results[:, 3 * (self.nJoints-1):]
+            br_info = self.results[:, self.nJoints-1:]
 
             self.fb_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_fb, logits=fb_info, dim=-1, name="fb_loss")) / self.batch_size * self.loss_weight_fb
             self.br_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_br, logits=br_info, dim=-1, name="br_loss")) / self.batch_size * self.loss_weight_br

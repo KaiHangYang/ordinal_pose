@@ -9,7 +9,7 @@ import common
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
 # currently I don't augment the data
-def preprocess(img, joints_2d, bone_status, bone_order, is_training=True):
+def preprocess(img, joints_2d, bone_status, bone_relations, is_training=True):
     settings = {
         "img_size": 256,
         "crop_box_size": 256,
@@ -35,31 +35,31 @@ def preprocess(img, joints_2d, bone_status, bone_order, is_training=True):
         img[:, :, 2] *= np.random.uniform(0.8, 1.2)
         img = np.clip(img, 0.0, 1.0)
 
-        bone_order = bone_order.astype(np.int32)
-        order_arr = np.zeros_like(bone_order)
-        for i in range(len(bone_order)):
-            order_arr[bone_order[i]] = i
+        old_order = np.arange(0, joints_2d.shape[0], 1) - 1
 
-        annots = np.concatenate([joints_2d, np.concatenate([[-1], bone_status])[:, np.newaxis], np.concatenate([[-1], order_arr])[:, np.newaxis]], axis=1)
+        annots = np.concatenate([joints_2d, np.concatenate([[-1], bone_status])[:, np.newaxis], old_order[:, np.newaxis]], axis=1)
         aug_img, aug_annot = augment_data_2d(img, annots, settings)
 
         aug_joints_2d = aug_annot[:, 0:2]
         aug_bone_status = aug_annot[:, 2][1:].astype(np.int32)
 
-        aug_order_arr = aug_annot[:, 3][1:].astype(np.int32)
+        old_order = old_order[1:].astype(np.int32)
+        new_order = aug_annot[:, 3][1:].astype(np.int32)
 
-        aug_bone_order = np.zeros_like(bone_order)
-        for i in range(len(aug_order_arr)):
-            aug_bone_order[aug_order_arr[i]] = i
+        aug_bone_relations = np.zeros_like(bone_relations)
+
+        for i in range(len(old_order)):
+            for j in range(len(old_order)):
+                aug_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
 
     else:
         aug_img = img
 
         aug_joints_2d = joints_2d
         aug_bone_status = bone_status
-        aug_bone_order = bone_order
+        aug_bone_relations = bone_relations
 
-    return aug_img, aug_joints_2d, aug_bone_status, aug_bone_order
+    return aug_img, aug_joints_2d, aug_bone_status, aug_bone_relations
 
 def flip_data(img, annots, size=64):
     return common._flip_data(img, annots, flip_array, size)

@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -49,11 +49,11 @@ if __name__ == "__main__":
         valid_data_iter, valid_data_init_op = syn_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
-    input_center_2d = tf.placeholder(shape=[None, config.nJoints, 2], dtype=tf.float32, name="input_center_2d")
+    input_center_2d = tf.placeholder(shape=[None, configs.nJoints, 2], dtype=tf.float32, name="input_center_2d")
 
     # both the fb_info and br_info are one-hot arrays
-    input_fb_info = tf.placeholder(shape=[None, config.nJoints-1, 3], dtype=tf.float32, name="input_fb_info")
-    input_br_info = tf.placeholder(shape=[None, (config.nJoints-1) * (config.nJoints-2) / 2, 3], name="input_br_info") # up-triangle of the matrix
+    input_fb_info = tf.placeholder(shape=[None, configs.nJoints-1, 3], dtype=tf.float32, name="input_fb_info")
+    input_br_info = tf.placeholder(shape=[None, (configs.nJoints-1) * (configs.nJoints-2) / 2, 3], dtype=tf.float32, name="input_br_info") # up-triangle of the matrix
 
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
@@ -108,9 +108,9 @@ if __name__ == "__main__":
 
             batch_size = len(cur_data_batch[0])
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-            batch_center_2d = np.zeros([batch_size, config.nJoints, 2], dtype=np.float32)
-            batch_fb_info = np.zeros([batch_size, config.nJoints-1, 3], dtype=np.float32)
-            batch_br_info = np.zeros([batch_size, (config.nJoints-1)*(config.nJoints-2) / 2, 3], dtype=np.float32)
+            batch_center_2d = np.zeros([batch_size, configs.nJoints, 2], dtype=np.float32)
+            batch_fb_info = np.zeros([batch_size, configs.nJoints-1, 3], dtype=np.float32)
+            batch_br_info = np.zeros([batch_size, (configs.nJoints-1)*(configs.nJoints-2) / 2, 3], dtype=np.float32)
 
             # Generate the data batch
             img_path_for_show = [[] for i in range(max(configs.train_batch_size, configs.valid_batch_size))]
