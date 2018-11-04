@@ -139,6 +139,9 @@ if __name__ == "__main__":
                 heatmaps_loss, \
                 fb_loss, \
                 br_loss, \
+                hm_acc,\
+                fb_acc,\
+                br_acc,\
                 lr, \
                 summary  = sess.run(
                         [
@@ -146,6 +149,9 @@ if __name__ == "__main__":
                          syn_model.heatmaps_loss,
                          syn_model.fb_loss,
                          syn_model.br_loss,
+                         syn_model.heatmaps_acc,
+                         syn_model.fb_acc,
+                         syn_model.br_acc,
                          syn_model.lr,
                          syn_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_center_2d: batch_center_2d, input_fb_info: batch_fb_info, input_br_info: batch_br_info, input_is_training: False, input_batch_size: configs.valid_batch_size})
@@ -156,6 +162,9 @@ if __name__ == "__main__":
                 heatmaps_loss,\
                 fb_loss,\
                 br_loss,\
+                hm_acc,\
+                fb_acc,\
+                br_acc,\
                 lr,\
                 summary  = sess.run(
                         [
@@ -164,6 +173,9 @@ if __name__ == "__main__":
                          syn_model.heatmaps_loss,
                          syn_model.fb_loss,
                          syn_model.br_loss,
+                         syn_model.heatmaps_acc,
+                         syn_model.fb_acc,
+                         syn_model.br_acc,
                          syn_model.lr,
                          syn_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_center_2d: batch_center_2d, input_fb_info: batch_fb_info, input_br_info: batch_br_info, input_is_training: True, input_batch_size: configs.train_batch_size})
@@ -171,6 +183,7 @@ if __name__ == "__main__":
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmaps Loss: {:07f}\nFB Loss: {:07f}\nBR Loss: {:07f}\n\n".format(global_steps, lr, loss, heatmaps_loss, fb_loss, br_loss))
+            print("Heatmap acc: {:07f}\nFB acc: {:07f}\nBR acc: {:07f}\n\n".format(hm_acc, fb_acc, br_acc))
             print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
             print("\n\n")
 

@@ -108,6 +108,11 @@ class mSynNet(object):
 
         return tf.cast(cur_joints, tf.float32)
 
+    def cal_accuracy(self, gt_joints, pd_joints, name="accuracy"):
+        with tf.variable_scope(name):
+            accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
+        return accuracy
+
     def build_loss(self, input_heatmaps, input_fb, input_br, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
@@ -135,10 +140,35 @@ class mSynNet(object):
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.total_loss, self.global_steps)
 
+        with tf.variable_scope("accuracy"):
+            ######### heatmap accuracy
+            with tf.variable_scope("heatmap_acc"):
+                combined_heatmaps = tf.concat([input_heatmaps, self.heatmaps[1]], axis=3)
+                all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*self.batch_size, name="heatmap_to_joints")
+                self.gt_joints_2d = all_joints_2d[0:self.batch_size]
+                self.pd_joints_2d = all_joints_2d[self.batch_size:]
+
+                self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_joints_2d, pd_joints=self.pd_joints_2d, name="joints_2d_acc")
+            ######### classify accuracy
+            with tf.variable_scope("fb_accuracy"):
+                self.pd_fb_result = tf.argmax(fb_info, axis=2)
+                self.gt_fb_result = tf.argmax(input_fb, axis=2)
+
+                self.fb_acc = tf.reduce_mean(tf.cast(self.pd_fb_result == self.gt_fb_result, dtype=tf.int32))
+
+            with tf.variable_scope("br_accuracy"):
+                self.pd_br_result = tf.argmax(br_info, axis=2)
+                self.gt_br_result = tf.argmax(input_br, axis=2)
+
+                self.br_acc = tf.reduce_mean(tf.cast(self.pd_br_result == self.gt_br_result, dtype=tf.int32))
+
         tf.summary.scalar("total_loss_scalar", self.total_loss)
         tf.summary.scalar("heatmaps_loss_scalar", self.heatmaps_loss)
         tf.summary.scalar("fb_loss_scalar", self.fb_loss)
         tf.summary.scalar("br_loss_scalar", self.br_loss)
+        tf.summary.scalar("heatmaps_acc_scalar", self.heatmaps_acc)
+        tf.summary.scalar("fb_acc_scalar", self.fb_acc)
+        tf.summary.scalar("br_acc_scalar", self.br_acc)
 
         tf.summary.scalar("learning_rate", self.lr)
 
