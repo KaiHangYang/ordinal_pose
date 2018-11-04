@@ -83,7 +83,7 @@ if __name__ == "__main__":
             cur_label = np.load(annots_file_fn(cur_index)).tolist()
 
             joints_3d = cur_label["joints_3d"]
-            joints_2d = cur_label["joints_2d"] * 4
+            joints_2d = cur_label["joints_2d"]
 
             cur_depth = joints_3d[:, 2] - joints_3d[0, 2]
             root_depth = joints_3d[0, 2]
@@ -95,6 +95,20 @@ if __name__ == "__main__":
 
             cur_img = display_utils.drawLines(cur_img, joints_2d, indices=pose_defs.h36m_pose)
             cur_img = display_utils.drawPoints(cur_img, joints_2d)
+
+            # print(cur_label["bone_status"])
+            # print(cur_label["bone_order"])
+            # print(cur_label["bone_relations"])
+
+            cur_bone_order = cur_label["bone_order"].tolist()
+            cur_bone_relations = cur_label["bone_relations"].tolist()
+
+            for i in range(len(cur_bone_order)):
+                for j in range(len(cur_bone_order)):
+                    if cur_bone_relations[i][j] == 1:
+                        assert(cur_bone_order.index(i) > cur_bone_order.index(j))
+                    elif cur_bone_relations[i][j] == 2:
+                        assert(cur_bone_order.index(i) < cur_bone_order.index(j))
 
             # print(joints_3d - joints_3d[0])
 
