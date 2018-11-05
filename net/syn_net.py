@@ -144,7 +144,7 @@ class mSynNet(object):
             ######### heatmap accuracy
             with tf.variable_scope("heatmap_acc"):
                 cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
-                combined_heatmaps = tf.concat([input_heatmaps, self.heatmaps[1]], axis=3)
+                combined_heatmaps = tf.concat([input_heatmaps, self.heatmaps[1]], axis=0)
                 all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints")
                 self.gt_joints_2d = all_joints_2d[0:cur_batch_size]
                 self.pd_joints_2d = all_joints_2d[cur_batch_size:]
