@@ -119,12 +119,12 @@ class mSynNet(object):
 
         with tf.variable_scope("losses"):
             # 1 is forward, 0 is uncertain, -1 is backward
-            fb_info = self.results[:, 0:self.nJoints-1]
+            self.fb_info = self.results[:, 0:self.nJoints-1]
             # 1 is in front, 0 is unconcerned or unknown, -1 is behind
-            br_info = self.results[:, self.nJoints-1:]
+            self.br_info = self.results[:, self.nJoints-1:]
 
-            self.fb_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_fb, logits=fb_info, dim=-1, name="fb_loss")) / self.batch_size * self.loss_weight_fb
-            self.br_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_br, logits=br_info, dim=-1, name="br_loss")) / self.batch_size * self.loss_weight_br
+            self.fb_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_fb, logits=self.fb_info, dim=-1, name="fb_loss")) / self.batch_size * self.loss_weight_fb
+            self.br_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_br, logits=self.br_info, dim=-1, name="br_loss")) / self.batch_size * self.loss_weight_br
 
             self.heatmaps_loss = 0
             for i in range(len(self.heatmaps)):
@@ -152,14 +152,20 @@ class mSynNet(object):
                 self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_joints_2d, pd_joints=self.pd_joints_2d, name="joints_2d_acc")
             ######### classify accuracy
             with tf.variable_scope("fb_accuracy"):
-                self.pd_fb_result = tf.argmax(fb_info, axis=2)
+                self.pd_fb_result = tf.argmax(self.fb_info, axis=2)
                 self.gt_fb_result = tf.argmax(input_fb, axis=2)
+
+                self.pd_fb_belief = tf.reduce_max(self.fb_info, axis=2)
+                self.gt_fb_belief = tf.reduce_max(input_fb, axis=2)
 
                 self.fb_acc = tf.reduce_mean(tf.cast(tf.equal(self.pd_fb_result, self.gt_fb_result), dtype=tf.float32))
 
             with tf.variable_scope("br_accuracy"):
-                self.pd_br_result = tf.argmax(br_info, axis=2)
+                self.pd_br_result = tf.argmax(self.br_info, axis=2)
                 self.gt_br_result = tf.argmax(input_br, axis=2)
+
+                self.pd_br_belief = tf.reduce_max(self.br_info, axis=2)
+                self.gt_br_belief = tf.reduce_max(input_br, axis=2)
 
                 self.br_acc = tf.reduce_mean(tf.cast(tf.equal(self.pd_br_result, self.gt_br_result), dtype=tf.float32))
 

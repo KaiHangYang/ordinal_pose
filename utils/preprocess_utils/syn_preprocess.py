@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import os
 import sys
+import networkx
 
 from common import *
 import common
@@ -106,6 +107,54 @@ bone_colors = np.array([
     [0.700000, 0.300000, 0.100000],
     [0.300000, 0.200000, 0.800000]
 ])
+
+# the bone_relations is a up triangle matrix
+def bone_order_from_bone_relations(bone_relations, bone_relations_belief, nBones=16):
+    br_mat = np.zeros([nBones, nBones])
+    brb_mat = np.zeros([nBones, nBones])
+
+    br_mat[np.triu_indices(nBones, k=1)] = bone_relations
+    brb_mat[np.triu_indices(nBones, k=1)] = bone_relations_belief
+
+    br_graph = networkx.DiGraph()
+    # initialize the graph with all the nodes
+    br_graph.add_nodes_from(np.arange(0, nBones, 1).astype(np.int32))
+    bone_order = []
+
+    for i in range(nBones):
+        for j in range(i+1, nBones):
+            if br_mat[i][j] == 1:
+                # i is in front of j
+                br_graph.add_weighted_edges_from([(j, i, brb_mat[i][j])])
+            elif br_mat[i][j] == 2:
+                # i is behind j
+                br_graph.add_weighted_edges_from([(i, j, brb_mat[i][j])])
+
+    # get the render order from the graph
+    while len(bone_order) != nBones:
+        is_selected_one = False
+        for cur_bone_idx, cur_degree in br_graph.in_degree_iter():
+            if cur_degree == 0:
+                is_selected_one = True
+                bone_order.append(cur_bone_idx)
+                br_graph.remove_node(cur_bone_idx)
+
+        if not is_selected_one:
+            # there is a cycle, then find the cycle and delete the minimum-weighted edge
+            one_cycle = networkx.simple_cycles(br_graph).next()
+
+            min_weight = float("inf")
+            for idx in range(-1, len(one_cycle)-1, 1):
+                source = one_cycle[idx]
+                target = one_cycle[idx+1]
+
+                if min_weight > br_graph.edge[source][target]["weight"]:
+                    min_weight = br_graph.edge[source][target]["weight"]
+                    edge_to_delete = [source, target]
+
+            br_graph.remove_edge(edge_to_delete[0], edge_to_delete[1])
+
+    return bone_order
 
 def draw_syn_img(joints_2d, bone_status, bone_order, size=256, sep_size=64, bg_color=0.2, bone_width=4, joint_ratio=4):
     # assert(joints_2d.max() < size)
