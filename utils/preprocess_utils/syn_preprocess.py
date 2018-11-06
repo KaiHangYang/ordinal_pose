@@ -9,8 +9,62 @@ import common
 
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
+bg_img_dir = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/bg_images"
+bg_img_arr = None
+
+if not os.path.exists(bg_img_dir):
+    print("The background image directory doesn't exist!")
+    exit(-1)
+
+
+def replace_bg(img, mask):
+    global bg_img_arr
+    global bg_img_dir
+
+    # assume the img size is constant in the dataset
+    # random select the bg first
+    img_width = img.shape[1]
+    img_height = img.shape[0]
+
+    if bg_img_arr is None:
+        # initialize the bg_img_arr once
+        bg_img_arr = []
+        bg_list = os.listdir(bg_img_dir)
+
+        for bg_path in bg_list:
+            cur_bg_img = cv2.imread(os.path.join(bg_img_dir, bg_path))
+            min_img_size = min(img_width, img_height)
+            min_bg_size = min(cur_bg_img.shape[1], cur_bg_img.shape[0])
+
+            if min_bg_size < min_img_size:
+                scale = float(min_img_size) / min_bg_size
+                cur_bg_img = cv2.resize(cur_bg_img, (0, 0), fx=scale, fy=scale)
+
+            bg_img_arr.append(cur_bg_img)
+
+    np.random.shuffle(bg_img_arr)
+
+    ###### NOTICE: Here I promise I won't change the bg img ######
+    bg_img = bg_img_arr[0]
+
+    bg_width = bg_img.shape[1]
+    bg_height = bg_img.shape[0]
+
+    # random crop the bg
+    offset_l_max = bg_width - img_width
+    offset_t_max = bg_height - img_height
+
+    offset_l = int(np.random.random() * offset_l_max)
+    offset_t = int(np.random.random() * offset_t_max)
+
+    cur_mask = (mask > 50).all(axis=2)
+
+    img[cur_mask] = bg_img[offset_t:offset_t+img_height, offset_l:offset_l+img_width][cur_mask]
+
+    return img
+
 # currently I don't augment the data
-def preprocess(img, joints_2d, bone_status, bone_relations, is_training=True):
+def preprocess(img, joints_2d, bone_status, bone_relations, is_training=True, mask=None):
     settings = {
         "img_size": 256,
         "crop_box_size": 256,
@@ -22,6 +76,13 @@ def preprocess(img, joints_2d, bone_status, bone_relations, is_training=True):
         "pad_color": [0.5, 0.5, 0.5],
         "flip_array": flip_array
     }
+
+    # first change the background
+    if mask is not None:
+        # roll to determine whether changing the background
+        if np.random.uniform() >= 0.5:
+            # random change the background from the background image directory
+            img = replace_bg(img, mask)
 
     img = img.astype(np.float32).copy()
 
