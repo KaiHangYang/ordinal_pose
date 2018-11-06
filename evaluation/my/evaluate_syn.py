@@ -19,10 +19,10 @@ import configs
 # t means gt(0) or ord(1)
 # ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(t=0, ver=1, d=0)
+configs.parse_configs(t=0, ver=1, d=1)
 configs.print_configs()
 
-evaluation_models = [340000]
+evaluation_models = [680000]
 special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_256/{}".format(x)
 #################################################################
 
@@ -123,6 +123,9 @@ if __name__ == "__main__":
 
                     # cur_synmap, cur_sep_synmaps = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order, size=configs.syn_img_size, sep_size=configs.sep_syn_img_size, bone_width=4, joint_ratio=4)
 
+                pd_heatmaps_0,\
+                pd_heatmaps_1,\
+                gt_heatmaps, \
                 loss, \
                 heatmaps_loss, \
                 fb_loss, \
@@ -141,6 +144,9 @@ if __name__ == "__main__":
                 pd_br_result,\
                 pd_br_belief = sess.run(
                         [
+                         syn_model.heatmaps[0],
+                         syn_model.heatmaps[1],
+                         input_heatmaps,
                          syn_model.total_loss,
                          syn_model.heatmaps_loss,
                          syn_model.fb_loss,
@@ -168,6 +174,21 @@ if __name__ == "__main__":
                 gt_joints_2d *= configs.joints_2d_scale
                 pd_joints_2d *= configs.joints_2d_scale
 
+
+                ########### visualize the heatmaps ############
+                all_hms = []
+                for i in range(17):
+                    cur_gt = cv2.copyMakeBorder(gt_heatmaps[0, :, :, i], top=1, bottom=1, left=1, right=0, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
+                    cur_pd_1 = cv2.copyMakeBorder(pd_heatmaps_0[0, :, :, i], top=1, bottom=1, left=1, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
+                    cur_pd_2 = cv2.copyMakeBorder(pd_heatmaps_1[0, :, :, i], top=1, bottom=1, left=0, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
+
+                    tmp_hms_row = np.concatenate([cur_gt, cur_pd_1, cur_pd_2], axis=1)
+                    all_hms.append(tmp_hms_row)
+
+                all_hms = np.concatenate(all_hms, axis=0)
+                cv2.imshow("all_hms", all_hms)
+
+                ###############################################
                 img_for_visualization = []
                 for b in range(configs.batch_size):
                     img_row = []
@@ -196,7 +217,7 @@ if __name__ == "__main__":
                 while True:
                     if keep_showing:
                         key = cv2.waitKey(3)
-                        data_index.val += 1
+                        data_index.val += 10
 
                         if key == ord(" "):
                             keep_showing = not keep_showing

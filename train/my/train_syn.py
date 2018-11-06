@@ -84,7 +84,6 @@ if __name__ == "__main__":
                 print("The prev model is not existing!")
                 quit()
 
-
         is_valid = False
         valid_count = 0
 
