@@ -119,6 +119,12 @@ if __name__ == "__main__":
                 img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
                 label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
 
+                if not is_valid:
+                    cur_img_num = int(img_path_for_show[b].split(".")[0])
+                    cur_mask = cv2.imread(configs.train_mask_path_fn(cur_img_num))
+                else:
+                    cur_mask = None
+
                 cur_img = cv2.imread(cur_data_batch[0][b])
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
@@ -126,7 +132,7 @@ if __name__ == "__main__":
                 cur_bone_status = cur_label["bone_status"].copy()
                 cur_bone_relations = cur_label["bone_relations"].copy()
 
-                cur_img, cur_joints_2d, cur_bone_status, cur_bone_relations = syn_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=not is_valid)
+                cur_img, cur_joints_2d, cur_bone_status, cur_bone_relations = syn_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=not is_valid, mask=cur_mask)
 
                 batch_images_np[b] = cur_img
                 batch_center_2d[b] = np.round(cur_joints_2d / configs.joints_2d_scale)
