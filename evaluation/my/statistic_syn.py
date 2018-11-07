@@ -72,6 +72,9 @@ if __name__ == "__main__":
             # reload the model
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=initial_index)
 
+            fb_evaluator = evaluators.mEvaluatorFB_BR(nData=configs.nJoints - 1)
+            br_evaluator = evaluators.mEvaluatorFB_BR(nData=(configs.nJoints - 2) * (configs.nJoints - 1) / 2)
+
             ################# Restore the model ################
             if os.path.exists(configs.restore_model_path_fn(cur_model_iterations)+".index"):
                 print("#######################Restored all weights ###########################")
@@ -104,8 +107,8 @@ if __name__ == "__main__":
                     cur_img = cv2.imread(img_list[data_index.val])
                     # cur_img = cv2.imread("/home/kaihang/Desktop/b.jpg")
                     cur_label = np.load(lbl_list[data_index.val]).tolist()
-
                     # the joints_2d in the label_syn is resize in [64, 64]
+                    data_index.val += 1
 
                     cur_joints_2d = cur_label["joints_2d"].copy()
                     cur_bone_status = cur_label["bone_status"].copy()
@@ -120,8 +123,6 @@ if __name__ == "__main__":
                     ############# Just for debug #############
                     fb_for_assert.append(cur_bone_status.copy())
                     br_for_assert.append(cur_bone_relations[np.triu_indices(configs.nJoints-1, k=1)].copy())
-
-                    # cur_synmap, cur_sep_synmaps = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order, size=configs.syn_img_size, sep_size=configs.sep_syn_img_size, bone_width=4, joint_ratio=4)
 
                 pd_heatmaps_0,\
                 pd_heatmaps_1,\
@@ -170,80 +171,11 @@ if __name__ == "__main__":
                 # gt_synmap, _ = syn_preprocess.draw_syn_img(cur_joints_2d, cur_bone_status, cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6)
                 assert((gt_fb_result == np.array(fb_for_assert)).all())
                 assert((gt_br_result == np.array(br_for_assert)).all())
-                # then visualize the result
-                gt_joints_2d *= configs.joints_2d_scale
-                pd_joints_2d *= configs.joints_2d_scale
+
+                fb_evaluator.add(gt_fb_result[b], pd_fb_result[b])
+                br_evaluator.add(gt_br_result[b], pd_br_result[b])
+
+                sys.stdout.write("FB INFO: ")
+                fb_evaluator.printMean()
 
 
-                ########### visualize the heatmaps ############
-                all_hms = []
-                for b in range(configs.batch_size):
-                    b_all_hms = []
-                    for i in range(17):
-                        cur_gt = cv2.copyMakeBorder(gt_heatmaps[0, :, :, i], top=1, bottom=1, left=1, right=0, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
-                        cur_pd_1 = cv2.copyMakeBorder(pd_heatmaps_0[0, :, :, i], top=1, bottom=1, left=1, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
-                        cur_pd_2 = cv2.copyMakeBorder(pd_heatmaps_1[0, :, :, i], top=1, bottom=1, left=0, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
-
-                        tmp_hms_row = np.concatenate([cur_gt, cur_pd_1, cur_pd_2], axis=1)
-                        b_all_hms.append(tmp_hms_row)
-
-                    all_hms.append(np.concatenate(b_all_hms, axis=0))
-                all_hms = np.concatenate(all_hms, axis=1)
-                cv2.imshow("all_hms", all_hms)
-
-                ###############################################
-                img_for_visualization = []
-                for b in range(configs.batch_size):
-                    img_row = []
-                    # add the raw_img first
-                    img_row.append((batch_images_np[b] * 255).astype(np.uint8))
-                    # add the gt syn image
-                    cur_bone_order = syn_preprocess.bone_order_from_bone_relations(gt_br_result[b], gt_br_belief[b], nBones=configs.nJoints-1)
-                    gt_synmap, _ = syn_preprocess.draw_syn_img(gt_joints_2d[b], gt_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6)
-                    img_row.append(gt_synmap)
-                    # add the pd syn image with gt_2d
-                    cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
-                    pd_synmap_1, _ = syn_preprocess.draw_syn_img(gt_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6)
-                    img_row.append(pd_synmap_1)
-
-                    # add the pd syn image with pd_2d
-                    cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
-                    pd_synmap_2, _ = syn_preprocess.draw_syn_img(pd_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6)
-                    img_row.append(pd_synmap_2)
-
-                    img_for_visualization.append(np.concatenate(img_row, axis=1))
-
-                img_for_visualization = np.concatenate(img_for_visualization, axis=0)
-
-                cv2.imshow("(img)-(all_gt_syn)-(2d_gt_syn)-(all_pd_syn)", img_for_visualization)
-
-                while True:
-                    if keep_showing:
-                        key = cv2.waitKey(3)
-                        data_index.val += 1
-
-                        if key == ord(" "):
-                            keep_showing = not keep_showing
-                        break
-                    else:
-                        key = cv2.waitKey()
-
-                    if key == ord("s"):
-                        cur_save_dir = special_case_save_dir(data_index.val - 1)
-                        if not os.path.exists(cur_save_dir):
-                            os.makedirs(cur_save_dir)
-                        cv2.imwrite(os.path.join(cur_save_dir, "result_img.jpg"), img_for_visualization)
-                    elif key == ord("j"):
-                        data_index.val += 1
-                        break;
-                    elif key == ord("k"):
-                        data_index.val -= 1
-                        break;
-                    elif key == ord(" "):
-                        keep_showing = not keep_showing
-                        break
-
-                print("Iteration: {:07d} \nTotal Loss : {:07f}\nHeatmaps Loss: {:07f}\nFB Loss: {:07f}\nBR Loss: {:07f}\n\n".format(global_steps, loss, heatmaps_loss, fb_loss, br_loss))
-                print("Heatmap acc: {:07f}\nFB acc: {:07f}\nBR acc: {:07f}\n\n".format(hm_acc, fb_acc, br_acc))
-                print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
-                print("\n\n")

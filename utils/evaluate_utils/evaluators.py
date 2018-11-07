@@ -77,3 +77,32 @@ class mEvaluatorPose3D(object):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
+
+############### Evaluator for BR and FB accuracy ############
+class mEvaluatorFB_BR(object):
+    def __init__(self, nData=16):
+        self.nData = nData
+        self.avg_counter = my_utils.mAverageCounter(shape=self.nData)
+
+    ### The root of each data is the same
+    def add(self, gt_info, pd_info):
+        assert(gt_info.shape == pd_info.shape)
+        gt_info = np.reshape(gt_info, [-1, self.nData])
+        pd_info = np.reshape(pd_info, [-1, self.nData])
+
+        for batch_num in range(gt_info.shape[0]):
+            self.avg_counter.add((gt_info[batch_num] == pd_info[batch_num]).astype(np.float32))
+
+    def mean(self):
+        return self.avg_counter.mean()
+
+    def get(self):
+        return self.avg_counter.cur_average
+
+    def printMean(self):
+        print("Mean accuracy: {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
+
+    def save(self, path):
+        if not os.path.exists(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+        np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
