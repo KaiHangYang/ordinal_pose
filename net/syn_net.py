@@ -12,7 +12,7 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mSynNet(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, is_use_bn=True):
 
         self.loss_weight_heatmaps = loss_weight_heatmaps
         self.loss_weight_fb = loss_weight_fb
@@ -22,7 +22,7 @@ class mSynNet(object):
         self.img_size = img_size
         self.is_use_bias = True
         self.is_tiny = False
-        self.is_use_bn = True
+        self.is_use_bn = is_use_bn
         self.is_training = is_training
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn)
         self.batch_size = batch_size

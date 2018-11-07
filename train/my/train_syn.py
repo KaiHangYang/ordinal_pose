@@ -58,7 +58,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    syn_model = syn_net.mSynNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0)
+    syn_model = syn_net.mSynNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, is_use_bn=False)
 
     with tf.Session() as sess:
         with tf.device("/device:GPU:0"):
@@ -119,11 +119,13 @@ if __name__ == "__main__":
                 img_path_for_show[b] = os.path.basename(cur_data_batch[0][b])
                 label_path_for_show[b] = os.path.basename(cur_data_batch[1][b])
 
-                if not is_valid:
-                    cur_img_num = int(img_path_for_show[b].split(".")[0])
-                    cur_mask = cv2.imread(configs.train_mask_path_fn(cur_img_num))
-                else:
-                    cur_mask = None
+                # if not is_valid:
+                    # cur_img_num = int(img_path_for_show[b].split(".")[0])
+                    # cur_mask = cv2.imread(configs.train_mask_path_fn(cur_img_num))
+                # else:
+                    # cur_mask = None
+                # currently don't replace the background
+                cur_mask = None
 
                 cur_img = cv2.imread(cur_data_batch[0][b])
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
