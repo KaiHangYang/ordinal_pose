@@ -22,11 +22,8 @@ import configs
 configs.parse_configs(t=0, ver=1, d=0)
 configs.print_configs()
 
-evaluation_models = [20000]
-special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_256/{}".format(x)
+evaluation_models = [40000, 60000, 80000]
 #################################################################
-
-keep_showing = False
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -182,6 +179,6 @@ if __name__ == "__main__":
                 sys.stdout.write("BR INFO: ")
                 br_evaluator.printMean()
 
-            fb_evaluator.save("../eval_result/syn_3_1/fb_acc_{}w.npy".format(cur_model_iterations / 10000))
-            br_evaluator.save("../eval_result/syn_3_1/br_acc_{}w.npy".format(cur_model_iterations / 10000))
+            fb_evaluator.save("../eval_result/syn_1/fb_acc_{}w.npy".format(cur_model_iterations / 10000))
+            br_evaluator.save("../eval_result/syn_1/br_acc_{}w.npy".format(cur_model_iterations / 10000))
 
