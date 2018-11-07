@@ -30,11 +30,10 @@ class mPoseNet(object):
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
         with tf.variable_scope("PoseNet"):
-            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
+            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
 
             net = self.res_utils.residual_block(net, 128, name="res1")
-            net_pooled = net
-            # net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
+            net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
             net = self.res_utils.residual_block(net_pooled, 128, name="res2")
             net = self.res_utils.residual_block(net, 128, name="res3")
             net = self.res_utils.residual_block(net, 256, name="res4")

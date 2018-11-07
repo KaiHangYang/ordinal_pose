@@ -17,7 +17,7 @@ import configs
 
 # t means gt(0) or ord(1)
 # ver means version
-configs.parse_configs(t=0, ver=1)
+configs.parse_configs(t=0, ver=2)
 configs.print_configs()
 
 train_log_dir = os.path.join(configs.log_dir, "train")
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    pose_model = pose_net.mPoseNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_volume=configs.loss_weight_volume, is_use_bn=False)
+    pose_model = pose_net.mPoseNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=5.0, loss_weight_volume=1.0, is_use_bn=False)
 
     with tf.Session() as sess:
 
@@ -117,12 +117,16 @@ if __name__ == "__main__":
                 cur_bone_status = cur_label["bone_status"].copy()
                 cur_bone_relations = cur_label["bone_relations"].copy()
 
-                cur_img, cur_joints_2d, cur_joints_zidx = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_zidx=cur_joints_zidx, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=not is_valid, bone_width=4, bone_ratio=4, bg_color=0.2)
+                cur_img, cur_joints_2d, cur_joints_zidx = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_zidx=cur_joints_zidx, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=not is_valid, bone_width=6, joint_ratio=6, bg_color=0.2)
                 # generate the heatmaps and volumes
                 batch_images_np[b] = cur_img
                 cur_joints_2d = np.round(cur_joints_2d / configs.joints_2d_scale)
-
                 batch_centers_np[b] = np.concatenate([cur_joints_2d, cur_joints_zidx[:, np.newaxis]], axis=1)
+
+                # cv2.imshow("img", cur_img)
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * 4))
+                # print(batch_centers_np[b])
+                # cv2.waitKey()
 
             acc_hm = 0
             acc_vol = 0
@@ -136,55 +140,55 @@ if __name__ == "__main__":
                 lr, \
                 summary  = sess.run(
                         [
-                         ordinal_model.accuracy_hm,
-                         ordinal_model.accuracy_vol,
-                         ordinal_model.total_loss,
-                         ordinal_model.heatmap_loss,
-                         ordinal_model.volume_loss,
-                         ordinal_model.lr,
-                         ordinal_model.merged_summary],
+                         pose_model.accuracy_hm,
+                         pose_model.accuracy_vol,
+                         pose_model.total_loss,
+                         pose_model.heatmap_loss,
+                         pose_model.volume_loss,
+                         pose_model.lr,
+                         pose_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
-                if global_steps % write_log_iter == 0:
-                    _, \
-                    acc_hm, \
-                    acc_vol, \
-                    loss,\
-                    heatmap_loss, \
-                    volume_loss, \
-                    lr,\
-                    summary  = sess.run(
-                            [
-                             ordinal_model.train_op,
-                             ordinal_model.accuracy_hm,
-                             ordinal_model.accuracy_vol,
-                             ordinal_model.total_loss,
-                             ordinal_model.heatmap_loss,
-                             ordinal_model.volume_loss,
-                             ordinal_model.lr,
-                             ordinal_model.merged_summary],
-                            feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
-                    train_log_writer.add_summary(summary, global_steps)
-                else:
-                    _, \
-                    loss,\
-                    heatmap_loss, \
-                    volume_loss, \
-                    lr = sess.run(
-                            [
-                             ordinal_model.train_op,
-                             ordinal_model.total_loss,
-                             ordinal_model.heatmap_loss,
-                             ordinal_model.volume_loss,
-                             ordinal_model.lr,
-                             ],
-                            feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                # if global_steps % write_log_iter == 0:
+                _, \
+                acc_hm, \
+                acc_vol, \
+                loss,\
+                heatmap_loss, \
+                volume_loss, \
+                lr,\
+                summary  = sess.run(
+                        [
+                         pose_model.train_op,
+                         pose_model.accuracy_hm,
+                         pose_model.accuracy_vol,
+                         pose_model.total_loss,
+                         pose_model.heatmap_loss,
+                         pose_model.volume_loss,
+                         pose_model.lr,
+                         pose_model.merged_summary],
+                        feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                train_log_writer.add_summary(summary, global_steps)
+                # else:
+                    # _, \
+                    # loss,\
+                    # heatmap_loss, \
+                    # volume_loss, \
+                    # lr = sess.run(
+                            # [
+                             # pose_model.train_op,
+                             # pose_model.total_loss,
+                             # pose_model.heatmap_loss,
+                             # pose_model.volume_loss,
+                             # pose_model.lr,
+                             # ],
+                            # feed_dict={input_images: batch_images_np, input_centers_hm: batch_centers_np[:, :, 0:2], input_centers_vol: batch_centers_np, input_is_training: True, input_batch_size: configs.train_batch_size})
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmap Loss: {:07f}\nVolume Loss: {:07f}\n\n".format(global_steps, lr, loss, heatmap_loss, volume_loss))
             print("Heatmap Accuracy: {}\nVolume Accuracy: {}".format(acc_hm, acc_vol))
-            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+            print((len(label_path_for_show) * "{}\n").format(*label_path_for_show))
             print("\n\n")
 
             if global_steps % 20000 == 0 and not is_valid:

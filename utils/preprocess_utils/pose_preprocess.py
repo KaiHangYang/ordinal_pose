@@ -9,13 +9,13 @@ import common
 
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
-def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=True, bone_width=4, joint_ratio=4, bg_color=0.2):
+def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=True, bone_width=6, joint_ratio=6, bg_color=0.2):
     settings = {
         "img_size": 256,
         "crop_box_size": 256,
         "num_of_joints": 17,
-        "scale_range": 0.1,# max is 0.5 no scale now
-        "rotate_range": 10.0, # max 45
+        "scale_range": 0.15,# max is 0.5 no scale now
+        "rotate_range": 20.0, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
         "pad_color": [0, 0, 0],
@@ -43,18 +43,17 @@ def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=
             for j in range(len(old_order)):
                 aug_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
     else:
-
         aug_joints_2d = joints_2d
         aug_joints_zidx = joints_zidx
         aug_bone_status = bone_status
         aug_bone_relations = bone_relations
 
     #### Paint the synthetic image
-    aug_bone_order = bone_order_from_bone_relations(aug_bone_relations, np.ones_like(aug_bone_relations), nBones=settings["num_of_joints"]-1):
+    aug_bone_order = bone_order_from_bone_relations(aug_bone_relations, np.ones_like(aug_bone_relations), nBones=settings["num_of_joints"]-1)
     aug_img = draw_syn_img(joints_2d=aug_joints_2d, bone_status=aug_bone_status, bone_order=aug_bone_order, size=settings["img_size"], bg_color=bg_color, bone_width=bone_width, joint_ratio=joint_ratio)
 
     if np.max(aug_img) >= 2:
-        aug_img /= 255.0
+        aug_img = aug_img / 255.0
 
     return aug_img, aug_joints_2d, aug_joints_zidx
 
@@ -109,8 +108,12 @@ def bone_order_from_bone_relations(bone_relations, bone_relations_belief, nBones
     br_mat = np.zeros([nBones, nBones])
     brb_mat = np.zeros([nBones, nBones])
 
-    br_mat[np.triu_indices(nBones, k=1)] = bone_relations
-    brb_mat[np.triu_indices(nBones, k=1)] = bone_relations_belief
+    if bone_relations.shape[0] == nBones:
+        br_mat = bone_relations
+        brb_mat = bone_relations_belief
+    else:
+        br_mat[np.triu_indices(nBones, k=1)] = bone_relations
+        brb_mat[np.triu_indices(nBones, k=1)] = bone_relations_belief
 
     br_graph = networkx.DiGraph()
     # initialize the graph with all the nodes
