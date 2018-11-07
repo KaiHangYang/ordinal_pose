@@ -4,29 +4,43 @@ import sys
 import tensorflow as tf
 
 class mResidualUtils(object):
-    def __init__(self, is_training=True, is_tiny=False, is_use_bias=True, is_bn_offset=True, is_bn_scale=True):
+    def __init__(self, is_training=True, is_tiny=False, is_use_bias=True, is_use_bn=True, is_bn_offset=True, is_bn_scale=True):
         self.is_training = is_training
         self.is_tiny = is_tiny
         self.is_use_bias = is_use_bias
+        self.is_use_bn = is_use_bn
         self.is_bn_scale = is_bn_scale
         self.is_bn_offset = is_bn_offset
 
     def _main_path(self, inputs, nOut, kernel_size=3, strides=1, name='main_path'):
         if self.is_tiny:
             with tf.variable_scope(name):
-                norm = tf.contrib.layers.batch_norm(inputs, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                if self.is_use_bn:
+                    norm = tf.contrib.layers.batch_norm(inputs, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                else:
+                    norm = tf.nn.relu(inputs)
                 conv = tf.layers.conv2d(norm, nOut, kernel_size, strides, padding="SAME", use_bias=self.is_use_bias, name="conv")
                 return conv
         else:
             with tf.variable_scope(name):
                 with tf.variable_scope("norm_1"):
-                    norm_1 = tf.contrib.layers.batch_norm(inputs, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                    if self.is_use_bn:
+                        norm_1 = tf.contrib.layers.batch_norm(inputs, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                    else:
+                        norm_1 = tf.nn.relu(inputs)
                     conv_1 = tf.layers.conv2d(norm_1, nOut/2, 1, 1, padding="SAME", use_bias=self.is_use_bias, name="conv")
                 with tf.variable_scope("norm_2"):
-                    norm_2 = tf.contrib.layers.batch_norm(conv_1, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                    if self.is_use_bn:
+                        norm_2 = tf.contrib.layers.batch_norm(conv_1, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                    else:
+                        norm_2 = tf.nn.relu(conv_1)
                     conv_2 = tf.layers.conv2d(norm_2, nOut/2, kernel_size, strides, padding="SAME", use_bias=self.is_use_bias, name="conv")
                 with tf.variable_scope("norm_3"):
-                    norm_3 = tf.contrib.layers.batch_norm(conv_2, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                    if self.is_use_bn:
+                        norm_3 = tf.contrib.layers.batch_norm(conv_2, 0.9, center=self.is_bn_offset, scale=self.is_bn_scale, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=self.is_training)
+                    else:
+                        norm_3 = tf.nn.relu(conv_2)
+
                     conv_3 = tf.layers.conv2d(norm_3, nOut, 1, 1, padding="SAME", use_bias=self.is_use_bias, name="conv")
 
                 return conv_3
@@ -47,7 +61,7 @@ class mResidualUtils(object):
             return tf.add_n([main_path, skip_path], name="elw_add")
 
 
-def mConvBnRelu(inputs, nOut, kernel_size=1, strides=1, name="conv_bn_relu", is_training=True, is_use_bias=True):
+def mConvBnRelu(inputs, nOut, kernel_size=1, strides=1, name="conv_bn_relu", is_training=True, is_use_bias=True, is_use_bn=True):
     with tf.variable_scope(name):
         conv = tf.layers.conv2d(
                     inputs=inputs,
@@ -59,7 +73,10 @@ def mConvBnRelu(inputs, nOut, kernel_size=1, strides=1, name="conv_bn_relu", is_
                     activation=None,
                     # kernel_initializer=tf.contrib.layers.xavier_initializer(),
                     name="conv")
-        normed = tf.contrib.layers.batch_norm(conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=is_training)
+        if is_use_bn:
+            normed = tf.contrib.layers.batch_norm(conv, 0.9, center=True, scale=True, epsilon=1e-5, activation_fn=tf.nn.relu, is_training=is_training)
+        else:
+            normed = tf.nn.relu(conv)
 
     return normed
 

@@ -57,7 +57,7 @@ def parse_configs(t, ver, d):
     feature_map_size = 64
 
     nJoints = config_parser.getint("data", "nJoints")
-    batch_size = 1
+    batch_size = 4
     img_size = 256
     syn_img_size = 256
     sep_syn_img_size= 64

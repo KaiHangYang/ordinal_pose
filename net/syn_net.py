@@ -22,8 +22,9 @@ class mSynNet(object):
         self.img_size = img_size
         self.is_use_bias = True
         self.is_tiny = False
+        self.is_use_bn = True
         self.is_training = is_training
-        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
+        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn)
         self.batch_size = batch_size
         self.feature_size = 64
         self.nModules = 2
@@ -34,7 +35,7 @@ class mSynNet(object):
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
         with tf.variable_scope("SynNet"):
-            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, name="conv1")
+            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
 
             net = self.res_utils.residual_block(net, 128, name="res1")
             net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
@@ -49,7 +50,7 @@ class mSynNet(object):
                     with tf.variable_scope("ll_block"):
                         for i in range(self.nModules):
                             ll = self.res_utils.residual_block(ll, 256, name="res{}".format(i))
-                        ll = mConvBnRelu(inputs=ll, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin")
+                        ll = mConvBnRelu(inputs=ll, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin")
 
                     with tf.variable_scope("out"):
                         # output the heatmaps

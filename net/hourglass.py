@@ -8,7 +8,7 @@ from network_utils import mResidualUtils
 def build_hourglass(inputs, nOut=256, nPooling=4, name='hourglass', is_training=True, nModules=3, res_utils=None):
     if res_utils is None:
         print("Use the default resblock settings!")
-        res_utils = mResidualUtils(is_training=is_training, is_tiny=False, is_use_bias=True)
+        res_utils = mResidualUtils(is_training=is_training, is_tiny=False, is_use_bias=True, is_use_bn=True)
 
     with tf.variable_scope(name):
         # encoding block

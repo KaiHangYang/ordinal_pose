@@ -22,7 +22,7 @@ import configs
 configs.parse_configs(t=0, ver=1, d=1)
 configs.print_configs()
 
-evaluation_models = [680000]
+evaluation_models = [300000]
 special_case_save_dir = lambda x: "/home/kaihang/Desktop/test_dir/special_cases_256/{}".format(x)
 #################################################################
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                     cur_bone_status = cur_label["bone_status"].copy()
                     cur_bone_relations = cur_label["bone_relations"].copy()
 
-                    cur_img, cur_joints_2d, cur_bone_status, cur_bone_relations = syn_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False)
+                    cur_img, cur_joints_2d, cur_bone_status, cur_bone_relations = syn_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False, mask=None)
                     batch_images_np[b] = cur_img
                     batch_center_2d[b] = np.round(cur_joints_2d / configs.joints_2d_scale)
                     batch_fb_info[b] = np.eye(3)[cur_bone_status]
@@ -177,15 +177,18 @@ if __name__ == "__main__":
 
                 ########### visualize the heatmaps ############
                 all_hms = []
-                for i in range(17):
-                    cur_gt = cv2.copyMakeBorder(gt_heatmaps[0, :, :, i], top=1, bottom=1, left=1, right=0, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
-                    cur_pd_1 = cv2.copyMakeBorder(pd_heatmaps_0[0, :, :, i], top=1, bottom=1, left=1, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
-                    cur_pd_2 = cv2.copyMakeBorder(pd_heatmaps_1[0, :, :, i], top=1, bottom=1, left=0, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
+                for b in range(configs.batch_size):
+                    b_all_hms = []
+                    for i in range(17):
+                        cur_gt = cv2.copyMakeBorder(gt_heatmaps[0, :, :, i], top=1, bottom=1, left=1, right=0, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
+                        cur_pd_1 = cv2.copyMakeBorder(pd_heatmaps_0[0, :, :, i], top=1, bottom=1, left=1, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
+                        cur_pd_2 = cv2.copyMakeBorder(pd_heatmaps_1[0, :, :, i], top=1, bottom=1, left=0, right=1, value=[1.0, 1.0, 1.0], borderType=cv2.BORDER_CONSTANT)
 
-                    tmp_hms_row = np.concatenate([cur_gt, cur_pd_1, cur_pd_2], axis=1)
-                    all_hms.append(tmp_hms_row)
+                        tmp_hms_row = np.concatenate([cur_gt, cur_pd_1, cur_pd_2], axis=1)
+                        b_all_hms.append(tmp_hms_row)
 
-                all_hms = np.concatenate(all_hms, axis=0)
+                    all_hms.append(np.concatenate(b_all_hms, axis=0))
+                all_hms = np.concatenate(all_hms, axis=1)
                 cv2.imshow("all_hms", all_hms)
 
                 ###############################################
