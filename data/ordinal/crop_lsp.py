@@ -88,6 +88,6 @@ if __name__ == "__main__":
             cur_joint_color.append(t_color)
 
         cur_img = display_utils.drawLines(cur_img, cur_2d, lsp_bone_indices)
-        cur_img = display_utils.drawPoints(cur_img, cur_2d, text_scale=0.4, point_color_table=cur_joint_color)
+        cur_img = display_utils.drawPoints(cur_img, cur_2d, text_scale=0.4, point_color_table=cur_joint_color, point_ratio=5)
         cv2.imshow("test", cur_img)
         cv2.waitKey()

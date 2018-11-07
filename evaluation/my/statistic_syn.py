@@ -172,10 +172,16 @@ if __name__ == "__main__":
                 assert((gt_fb_result == np.array(fb_for_assert)).all())
                 assert((gt_br_result == np.array(br_for_assert)).all())
 
-                fb_evaluator.add(gt_fb_result[b], pd_fb_result[b])
-                br_evaluator.add(gt_br_result[b], pd_br_result[b])
+                fb_evaluator.add(gt_fb_result, pd_fb_result)
+                br_evaluator.add(gt_br_result, pd_br_result)
 
+                print("Current Iteration: {}".format(data_index.val))
                 sys.stdout.write("FB INFO: ")
                 fb_evaluator.printMean()
 
+                sys.stdout.write("BR INFO: ")
+                br_evaluator.printMean()
+
+            fb_evaluator.save("../eval_result/syn_3_1/fb_acc_{}w.npy".format(cur_model_iterations / 10000))
+            br_evaluator.save("../eval_result/syn_3_1/br_acc_{}w.npy".format(cur_model_iterations / 10000))
 
