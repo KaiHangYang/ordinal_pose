@@ -57,11 +57,26 @@ def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=
 
     return aug_img, aug_joints_2d, aug_joints_zidx
 
-def flip_data(img, annots, size=64):
-    return common._flip_data(img, annots, flip_array, size)
+def flip_annots(joints_2d, joints_zidx, bone_status, bone_relations, size=256):
+    old_order = np.arange(0, joints_2d.shape[0], 1) - 1
 
-def flip_annot(annots, size=64):
-    return common._flip_annot(annots, flip_array, size=size)
+    annots = np.concatenate([joints_2d, joints_zidx[:, np.newaxis], np.concatenate([[-1], bone_status])[:, np.newaxis], old_order[:, np.newaxis]], axis=1)
+    flipped_annots = common._flip_annot(annots, flip_array, size=size)
+
+    flipped_joints_2d = flipped_annots[:, 0:2]
+    flipped_joints_zidx = flipped_annots[:, 2]
+    flipped_bone_status = flipped_annots[:, 3][1:].astype(np.int32)
+
+    old_order = old_order[1:].astype(np.int32)
+    new_order = flipped_annots[:, 4][1:].astype(np.int32)
+
+    flipped_bone_relations = np.zeros_like(bone_relations)
+    for i in range(len(old_order)):
+        for j in range(len(old_order)):
+            flipped_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
+
+    return flipped_joints_2d, flipped_joints_zidx, flipped_bone_status, flipped_bone_relations
+
 
 # draw the ground truth joints_2d
 bones_indices = np.array([

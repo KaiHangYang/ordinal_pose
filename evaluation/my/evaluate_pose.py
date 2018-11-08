@@ -54,7 +54,6 @@ if __name__ == "__main__":
         # reload the model
 
         for cur_model_iterations in evaluation_models:
-
             mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
             raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
 
@@ -105,10 +104,19 @@ if __name__ == "__main__":
                     cur_bone_status = cur_label["bone_status"].copy()
                     cur_bone_relations = cur_label["bone_relations"].copy()
 
-                    cur_img, cur_joints_2d, cur_joints_zidx = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_zidx=cur_joints_zidx, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False, bone_width=6, joint_ratio=6, bg_color=0.2)
+                    ######### Generate the raw image
+                    cur_img, _, _ = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_zidx=cur_joints_zidx, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False, bone_width=6, joint_ratio=6, bg_color=0.2)
                     # generate the heatmaps and volumes
-                    batch_images_np[b] = cur_img
-                    batch_images_flipped_np[b] = preprocessor.flip_img(batch_images_np[b])
+                    batch_images_np[b] = cur_img.copy()
+
+                    ######### Then Generate the flipped one
+                    cur_joints_2d_flipped, cur_joints_zidx_flipped, cur_bone_status_flipped, cur_bone_relations_flipped = preprocessor.flip_annots(joints_2d=cur_joints_2d, joints_zidx=cur_joints_zidx, bone_status=cur_bone_status, bone_relations=cur_bone_relations, size=256)
+                    cur_img_flipped, _, _ = preprocessor.preprocess(joints_2d=cur_joints_2d_flipped, joints_zidx=cur_joints_zidx_flipped, bone_status=cur_bone_status_flipped, bone_relations=cur_bone_relations_flipped, is_training=False, bone_width=6, joint_ratio=6, bg_color=0.2)
+                    batch_images_flipped_np[b] = cur_img_flipped.copy()
+
+                    # cv2.imshow("raw_img", batch_images_np[b])
+                    # cv2.imshow("flipped_img", batch_images_flipped_np[b])
+                    # cv2.waitKey()
 
                 mean_vol_joints, \
                 raw_vol_joints  = sess.run(
@@ -118,15 +126,15 @@ if __name__ == "__main__":
                         ],
                         feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
 
-                print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, label_path_for_show)))
+                print((len(label_path_for_show) * "{}\n").format(*label_path_for_show))
 
                 mean_vol_joints = mean_vol_joints.astype(np.int32)
                 mean_pd_depth = np.array(map(lambda x: volume_utils.voxel_z_centers[x], mean_vol_joints[:, :, 2].tolist()))
-                mean_pd_coords_2d = mean_vol_joints[:, :, 0:2] * configs.coords_2d_scale
+                mean_pd_coords_2d = mean_vol_joints[:, :, 0:2] * configs.joints_2d_scale
 
                 raw_vol_joints = raw_vol_joints.astype(np.int32)
                 raw_pd_depth = np.array(map(lambda x: volume_utils.voxel_z_centers[x], raw_vol_joints[:, :, 2].tolist()))
-                raw_pd_coords_2d = raw_vol_joints[:, :, 0:2] * configs.coords_2d_scale
+                raw_pd_coords_2d = raw_vol_joints[:, :, 0:2] * configs.joints_2d_scale
 
                 # ############# evaluate the coords recovered from the gt 2d and gt root depth
                 for b in range(configs.batch_size):
