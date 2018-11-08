@@ -114,6 +114,24 @@ class mSynNet(object):
             accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
         return accuracy
 
+    def build_evaluation(self, eval_batch_size):
+
+        # 1 is forward, 0 is uncertain, -1 is backward
+        self.fb_info = self.results[:, 0:self.nJoints-1]
+        # 1 is in front, 0 is unconcerned or unknown, -1 is behind
+        self.br_info = self.results[:, self.nJoints-1:]
+
+        with tf.variable_scope("extract_heatmap"):
+            cur_batch_size = tf.cast(eval_batch_size, dtype=tf.int32)
+            self.pd_joints_2d = self.get_joints_hm(self.heatmaps[1], batch_size=cur_batch_size, name="heatmap_to_joints")
+        with tf.variable_scope("extract_fb"):
+            self.pd_fb_result = tf.argmax(self.fb_info, axis=2)
+            self.pd_fb_belief = tf.reduce_max(self.fb_info, axis=2)
+
+        with tf.variable_scope("extract_br"):
+            self.pd_br_result = tf.argmax(self.br_info, axis=2)
+            self.pd_br_belief = tf.reduce_max(self.br_info, axis=2)
+
     def build_loss(self, input_heatmaps, input_fb, input_br, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')

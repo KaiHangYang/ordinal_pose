@@ -123,11 +123,23 @@ def preprocess(img, joints_2d, bone_status, bone_relations, is_training=True, ma
 
     return aug_img, aug_joints_2d, aug_bone_status, aug_bone_relations
 
-def flip_data(img, annots, size=64):
-    return common._flip_data(img, annots, flip_array, size)
+def flip_annots(joints_2d, bone_status, bone_order, size=256):
+    bone_rank = np.zeros_like(bone_order)
+    for idx, cur_bone in enumerate(bone_order):
+        bone_rank[cur_bone] = idx
 
-def flip_annot(annots, size=64):
-    return common._flip_annot(annots, flip_array, size=size)
+    annots = np.concatenate([joints_2d, np.concatenate([[-1], bone_status])[:, np.newaxis], np.concatenate([[-1], bone_rank])[:, np.newaxis]], axis=1)
+    flipped_annots = common._flip_annot(annots, flip_array, size=size)
+
+    flipped_joints_2d = flipped_annots[:, 0:2]
+    flipped_bone_status = flipped_annots[:, 2][1:].astype(np.int32)
+    flipped_bone_rank = flipped_annots[:, 3][1:].astype(np.int32)
+
+    flipped_bone_order = np.zeros_like(bone_order)
+    for idx, cur_rank in enumerate(flipped_bone_rank):
+        flipped_bone_order[cur_rank] = idx
+
+    return flipped_joints_2d, flipped_bone_status, flipped_bone_order
 
 # draw the ground truth joints_2d
 bones_indices = np.array([

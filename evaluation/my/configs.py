@@ -24,6 +24,8 @@ lbl_path_fn = None
 
 model_dir = None
 restore_model_path_fn = None
+syn_restore_model_path_fn = None
+pose_restore_model_path_fn = None
 model_path = None
 
 ##### The parameters below only used in the ordinal mode
@@ -38,7 +40,7 @@ scale_lbl_path_fn = None
 # d the data source valid(0) train(1)
 def parse_configs(t, ver, d):
 
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, syn_restore_model_path_fn, pose_restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
 
     eval_type = ["gt", "ord"][t]
     cur_prefix = "syn_{}".format(ver)
@@ -81,7 +83,14 @@ def parse_configs(t, ver, d):
     lbl_path_fn = lambda x: (base_label_path.format(data_source, "{}")).format(x)
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(cur_prefix, eval_type))
+
+    syn_model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format("syn_1", eval_type))
+    pose_model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format("syn_2", eval_type))
+
     restore_model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format(cur_prefix, eval_type, x))
+
+    syn_restore_model_path_fn = lambda x: os.path.join(syn_model_dir, config_parser.get("model", "prefix").format("syn_1", eval_type, x))
+    pose_restore_model_path_fn = lambda x: os.path.join(pose_model_dir, config_parser.get("model", "prefix").format("syn_2", eval_type, x))
 
     # Parameters used in ordinal mode
     scale_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "scale_range.npy")
@@ -91,7 +100,7 @@ def parse_configs(t, ver, d):
     model_path = restore_model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, syn_restore_model_path_fn, pose_restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale, scale_batch_size, scale_img_path_fn, scale_lbl_path_fn, scale_range_file
     print("##################### Evaluation Parameters #####################")
     print("##### Data Parameters")
     print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\nbatch_size: {}\nscale_batch_size: {}\nimg_size: {}\nsyn_img_size: {}\nsep_syn_img_size: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, scale_batch_size, img_size, syn_img_size, sep_syn_img_size))
@@ -110,5 +119,7 @@ def print_configs():
 
     print("model_dir: {}".format(model_dir))
     print("restore_model_path_fn: {}".format(restore_model_path_fn("{}")))
+    print("syn_restore_model_path_fn: {}".format(syn_restore_model_path_fn("{}")))
+    print("pose_restore_model_path_fn: {}".format(pose_restore_model_path_fn("{}")))
     print("model_path: {}".format(model_path))
 
