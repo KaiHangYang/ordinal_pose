@@ -37,3 +37,23 @@ h36m_joint_colors = np.array([
     [191, 33, 52],
     [116, 13, 212]
 ])
+
+h36m_joint_names = np.array([
+    "root",
+    "right hip",
+    "right_knee",
+    "right_ankle",
+    "left_hip",
+    "left_knee",
+    "left_ankle",
+    "mid_spin",
+    "throat",
+    "nose",
+    "back_head",
+    "right_shoulder",
+    "right_elbow",
+    "right_wrist",
+    "left_shoulder",
+    "left_elbow",
+    "left_wrist"
+    ])

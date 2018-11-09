@@ -23,11 +23,11 @@ import configs
 # t means gt(0) or ord(1)
 # ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(t=0, ver=2, d=0)
+configs.parse_configs(t=0, ver=0, d=0)
 configs.print_configs()
 
-pretrained_syn_model = 500000
-pretrained_pose_model = 300000
+pretrained_syn_model = 860000
+pretrained_pose_model = 440000
 
 ###############################################################
 
@@ -154,13 +154,17 @@ if __name__ == "__main__":
                      syn_model.pd_br_belief],
                     feed_dict={input_raw_images: batch_raw_images_np})
 
+            pd_joints_2d = pd_joints_2d * configs.joints_2d_scale
 
             for b in range(configs.batch_size):
+                # test for the joints_2d from the syn network
                 cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
-                cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
+                # cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
+                cur_synmap, _ = syn_preprocess.draw_syn_img(pd_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 batch_syn_images_np[b] = cur_synmap / 255.0
 
-                flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
+                # flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
+                flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=pd_joints_2d[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
                 flipped_synmap, _ = syn_preprocess.draw_syn_img(flipped_joints_2d, flipped_bone_status, flipped_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 batch_syn_images_flipped_np[b] = flipped_synmap / 255.0
 
@@ -186,7 +190,7 @@ if __name__ == "__main__":
             raw_pd_depth = np.array(map(lambda x: volume_utils.voxel_z_centers[x], raw_vol_joints[:, :, 2].tolist()))
             raw_pd_coords_2d = raw_vol_joints[:, :, 0:2] * configs.joints_2d_scale
 
-            # ############# evaluate the coords recovered from the gt 2d and gt root depth
+            ############## evaluate the coords recovered from the pd 2d and gt root depth and camera matrix
             for b in range(configs.batch_size):
                 mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
                 raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
@@ -204,5 +208,5 @@ if __name__ == "__main__":
 
             print("\n\n")
 
-        mean_coords_eval.save("../eval_result/syn_all/coord_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
-        raw_coords_eval.save("../eval_result/syn_all/coord_eval_{}w_raw.npy".format(cur_model_iterations / 10000))
+        mean_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_mean.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000))
+        raw_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_raw.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000))
