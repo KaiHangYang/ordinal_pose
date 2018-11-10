@@ -98,6 +98,9 @@ if __name__ == "__main__":
             batch_joints_2d_np = np.zeros([configs.batch_size, configs.nJoints, 2], dtype=np.float32)
             batch_joints_zidx_np = np.zeros([configs.batch_size, configs.nJoints], dtype=np.float32)
 
+            batch_bone_relations_np = np.zeros([configs.batch_size, configs.nJoints-1, configs.nJoints-1])
+            batch_bone_status_np = np.zeros([configs.batch_size, configs.nJoints-1])
+
             batch_syn_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
             batch_syn_images_flipped_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
 
@@ -141,6 +144,9 @@ if __name__ == "__main__":
                 batch_joints_2d_np[b] = cur_joints_2d.copy()
                 batch_joints_zidx_np[b] = cur_joints_zidx.copy()
 
+                batch_bone_status_np[b] = cur_bone_status.copy()
+                batch_bone_relations_np[b] = cur_bone_relations.copy()
+
             pd_joints_2d,\
             pd_fb_result,\
             pd_fb_belief,\
@@ -158,13 +164,18 @@ if __name__ == "__main__":
 
             for b in range(configs.batch_size):
                 # test for the joints_2d from the syn network
-                cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
+                # test the gt_bone_relations
+                cur_bone_order = syn_preprocess.bone_order_from_bone_relations(batch_bone_relations_np[b], np.ones_like(batch_bone_relations_np[b]), nBones=configs.nJoints-1)
+                # cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
+
+                cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], batch_bone_status_np[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 # cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
-                cur_synmap, _ = syn_preprocess.draw_syn_img(pd_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
+                # cur_synmap, _ = syn_preprocess.draw_syn_img(pd_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 batch_syn_images_np[b] = cur_synmap / 255.0
 
+                flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=batch_bone_status_np[b], bone_order=cur_bone_order)
                 # flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
-                flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=pd_joints_2d[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
+                # flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=pd_joints_2d[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
                 flipped_synmap, _ = syn_preprocess.draw_syn_img(flipped_joints_2d, flipped_bone_status, flipped_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 batch_syn_images_flipped_np[b] = flipped_synmap / 255.0
 

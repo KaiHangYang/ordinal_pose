@@ -186,8 +186,12 @@ def bone_order_from_bone_relations(bone_relations, bone_relations_belief, nBones
     br_mat = np.zeros([nBones, nBones])
     brb_mat = np.zeros([nBones, nBones])
 
-    br_mat[np.triu_indices(nBones, k=1)] = bone_relations
-    brb_mat[np.triu_indices(nBones, k=1)] = bone_relations_belief
+    if bone_relations.shape[0] == nBones:
+        br_mat = bone_relations
+        brb_mat = bone_relations_belief
+    else:
+        br_mat[np.triu_indices(nBones, k=1)] = bone_relations
+        brb_mat[np.triu_indices(nBones, k=1)] = bone_relations_belief
 
     br_graph = networkx.DiGraph()
     # initialize the graph with all the nodes
