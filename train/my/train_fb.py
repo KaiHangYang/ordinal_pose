@@ -167,8 +167,23 @@ if __name__ == "__main__":
                 cur_img, cur_joints_2d, cur_bone_status = fb_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, is_training=not is_valid, mask=cur_mask)
 
                 batch_images_np[b] = cur_img
-                batch_center_2d[b] = np.round(cur_joints_2d / configs.joints_2d_scale)
+                batch_center_2d[b] = cur_joints_2d / configs.joints_2d_scale
                 batch_fb_info[b] = np.eye(3)[cur_bone_status]
+
+                # bone_indices = np.array([[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [7, 8], [8, 9], [10, 11], [11, 12]])
+                # joints_colors = [[255, 255, 255]]
+                # for cur_bs in cur_bone_status:
+                    # if cur_bs == 0:
+                        # joints_colors.append([128, 128, 128])
+                    # elif cur_bs == 1:
+                        # joints_colors.append([255, 255, 255])
+                    # elif cur_bs == 2:
+                        # joints_colors.append([0, 0, 0])
+                # img_for_display = display_utils.drawLines((255.0 * cur_img.copy()).astype(np.uint8), cur_joints_2d, indices=bone_indices)
+                # img_for_display = display_utils.drawPoints(img_for_display, cur_joints_2d, point_color_table=joints_colors, text_scale=0.3, point_ratio=3)
+
+                # cv2.imshow("test", img_for_display)
+                # cv2.waitKey()
 
             if is_valid:
                 loss, \
