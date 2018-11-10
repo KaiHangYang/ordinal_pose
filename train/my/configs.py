@@ -20,6 +20,14 @@ lr_decay_rate = None
 lr_decay_step = None
 log_dir = None
 train_range_file = None
+lsp_range_file = None
+mpii_range_file = None
+
+lsp_img_path_fn = None
+lsp_lbl_path_fn = None
+mpii_img_path_fn = None
+mpii_lbl_path_fn = None
+
 train_img_path_fn = None
 train_mask_path_fn = None
 
@@ -40,7 +48,7 @@ valid_iter = None
 # t means gt(0) or ord(1)
 def parse_configs(t, ver):
 
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_mask_path_fn, train_syn_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_syn_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, lsp_range_file, mpii_range_file, train_range_file, valid_range_file, lsp_img_path_fn, lsp_lbl_path_fn, mpii_img_path_fn, mpii_lbl_path_fn, train_img_path_fn, train_mask_path_fn, train_syn_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_syn_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
 
     train_type = ["gt", "ord"][t]
     cur_prefix = "syn_{}".format(ver)
@@ -76,6 +84,9 @@ def parse_configs(t, ver):
 
     # Dataset Settings
     train_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "train_range.npy")
+    lsp_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "lsp_range.npy")
+    mpii_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "mpii_range.npy")
+
     valid_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "valid_range.npy")
 
     # base_image_path = config_parser.get("dataset", "image_path")
@@ -91,6 +102,12 @@ def parse_configs(t, ver):
     train_syn_img_path_fn = lambda x: (base_syn_image_path.format("train", "{}")).format(x)
     train_lbl_path_fn = lambda x: (base_label_path.format("train", "{}")).format(x)
 
+    lsp_img_path_fn = lambda x: "/home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/lsp/images/{}.jpg".format(x)
+    lsp_lbl_path_fn = lambda x: "/home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/lsp/labels/{}.npy".format(x)
+
+    mpii_img_path_fn = lambda x: "/home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/mpii/images/{}.jpg".format(x)
+    mpii_lbl_path_fn = lambda x: "/home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/mpii/labels/{}.npy".format(x)
+
     valid_img_path_fn = lambda x: (base_image_path.format("valid", "{}")).format(x)
     valid_syn_img_path_fn = lambda x: (base_syn_image_path.format("valid", "{}")).format(x)
     valid_lbl_path_fn = lambda x: (base_label_path.format("valid", "{}")).format(x)
@@ -102,7 +119,7 @@ def parse_configs(t, ver):
     model_path = model_path_fn("")[0:-1]
 
 def print_configs():
-    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, train_img_path_fn, train_mask_path_fn, train_syn_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_syn_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
+    global loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, train_range_file, valid_range_file, lsp_img_path_fn, lsp_lbl_path_fn, mpii_img_path_fn, mpii_lbl_path_fn, train_img_path_fn, train_mask_path_fn, train_syn_img_path_fn, train_lbl_path_fn, valid_img_path_fn, valid_syn_img_path_fn, valid_lbl_path_fn, model_path_fn, model_dir, model_path, valid_iter, train_iter, feature_map_size, joints_3d_scale, joints_2d_scale
     print("##################### Training Parameters #####################")
     print("##### Data Parameters")
     print("loss_weight_heatmap: {}\nloss_weight_xyzmap: {}\nnJoints: {}\ntrain_batch_size: {}\nvalid_batch_size: {}\nimg_size: {}\nsyn_img_size: {}\nsep_syn_img_size: {}\ntrain_iter: {}\nvalid_iter: {}".format(loss_weight_heatmap, loss_weight_xyzmap, nJoints, train_batch_size, valid_batch_size, img_size, syn_img_size, sep_syn_img_size, train_iter, valid_iter))
@@ -114,8 +131,15 @@ def print_configs():
     print("train_range_file: {}".format(train_range_file))
     print("train_img_path: {}".format(train_img_path_fn("{}")))
     print("train_mask_path: {}".format(train_mask_path_fn("{}")))
+
     print("train_syn_img_path: {}".format(train_syn_img_path_fn("{}")))
     print("train_lbl_path: {}".format(train_lbl_path_fn("{}")))
+
+    print("lsp_img_path: {}".format(lsp_img_path_fn("{}")))
+    print("lsp_lbl_path: {}".format(lsp_lbl_path_fn("{}")))
+
+    print("mpii_img_path: {}".format(mpii_img_path_fn("{}")))
+    print("mpii_lbl_path: {}".format(mpii_lbl_path_fn("{}")))
 
     print("valid_range_file: {}".format(valid_range_file))
     print("valid_img_path: {}".format(valid_img_path_fn("{}")))
