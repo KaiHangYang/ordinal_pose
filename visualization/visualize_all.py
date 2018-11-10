@@ -25,7 +25,7 @@ import configs
 # t means gt(0) or ord(1)
 # ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(t=0, d=1)
+configs.parse_configs(t=0, d=0)
 configs.print_configs()
 
 pretrained_syn_model = 860000
@@ -243,11 +243,11 @@ if __name__ == "__main__":
                 cur_joints_3d_gt /= 450
                 cur_joints_3d_pd /= 450
 
-                cur_mpjpe = np.sqrt(np.sum((eval_joints_3d_gt[0] - eval_joints_3d_pd[0]) ** 2, axis=1))
+                cur_mpjpe = np.sqrt(np.sum((eval_joints_3d_gt - eval_joints_3d_pd) ** 2, axis=1))
                 cur_mean_mpjpe = np.mean(cur_mpjpe)
 
                 print("Mean Error(mm): {}".format(cur_mean_mpjpe))
-                print(("Joints Errors(mm):\n" + ("{}: {}\n") * configs.nJoints).format(*zip(pose_defs.h36m_joint_names, cur_mpjpe)))
+                print(("Joints Errors(mm):\n" + ("{}: {}\n") * configs.nJoints).format(*np.concatenate([pose_defs.h36m_joint_names[:, np.newaxis], cur_mpjpe[:, np.newaxis]], axis=1).flatten()))
 
             cv2.imshow("raw_image", batch_raw_images_np[0])
             cv2.imshow("syn_image", batch_syn_images_np[0])
