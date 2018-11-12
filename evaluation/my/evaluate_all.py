@@ -7,8 +7,10 @@ import cv2
 import time
 
 sys.path.append("../../")
+from net import fb_net
 from net import syn_net
 from net import pose_net
+
 from utils.preprocess_utils import syn_preprocess
 from utils.preprocess_utils import pose_preprocess
 
@@ -28,11 +30,16 @@ configs.print_configs()
 
 pretrained_syn_model = 860000
 pretrained_pose_model = 440000
+pretrained_fb_model = 580000
 
 ###############################################################
 
 if __name__ == "__main__":
 
+    h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16])
+    h36m_bone_selected_index = h36m_selected_index[1:] - 1
+
+    fbnet_batch_size = configs.batch_size
     synnet_batch_size = configs.batch_size
     posenet_batch_size = 2*configs.batch_size
     ################### Initialize the data reader ###################
@@ -46,11 +53,15 @@ if __name__ == "__main__":
     input_raw_images = tf.placeholder(shape=[synnet_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
     input_syn_images = tf.placeholder(shape=[posenet_batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
 
+    fb_model = fb_net.mFBNet(nJoints=configs.fb_nJoints, img_size=configs.img_size, batch_size=fbnet_batch_size, is_training=False, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, is_use_bn=False)
     syn_model = syn_net.mSynNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=synnet_batch_size, is_training=False, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, is_use_bn=False)
     pose_model = pose_net.mPoseNet(nJoints=configs.nJoints, img_size=configs.img_size, batch_size=posenet_batch_size, is_training=False, loss_weight_heatmap=5.0, loss_weight_volume=1.0, is_use_bn=False)
 
     with tf.Session() as sess:
         with tf.device("/device:GPU:0"):
+            fb_model.build_model(input_raw_images)
+            fb_model.build_evaluation(eval_batch_size=configs.batch_size)
+
             syn_model.build_model(input_raw_images)
             syn_model.build_evaluation(eval_batch_size=configs.batch_size)
 
@@ -66,8 +77,9 @@ if __name__ == "__main__":
 
         sess.run(tf.global_variables_initializer())
         ################# Restore the model ################
-        if os.path.exists(configs.syn_restore_model_path_fn(pretrained_syn_model)+".index") and os.path.exists(configs.pose_restore_model_path_fn(pretrained_pose_model)+".index"):
+        if os.path.exists(configs.syn_restore_model_path_fn(pretrained_syn_model)+".index") and os.path.exists(configs.pose_restore_model_path_fn(pretrained_pose_model)+".index") and os.path.exists(configs.fb_restore_model_path_fn(pretrained_fb_model)+".index"):
             print("#######################Restored all weights ###########################")
+            fb_vars = []
             syn_vars = []
             pose_vars = []
             for variable in tf.trainable_variables():
@@ -75,17 +87,22 @@ if __name__ == "__main__":
                     syn_vars.append(variable)
                 elif variable.name.split("/")[0] == "PoseNet":
                     pose_vars.append(variable)
+                elif variable.name.split("/")[0] == "FBNet":
+                    fb_vars.append(variable)
 
             print("SynNet Trainable Variables: {}".format(len(syn_vars)))
             print("PoseNet Trainable Variables: {}".format(len(pose_vars)))
+            print("FBNet Trainable Variables: {}".format(len(fb_vars)))
 
             syn_model_saver = tf.train.Saver(var_list=syn_vars)
             pose_model_saver = tf.train.Saver(var_list=pose_vars)
+            fb_model_saver = tf.train.Saver(var_list=fb_vars)
 
             syn_model_saver.restore(sess, configs.syn_restore_model_path_fn(pretrained_syn_model))
             pose_model_saver.restore(sess, configs.pose_restore_model_path_fn(pretrained_pose_model))
+            fb_model_saver.restore(sess, configs.fb_restore_model_path_fn(pretrained_fb_model))
         else:
-            print(configs.syn_restore_model_path_fn(pretrained_syn_model), configs.pose_restore_model_path_fn(pretrained_pose_model))
+            print(configs.syn_restore_model_path_fn(pretrained_syn_model), configs.pose_restore_model_path_fn(pretrained_pose_model), configs.fb_restore_model_path_fn(pretrained_fb_model))
             print("The prev model is not existing!")
             quit()
         ####################################################
@@ -147,12 +164,16 @@ if __name__ == "__main__":
                 batch_bone_status_np[b] = cur_bone_status.copy()
                 batch_bone_relations_np[b] = cur_bone_relations.copy()
 
+            parts_joints_2d,\
+            parts_fb_results,\
             pd_joints_2d,\
             pd_fb_result,\
             pd_fb_belief,\
             pd_br_result,\
             pd_br_belief = sess.run(
                     [
+                     fb_model.pd_joints_2d,
+                     fb_model.pd_fb_result,
                      syn_model.pd_joints_2d,
                      syn_model.pd_fb_result,
                      syn_model.pd_fb_belief,
@@ -160,22 +181,24 @@ if __name__ == "__main__":
                      syn_model.pd_br_belief],
                     feed_dict={input_raw_images: batch_raw_images_np})
 
+            pd_joints_2d[:, h36m_selected_index] = parts_joints_2d
+            # pd_fb_result[:, h36m_bone_selected_index] = parts_fb_results
             pd_joints_2d = pd_joints_2d * configs.joints_2d_scale
 
             for b in range(configs.batch_size):
                 # test for the joints_2d from the syn network
                 # test the gt_bone_relations
-                cur_bone_order = syn_preprocess.bone_order_from_bone_relations(batch_bone_relations_np[b], np.ones_like(batch_bone_relations_np[b]), nBones=configs.nJoints-1)
-                # cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
+                # cur_bone_order = syn_preprocess.bone_order_from_bone_relations(batch_bone_relations_np[b], np.ones_like(batch_bone_relations_np[b]), nBones=configs.nJoints-1)
+                cur_bone_order = syn_preprocess.bone_order_from_bone_relations(pd_br_result[b], pd_br_belief[b], nBones=configs.nJoints-1)
 
-                cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], batch_bone_status_np[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
+                # cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], batch_bone_status_np[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 # cur_synmap, _ = syn_preprocess.draw_syn_img(batch_joints_2d_np[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
-                # cur_synmap, _ = syn_preprocess.draw_syn_img(pd_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
+                cur_synmap, _ = syn_preprocess.draw_syn_img(pd_joints_2d[b], pd_fb_result[b], cur_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 batch_syn_images_np[b] = cur_synmap / 255.0
 
-                flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=batch_bone_status_np[b], bone_order=cur_bone_order)
+                # flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=batch_bone_status_np[b], bone_order=cur_bone_order)
                 # flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=batch_joints_2d_np[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
-                # flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=pd_joints_2d[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
+                flipped_joints_2d, flipped_bone_status, flipped_bone_order = syn_preprocess.flip_annots(joints_2d=pd_joints_2d[b], bone_status=pd_fb_result[b], bone_order=cur_bone_order)
                 flipped_synmap, _ = syn_preprocess.draw_syn_img(flipped_joints_2d, flipped_bone_status, flipped_bone_order, size=256, sep_size=64, bone_width=6, joint_ratio=6, bg_color=0.2)
                 batch_syn_images_flipped_np[b] = flipped_synmap / 255.0
 
@@ -219,5 +242,5 @@ if __name__ == "__main__":
 
             print("\n\n")
 
-        mean_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_mean.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000))
-        raw_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_raw.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000))
+        mean_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_fb{}w_mean.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000, pretrained_fb_model / 10000))
+        raw_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_fb{}w_raw.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000, pretrained_fb_model / 10000))

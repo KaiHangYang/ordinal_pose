@@ -116,7 +116,6 @@ class mFBNet(object):
         return accuracy
 
     def build_evaluation(self, eval_batch_size):
-
         # 1 is forward, 0 is uncertain, -1 is backward
         self.fb_info = self.results[:, 0:self.nJoints-1]
 
