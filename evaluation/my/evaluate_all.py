@@ -30,7 +30,7 @@ configs.print_configs()
 
 pretrained_syn_model = 860000
 pretrained_pose_model = 440000
-pretrained_fb_model = 580000
+pretrained_fb_model = 1000000
 
 ###############################################################
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
                     feed_dict={input_raw_images: batch_raw_images_np})
 
             pd_joints_2d[:, h36m_selected_index] = parts_joints_2d
-            # pd_fb_result[:, h36m_bone_selected_index] = parts_fb_results
+            pd_fb_result[:, h36m_bone_selected_index] = parts_fb_results
             pd_joints_2d = pd_joints_2d * configs.joints_2d_scale
 
             for b in range(configs.batch_size):
