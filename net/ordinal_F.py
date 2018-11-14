@@ -11,7 +11,7 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mOrdinal_F(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_volume=1.0, loss_weight_rank=1.0, loss_weight_2d=1000.0):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_volume=1.0, loss_weight_rank=1.0, loss_weight_2d=1000.0, is_use_bn=True):
 
         self.loss_weight_heatmap = loss_weight_heatmap
         self.loss_weight_volume = loss_weight_volume
@@ -25,26 +25,26 @@ class mOrdinal_F(object):
         self.is_use_bias = True
         self.is_tiny = False
         self.is_training = is_training
-        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny)
+        self.is_use_bn = is_use_bn
+        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn)
         self.batch_size = batch_size
         self.feature_size = 64
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
         with tf.variable_scope("ordinal_F"):
-            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="conv1")
+            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, name="conv1", is_use_bn=self.is_use_bn)
 
             net = self.res_utils.residual_block(net, 128, name="res1")
-            net_pooled = net
-            # net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
+            net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
             net = self.res_utils.residual_block(net_pooled, 128, name="res2")
             net = self.res_utils.residual_block(net, 128, name="res3")
             net = self.res_utils.residual_block(net, 256, name="res4")
 
-            hg1 = hourglass.build_hourglass(net, 512, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
+            hg1 = hourglass.build_hourglass(net, 256, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
 
-            lin1 = mConvBnRelu(inputs=hg1, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin1")
-            lin2 = mConvBnRelu(inputs=lin1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin2")
+            lin1 = mConvBnRelu(inputs=hg1, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin1", is_use_bn=self.is_use_bn)
+            lin2 = mConvBnRelu(inputs=lin1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin2", is_use_bn=self.is_use_bn)
 
             self.heatmaps = tf.layers.conv2d(inputs=lin2, filters=self.nJoints, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="heatmaps")
             out1_ = tf.layers.conv2d(inputs=self.heatmaps, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out1_")
@@ -54,10 +54,10 @@ class mOrdinal_F(object):
                 cat1_ = tf.layers.conv2d(inputs=cat1, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv")
                 int1 = tf.add_n([cat1_, out1_])
 
-            hg2 = hourglass.build_hourglass(int1, 512, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils)
+            hg2 = hourglass.build_hourglass(int1, 256, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils)
 
-            lin3 = mConvBnRelu(inputs=hg2, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3")
-            lin4 = mConvBnRelu(inputs=lin3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4")
+            lin3 = mConvBnRelu(inputs=hg2, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin3", is_use_bn=self.is_use_bn)
+            lin4 = mConvBnRelu(inputs=lin3, nOut=512, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, name="lin4", is_use_bn=self.is_use_bn)
 
             self.volumes = tf.layers.conv2d(inputs=lin4, filters=self.nJoints*self.feature_size, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="volumes")
 

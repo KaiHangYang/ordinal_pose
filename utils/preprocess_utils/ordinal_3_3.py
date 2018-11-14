@@ -17,7 +17,7 @@ def preprocess(img, annots, is_training=True, is_rotate=True, img_size=256):
         "rotate_range": 30.0 if is_rotate else 0.0, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
-        "pad_color": [0.2, 0.2, 0.2],
+        "pad_color": [0.5, 0.5, 0.5],
         "flip_array": flip_array
     }
 
@@ -29,10 +29,10 @@ def preprocess(img, annots, is_training=True, is_rotate=True, img_size=256):
 
     if is_training:
         # augment the color of the images
-        # img[:, :, 0] *= np.random.uniform(0.8, 1.2)
-        # img[:, :, 1] *= np.random.uniform(0.8, 1.2)
-        # img[:, :, 2] *= np.random.uniform(0.8, 1.2)
-        # img = np.clip(img, 0.0, 1.0)
+        img[:, :, 0] *= np.random.uniform(0.8, 1.2)
+        img[:, :, 1] *= np.random.uniform(0.8, 1.2)
+        img[:, :, 2] *= np.random.uniform(0.8, 1.2)
+        img = np.clip(img, 0.0, 1.0)
         aug_img, aug_annot = augment_data_2d(img, annots, settings)
     else:
         aug_img = img

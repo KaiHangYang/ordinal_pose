@@ -12,7 +12,9 @@ from utils.preprocess_utils import pose_preprocess as preprocessor
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
+
 from utils.postprocess_utils import volume_utils
+from utils.postprocess_utils import skeleton_opt
 
 ##################### Evaluation Configs ######################
 import configs
@@ -24,7 +26,7 @@ configs.parse_configs(t=0, ver=2, d=0)
 configs.print_configs()
 
 # evaluation_models = [440000, 480000, 500000, 540000]
-evaluation_models = [440000]
+evaluation_models = [200000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -139,8 +141,12 @@ if __name__ == "__main__":
 
                 # ############# evaluate the coords recovered from the gt 2d and gt root depth
                 for b in range(configs.batch_size):
-                    mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    # mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    # raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+
+                    #### Use the mean skeleton to evaluate
+                    mean_c_j_3d_pd = np.reshape(skeleton_opt.opt(mean_pd_coords_2d[b].flatten().tolist(), mean_pd_depth[b].flatten().tolist()), [-1, 3])
+                    raw_c_j_3d_pd = np.reshape(skeleton_opt.opt(raw_pd_coords_2d[b].flatten().tolist(), raw_pd_depth[b].flatten().tolist()), [-1, 3])
 
                     # Here I used the root aligned pose to evaluate the error
                     # according to https://github.com/geopavlakos/c2f-vol-demo/blob/master/matlab/utils/errorH36M.m

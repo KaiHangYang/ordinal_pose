@@ -29,6 +29,7 @@ if __name__ == "__main__":
     datas = os.listdir(label_dir)
     datas = [os.path.join(label_dir, i) for i in datas]
     mean_skeleton = my_utils.mAverageCounter(bones_indices.shape[0])
+    mean_cammat = my_utils.mAverageCounter(16)
 
     count = 0
     for cur_data_path in datas:
@@ -36,6 +37,7 @@ if __name__ == "__main__":
         sys.stderr.flush()
         cur_data = np.load(cur_data_path).tolist()
         cur_joints_3d = cur_data["joints_3d"].copy()
+        cur_cammat = cur_data["cam_mat"].copy().flatten()
 
         cur_bone_len = []
 
@@ -43,6 +45,8 @@ if __name__ == "__main__":
             cur_bone_len.append(np.linalg.norm(cur_joints_3d[cur_bone[0]] - cur_joints_3d[cur_bone[1]]))
 
         mean_skeleton.add(np.array(cur_bone_len))
+        mean_cammat.add(cur_cammat)
         count += 1
 
-    np.save("./skeleton.npy", mean_skeleton.cur_average)
+    np.save("./mean_skeleton.npy", mean_skeleton.cur_average)
+    np.save("./mean_cammat", mean_cammat.cur_average)
