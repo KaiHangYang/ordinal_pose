@@ -9,13 +9,13 @@ import common
 
 flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
 
-def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=True, bone_width=6, joint_ratio=6, bg_color=0.2):
+def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=True, bone_width=6, joint_ratio=6, bg_color=0.2, num_of_joints=17):
     settings = {
         "img_size": 256,
         "crop_box_size": 256,
-        "num_of_joints": 17,
+        "num_of_joints": num_of_joints,
         "scale_range": 0.15,# max is 0.5 no scale now
-        "rotate_range": 20.0, # max 45
+        "rotate_range": 30.0, # max 45
         "shift_range": 0, # pixel
         "is_flip": 1,
         "pad_color": [0, 0, 0],
@@ -38,10 +38,13 @@ def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=
         old_order = old_order[1:].astype(np.int32)
         new_order = aug_annot[:, 4][1:].astype(np.int32)
 
-        aug_bone_relations = np.zeros_like(bone_relations)
-        for i in range(len(old_order)):
-            for j in range(len(old_order)):
-                aug_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
+        if bone_relations is not None:
+            aug_bone_relations = np.zeros_like(bone_relations)
+            for i in range(len(old_order)):
+                for j in range(len(old_order)):
+                    aug_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
+        else:
+            aug_bone_relations = None
     else:
         aug_joints_2d = joints_2d
         aug_joints_zidx = joints_zidx
@@ -49,7 +52,13 @@ def preprocess(joints_2d, joints_zidx, bone_status, bone_relations, is_training=
         aug_bone_relations = bone_relations
 
     #### Paint the synthetic image
-    aug_bone_order = bone_order_from_bone_relations(aug_bone_relations, np.ones_like(aug_bone_relations), nBones=settings["num_of_joints"]-1)
+    if aug_bone_relations is not None:
+        aug_bone_order = bone_order_from_bone_relations(aug_bone_relations, np.ones_like(aug_bone_relations), nBones=settings["num_of_joints"]-1)
+    else:
+        # use the random bone_order for test
+        aug_bone_order = np.arange(0, settings["num_of_joints"]-1, 1)
+        np.random.shuffle(aug_bone_order)
+
     aug_img = draw_syn_img(joints_2d=aug_joints_2d, bone_status=aug_bone_status, bone_order=aug_bone_order, size=settings["img_size"], bg_color=bg_color, bone_width=bone_width, joint_ratio=joint_ratio)
 
     if np.max(aug_img) >= 2:
