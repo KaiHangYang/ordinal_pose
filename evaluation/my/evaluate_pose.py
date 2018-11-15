@@ -26,7 +26,7 @@ configs.parse_configs(t=0, ver=2, d=0)
 configs.print_configs()
 
 # evaluation_models = [440000, 480000, 500000, 540000]
-evaluation_models = [200000]
+evaluation_models = [680000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -58,7 +58,9 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
             mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+            opt_mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
             raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+            opt_raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
@@ -141,17 +143,20 @@ if __name__ == "__main__":
 
                 # ############# evaluate the coords recovered from the gt 2d and gt root depth
                 for b in range(configs.batch_size):
-                    # mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
-                    # raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
+                    raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
 
                     #### Use the mean skeleton to evaluate
-                    mean_c_j_3d_pd = np.reshape(skeleton_opt.opt(mean_pd_coords_2d[b].flatten().tolist(), mean_pd_depth[b].flatten().tolist()), [-1, 3])
-                    raw_c_j_3d_pd = np.reshape(skeleton_opt.opt(raw_pd_coords_2d[b].flatten().tolist(), raw_pd_depth[b].flatten().tolist()), [-1, 3])
+                    opt_mean_c_j_3d_pd = np.reshape(skeleton_opt.opt(mean_pd_coords_2d[b].flatten().tolist(), mean_pd_depth[b].flatten().tolist()), [-1, 3])
+                    opt_raw_c_j_3d_pd = np.reshape(skeleton_opt.opt(raw_pd_coords_2d[b].flatten().tolist(), raw_pd_depth[b].flatten().tolist()), [-1, 3])
 
                     # Here I used the root aligned pose to evaluate the error
                     # according to https://github.com/geopavlakos/c2f-vol-demo/blob/master/matlab/utils/errorH36M.m
                     mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], mean_c_j_3d_pd - mean_c_j_3d_pd[0])
                     raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], raw_c_j_3d_pd - raw_c_j_3d_pd[0])
+
+                    opt_mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], opt_mean_c_j_3d_pd - opt_mean_c_j_3d_pd[0])
+                    opt_raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], opt_raw_c_j_3d_pd - opt_raw_c_j_3d_pd[0])
 
                 sys.stdout.write("Mean: ")
                 mean_coords_eval.printMean()
@@ -159,7 +164,16 @@ if __name__ == "__main__":
                 sys.stdout.write("Raw: ")
                 raw_coords_eval.printMean()
 
+                sys.stdout.write("Opt Mean: ")
+                opt_mean_coords_eval.printMean()
+
+                sys.stdout.write("Opt Raw: ")
+                opt_raw_coords_eval.printMean()
+
                 print("\n\n")
 
             mean_coords_eval.save("../eval_result/syn_2/coord_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
             raw_coords_eval.save("../eval_result/syn_2/coord_eval_{}w_raw.npy".format(cur_model_iterations / 10000))
+
+            opt_mean_coords_eval.save("../eval_result/syn_2/coord_eval_{}w_mean_opt.npy".format(cur_model_iterations / 10000))
+            opt_raw_coords_eval.save("../eval_result/syn_2/coord_eval_{}w_raw_opt.npy".format(cur_model_iterations / 10000))
