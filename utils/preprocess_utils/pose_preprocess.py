@@ -79,10 +79,13 @@ def flip_annots(joints_2d, joints_zidx, bone_status, bone_relations, size=256):
     old_order = old_order[1:].astype(np.int32)
     new_order = flipped_annots[:, 4][1:].astype(np.int32)
 
-    flipped_bone_relations = np.zeros_like(bone_relations)
-    for i in range(len(old_order)):
-        for j in range(len(old_order)):
-            flipped_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
+    if bone_relations is not None:
+        flipped_bone_relations = np.zeros_like(bone_relations)
+        for i in range(len(old_order)):
+            for j in range(len(old_order)):
+                flipped_bone_relations[new_order[i]][new_order[j]] = bone_relations[old_order[i]][old_order[j]]
+    else:
+        flipped_bone_relations = None
 
     return flipped_joints_2d, flipped_joints_zidx, flipped_bone_status, flipped_bone_relations
 
