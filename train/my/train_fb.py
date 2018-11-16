@@ -30,6 +30,17 @@ restore_model_iteration = None
 #################################################################
 # This file only train the fb and the heatmaps
 
+def recalculate_bone_status(joints_z, bones_indices):
+    bone_status = []
+    for cur_bone_idx in bones_indices:
+        if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < 100:
+            bone_status.append(0)
+        elif joints_z[cur_bone_idx[1]] < joints_z[cur_bone_idx[0]]:
+            bone_status.append(1)
+        else:
+            bone_status.append(2)
+    return np.array(bone_status)
+
 if __name__ == "__main__":
     # assume the train_batch_size and valid_batch_size is 4
     ######################### Reconfigure ###########################
@@ -41,8 +52,10 @@ if __name__ == "__main__":
     configs.nJoints = 15
 
     # the corresponding bone_status selected array is (index_arr[1:] - 1)
-    h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16])
-    mpii_lsp_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
+    h36m_selected_index = configs.H36M_JOINTS_SELECTED
+    NEW_BONE_INDICES = configs.NEW_BONE_INDICES
+    fb_preprocess.flip_array = configs.NEW_FLIP_ARRAY
+    # mpii_lsp_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
 
     ################### Initialize the data reader ####################
     train_range = np.load(configs.train_range_file)
@@ -152,20 +165,20 @@ if __name__ == "__main__":
                 else:
                     cur_mask = None
 
-                if cur_data_types[b] == 0:
-                    # the human3.6m data
-                    cur_selected_index = h36m_selected_index
-                    cur_bone_selected_index = h36m_selected_index[1:] - 1
-                else:
-                    # the mpii and lsp data
-                    cur_selected_index = mpii_lsp_selected_index
-                    cur_bone_selected_index = mpii_lsp_selected_index[1:] - 1
-
                 cur_img = cv2.imread(cur_data_batch[0][b])
                 cur_label = np.load(cur_data_batch[1][b]).tolist()
 
-                cur_joints_2d = cur_label["joints_2d"].copy()[cur_selected_index]
-                cur_bone_status = cur_label["bone_status"].copy()[cur_bone_selected_index]
+                if cur_data_types[b] == 0:
+                    # the human3.6m data
+                    cur_selected_index = h36m_selected_index
+
+                    cur_joints_3d = cur_label["joints_3d"].copy()[cur_selected_index]
+                    cur_joints_2d = cur_label["joints_2d"].copy()[cur_selected_index]
+                    cur_bone_status = recalculate_bone_status(cur_joints_3d[:, 2], bones_indices=NEW_BONE_INDICES)
+                else:
+                    # the mpii and lsp data
+                    cur_joints_2d = cur_label["joints_2d"].copy()
+                    cur_bone_status = cur_label["bone_status"].copy()
 
                 cur_img, cur_joints_2d, cur_bone_status = fb_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, is_training=not is_valid, mask=cur_mask, num_of_joints=configs.nJoints)
 
