@@ -28,18 +28,21 @@ if not os.path.exists(configs.model_dir):
 
 restore_model_iteration = None
 #################################################################
+# This file only train the fb and the heatmaps
 
 if __name__ == "__main__":
     # assume the train_batch_size and valid_batch_size is 4
+    ######################### Reconfigure ###########################
     batch_size = 4
-    h36m_batch_size = 2
-    mpii_lsp_batch_size = 2
+    h36m_batch_size = 3
+    mpii_lsp_batch_size = 1
 
-    configs.nJoints = 13
+    configs.learning_rate = 2.5e-5
+    configs.nJoints = 15
 
     # the corresponding bone_status selected array is (index_arr[1:] - 1)
-    h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16])
-    mpii_lsp_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14])
+    h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16])
+    mpii_lsp_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
 
     ################### Initialize the data reader ####################
     train_range = np.load(configs.train_range_file)
@@ -129,7 +132,7 @@ if __name__ == "__main__":
             else:
                 tmp_data_batch = sess.run([train_data_iter, mpii_lsp_data_iter])
                 cur_data_batch = np.concatenate([np.array(tmp_data_batch[0]), np.array(tmp_data_batch[1])], axis=1)
-                cur_data_types = np.array([0, 0, 1, 1])
+                cur_data_types = np.array([0] * h36m_batch_size + [1] * mpii_lsp_batch_size)
 
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
             batch_center_2d = np.zeros([batch_size, configs.nJoints, 2], dtype=np.float32)
@@ -164,26 +167,28 @@ if __name__ == "__main__":
                 cur_joints_2d = cur_label["joints_2d"].copy()[cur_selected_index]
                 cur_bone_status = cur_label["bone_status"].copy()[cur_bone_selected_index]
 
-                cur_img, cur_joints_2d, cur_bone_status = fb_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, is_training=not is_valid, mask=cur_mask)
+                cur_img, cur_joints_2d, cur_bone_status = fb_preprocess.preprocess(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, is_training=not is_valid, mask=cur_mask, num_of_joints=configs.nJoints)
 
                 batch_images_np[b] = cur_img
                 batch_center_2d[b] = cur_joints_2d / configs.joints_2d_scale
                 batch_fb_info[b] = np.eye(3)[cur_bone_status]
 
-                # bone_indices = np.array([[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [7, 8], [8, 9], [10, 11], [11, 12]])
-                # joints_colors = [[255, 255, 255]]
-                # for cur_bs in cur_bone_status:
-                    # if cur_bs == 0:
-                        # joints_colors.append([128, 128, 128])
-                    # elif cur_bs == 1:
-                        # joints_colors.append([255, 255, 255])
-                    # elif cur_bs == 2:
-                        # joints_colors.append([0, 0, 0])
-                # img_for_display = display_utils.drawLines((255.0 * cur_img.copy()).astype(np.uint8), cur_joints_2d, indices=bone_indices)
-                # img_for_display = display_utils.drawPoints(img_for_display, cur_joints_2d, point_color_table=joints_colors, text_scale=0.3, point_ratio=3)
+                ################# Visualize the result ################
+                bone_indices = configs.NEW_BONE_INDICES
+                joints_colors = [[255, 255, 255]]
+                for cur_bs in cur_bone_status:
+                    if cur_bs == 0:
+                        joints_colors.append([128, 128, 128])
+                    elif cur_bs == 1:
+                        joints_colors.append([255, 255, 255])
+                    elif cur_bs == 2:
+                        joints_colors.append([0, 0, 0])
+                img_for_display = display_utils.drawLines((255.0 * cur_img.copy()).astype(np.uint8), cur_joints_2d, indices=bone_indices)
+                img_for_display = display_utils.drawPoints(img_for_display, cur_joints_2d, point_color_table=joints_colors, text_scale=0.3, point_ratio=3)
 
-                # cv2.imshow("test", img_for_display)
-                # cv2.waitKey()
+                cv2.imshow("test", img_for_display)
+                cv2.waitKey()
+                ########################################################
 
             if is_valid:
                 loss, \

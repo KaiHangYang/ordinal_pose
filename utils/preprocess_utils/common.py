@@ -67,6 +67,8 @@ def augment_data_2d(img, annots, settings = {
     img_size = settings["img_size"]
     crop_box_size = settings["crop_box_size"]
     num_of_joints = settings["num_of_joints"]
+    assert(num_of_joints == len(annots))
+
     scale_range = settings["scale_range"]
     rotate_range = settings["rotate_range"]
     shift_range = settings["shift_range"]

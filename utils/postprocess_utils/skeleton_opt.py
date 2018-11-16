@@ -268,8 +268,8 @@ DoubleVector_swigregister = _skeleton_opt.DoubleVector_swigregister
 DoubleVector_swigregister(DoubleVector)
 
 
-def opt(joints_2d, joints_depth):
-    return _skeleton_opt.opt(joints_2d, joints_depth)
+def opt(joints_2d, joints_depth, cam_matrix):
+    return _skeleton_opt.opt(joints_2d, joints_depth, cam_matrix)
 opt = _skeleton_opt.opt
 # This file is compatible with both classic and new-style classes.
 

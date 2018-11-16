@@ -7,7 +7,8 @@ import networkx
 from common import *
 import common
 
-flip_array = np.array([[1, 4], [2, 5], [3, 6], [7, 10], [8, 11], [9, 12]])
+# The skeleton used here is the lsp_mpii skeleton
+flip_array = np.array([[1, 4], [2, 5], [3, 6], [9, 12], [10, 13], [11, 14]])
 
 bg_img_dir = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/bg_images"
 bg_img_arr = None
@@ -66,12 +67,12 @@ def replace_bg(img, mask):
 # currently I don't augment the data
 # data_type(0) means the human3.6m data, data_type(1) means the lsp and mpii data.
 
-def preprocess(img, joints_2d, bone_status, is_training=True, mask=None):
+def preprocess(img, joints_2d, bone_status, is_training=True, mask=None, num_of_joints=15):
 
     settings = {
         "img_size": 256,
         "crop_box_size": 256,
-        "num_of_joints": 13,
+        "num_of_joints": num_of_joints,
         "scale_range": 0.15,# max is 0.5 no scale now
         "rotate_range": 20.0, # max 45
         "shift_range": 0, # pixel
