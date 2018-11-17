@@ -20,17 +20,22 @@ from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
 from utils.postprocess_utils import volume_utils
 
+from utils.postprocess_utils.skeleton15 import skeleton_opt
+
 ##################### Evaluation Configs ######################
 import configs
 
 # t means gt(0) or ord(1)
 # ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(t=0, ver=0, d=0)
+configs.parse_configs(t=0, ver=0, d=1, all_type=1)
 configs.print_configs()
 
-pretrained_fb_model = 1000000
-pretrained_pose_model = 440000
+# in 15 point fb is syn_3
+# pose is syn_4
+
+pretrained_fb_model = 680000
+pretrained_pose_model = 760000
 
 ###############################################################
 def recalculate_bone_status(joints_z, bones_indices):
@@ -50,7 +55,13 @@ if __name__ == "__main__":
     h36m_selected_index = configs.H36M_JOINTS_SELECTED
     h36m_bone_selected_index = h36m_selected_index[1:] - 1
 
+    configs.nJoints = 15
     NEW_BONE_INDICES = configs.NEW_BONE_INDICES
+
+    fb_preprocess.flip_array = configs.NEW_FLIP_ARRAY
+    pose_preprocess.flip_array = configs.NEW_FLIP_ARRAY
+    pose_preprocess.bones_indices = configs.NEW_BONE_INDICES
+    pose_preprocess.bone_colors = configs.NEW_BONE_COLORS
 
     fbnet_batch_size = configs.batch_size
     posenet_batch_size = 2*configs.batch_size
@@ -79,13 +90,15 @@ if __name__ == "__main__":
         print("Network built!")
 
         mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+        opt_mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
         raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+        opt_raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
 
         data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
         sess.run(tf.global_variables_initializer())
         ################# Restore the model ################
-        if os.path.exists(configs.pose_restore_model_path_fn(pretrained_pose_model)+".index") and os.path.exists(configs.fb_restore_model_path_fn(pretrained_fb_model)+".index"):
+        if os.path.exists(configs.pose_restore_model_path_fn(pretrained_pose_model)+".index") and os.path.exists(configs.syn_restore_model_path_fn(pretrained_fb_model)+".index"):
             print("#######################Restored all weights ###########################")
             fb_vars = []
             pose_vars = []
@@ -102,9 +115,9 @@ if __name__ == "__main__":
             fb_model_saver = tf.train.Saver(var_list=fb_vars)
 
             pose_model_saver.restore(sess, configs.pose_restore_model_path_fn(pretrained_pose_model))
-            fb_model_saver.restore(sess, configs.fb_restore_model_path_fn(pretrained_fb_model))
+            fb_model_saver.restore(sess, configs.syn_restore_model_path_fn(pretrained_fb_model))
         else:
-            print(configs.pose_restore_model_path_fn(pretrained_pose_model), configs.fb_restore_model_path_fn(pretrained_fb_model))
+            print(configs.pose_restore_model_path_fn(pretrained_pose_model), configs.syn_restore_model_path_fn(pretrained_fb_model))
             print("The prev model is not existing!")
             quit()
         ####################################################
@@ -146,7 +159,8 @@ if __name__ == "__main__":
                 source_txt_arr.append(cur_label["source"])
                 center_arr.append(cur_label["center"])
                 scale_arr.append(cur_label["scale"])
-                depth_root_arr.append(cur_label["joints_3d"][0, 2].copy()[h36m_selected_index])
+                depth_root_arr.append(cur_label["joints_3d"][0, 2])
+
                 gt_joints_3d_arr.append(cur_label["joints_3d"].copy()[h36m_selected_index])
                 crop_joints_2d_arr.append(cur_label["joints_2d"].copy()[h36m_selected_index])
                 cam_matrix_arr.append(cur_label["cam_mat"].copy())
@@ -212,10 +226,17 @@ if __name__ == "__main__":
                 mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
                 raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
 
+                #### Use the mean skeleton to evaluate
+                opt_mean_c_j_3d_pd = np.reshape(skeleton_opt.opt(volume_utils.recover_2d(mean_pd_coords_2d[b], scale=scale_arr[b], center=center_arr[b]).flatten().tolist(), mean_pd_depth[b].flatten().tolist(), cam_matrix_arr[b].flatten().tolist()), [-1, 3])
+                opt_raw_c_j_3d_pd = np.reshape(skeleton_opt.opt(volume_utils.recover_2d(raw_pd_coords_2d[b], scale=scale_arr[b], center=center_arr[b]).flatten().tolist(), raw_pd_depth[b].flatten().tolist(), cam_matrix_arr[b].flatten().tolist()), [-1, 3])
+
                 # Here I used the root aligned pose to evaluate the error
                 # according to https://github.com/geopavlakos/c2f-vol-demo/blob/master/matlab/utils/errorH36M.m
                 mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], mean_c_j_3d_pd - mean_c_j_3d_pd[0])
                 raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], raw_c_j_3d_pd - raw_c_j_3d_pd[0])
+
+                opt_mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], opt_mean_c_j_3d_pd - opt_mean_c_j_3d_pd[0])
+                opt_raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], opt_raw_c_j_3d_pd - opt_raw_c_j_3d_pd[0])
 
             sys.stdout.write("Mean: ")
             mean_coords_eval.printMean()
@@ -223,7 +244,16 @@ if __name__ == "__main__":
             sys.stdout.write("Raw: ")
             raw_coords_eval.printMean()
 
+            sys.stdout.write("Opt Mean: ")
+            opt_mean_coords_eval.printMean()
+
+            sys.stdout.write("Opt Raw: ")
+            opt_raw_coords_eval.printMean()
+
             print("\n\n")
 
-        mean_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_fb{}w_mean.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000, pretrained_fb_model / 10000))
-        raw_coords_eval.save("../eval_result/syn_all/coord_eval_syn{}w_pose{}w_fb{}w_raw.npy".format(pretrained_syn_model/10000, pretrained_pose_model/10000, pretrained_fb_model / 10000))
+        mean_coords_eval.save("../eval_result/all_15/coord_eval_syn{}w_fb{}w_mean.npy".format(pretrained_fb_model/10000, pretrained_pose_model / 10000))
+        raw_coords_eval.save("../eval_result/all_15/coord_eval_syn{}w_fb{}w_raw.npy".format(pretrained_fb_model/10000, pretrained_pose_model / 10000))
+
+        opt_mean_coords_eval.save("../eval_result/all_15/coord_eval_syn{}w_fb{}w_mean_opt.npy".format(pretrained_fb_model/10000, pretrained_pose_model / 10000))
+        opt_raw_coords_eval.save("../eval_result/all_15/coord_eval_syn{}w_fb{}w_raw_opt.npy".format(pretrained_fb_model/10000, pretrained_pose_model / 10000))

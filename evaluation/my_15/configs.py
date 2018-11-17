@@ -41,13 +41,20 @@ model_path = None
 # t means gt(0) or ord(1)
 # ver the version of the experiment
 # d the data source valid(0) train(1)
-def parse_configs(t, ver, d):
+def parse_configs(t, ver, d, all_type=0):
 
     global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, syn_restore_model_path_fn, pose_restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale 
 
-    eval_type = ["gt", "ord"][t]
+    eval_type = "gt"
     cur_prefix = "syn_{}".format(ver)
     data_source = ["valid", "train"][d]
+
+    if all_type == 0:
+        syn_prefix = "syn_1"
+        pose_prefix = "syn_2"
+    else:
+        syn_prefix = "syn_3"
+        pose_prefix = "syn_4"
 
     EVAL_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ### The eval.conf is in the same directory with this script
@@ -87,13 +94,13 @@ def parse_configs(t, ver, d):
 
     model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(cur_prefix, eval_type))
 
-    syn_model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format("syn_1", eval_type))
-    pose_model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format("syn_2", eval_type))
+    syn_model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(syn_prefix, eval_type))
+    pose_model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}_{}".format(pose_prefix, eval_type))
 
     restore_model_path_fn = lambda x: os.path.join(model_dir, config_parser.get("model", "prefix").format(cur_prefix, eval_type, x))
 
-    syn_restore_model_path_fn = lambda x: os.path.join(syn_model_dir, config_parser.get("model", "prefix").format("syn_1", eval_type, x))
-    pose_restore_model_path_fn = lambda x: os.path.join(pose_model_dir, config_parser.get("model", "prefix").format("syn_2", eval_type, x))
+    syn_restore_model_path_fn = lambda x: os.path.join(syn_model_dir, config_parser.get("model", "prefix").format(syn_prefix, eval_type, x))
+    pose_restore_model_path_fn = lambda x: os.path.join(pose_model_dir, config_parser.get("model", "prefix").format(pose_prefix, eval_type, x))
 
     # remove the '-'
     model_path = restore_model_path_fn("")[0:-1]
