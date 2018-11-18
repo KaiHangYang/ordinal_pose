@@ -28,7 +28,7 @@ import configs
 # t means gt(0) or ord(1)
 # ver means experiment version
 # d means validset(0) or trainset(1)
-configs.parse_configs(t=0, ver=0, d=1, all_type=1)
+configs.parse_configs(t=0, ver=0, d=0, all_type=1)
 configs.print_configs()
 
 # in 15 point fb is syn_3
@@ -190,6 +190,10 @@ if __name__ == "__main__":
                     feed_dict={input_raw_images: batch_raw_images_np})
 
             pd_joints_2d = pd_joints_2d * configs.joints_2d_scale
+            # pd_joints_2d = batch_joints_2d_np
+
+            ##### TODO Here I test the gt_fb_results
+            # pd_fb_results = batch_bone_status_np
 
             for b in range(configs.batch_size):
                 cur_synmap, _, _ = pose_preprocess.preprocess(joints_2d=pd_joints_2d[b], joints_zidx=batch_joints_zidx_np[b], bone_status=pd_fb_results[b], bone_relations=None, is_training=False, bone_width=6, joint_ratio=6, bg_color=0.2, num_of_joints=configs.nJoints)
