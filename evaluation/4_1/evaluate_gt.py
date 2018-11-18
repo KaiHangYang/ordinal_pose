@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -14,6 +14,8 @@ from utils.common_utils import my_utils
 from utils.evaluate_utils import evaluators
 from utils.postprocess_utils import volume_utils
 
+from utils.postprocess_utils.skeleton17 import skeleton_opt
+
 ##################### Evaluation Configs ######################
 import configs
 
@@ -23,7 +25,7 @@ import configs
 configs.parse_configs(t=0, ver=1, d=0)
 configs.print_configs()
 
-evaluation_models = [875000]
+evaluation_models = [140000]
 ###############################################################
 
 if __name__ == "__main__":
@@ -59,7 +61,9 @@ if __name__ == "__main__":
         for cur_model_iterations in evaluation_models:
 
             mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+            opt_mean_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
             raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
+            opt_raw_coords_eval = evaluators.mEvaluatorPose3D(nJoints=configs.nJoints)
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
 
@@ -88,6 +92,7 @@ if __name__ == "__main__":
                 depth_root_arr = []
                 gt_joints_3d_arr = []
                 crop_joints_2d_arr = []
+                cam_matrix_arr = []
 
                 for b in range(configs.batch_size):
                     img_path_for_show.append(os.path.basename(img_list[data_index.val]))
@@ -104,6 +109,7 @@ if __name__ == "__main__":
                     depth_root_arr.append(cur_label["joints_3d"][0, 2])
                     gt_joints_3d_arr.append(cur_label["joints_3d"].copy())
                     crop_joints_2d_arr.append(cur_label["joints_2d"].copy())
+                    cam_matrix_arr.append(cur_label["cam_mat"].copy())
                     ###################################################
 
                     cur_img, _ = preprocessor.preprocess(cur_img, None, is_training=False)
@@ -134,10 +140,17 @@ if __name__ == "__main__":
                     mean_c_j_2d_pd, mean_c_j_3d_pd, _ = volume_utils.local_to_global(mean_pd_depth[b], depth_root_arr[b], mean_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
                     raw_c_j_2d_pd, raw_c_j_3d_pd, _ = volume_utils.local_to_global(raw_pd_depth[b], depth_root_arr[b], raw_pd_coords_2d[b], source_txt_arr[b], center_arr[b], scale_arr[b])
 
+                    #### Use the mean skeleton to evaluate
+                    opt_mean_c_j_3d_pd = np.reshape(skeleton_opt.opt(volume_utils.recover_2d(mean_pd_coords_2d[b], scale=scale_arr[b], center=center_arr[b]).flatten().tolist(), mean_pd_depth[b].flatten().tolist(), cam_matrix_arr[b].flatten().tolist()), [-1, 3])
+                    opt_raw_c_j_3d_pd = np.reshape(skeleton_opt.opt(volume_utils.recover_2d(raw_pd_coords_2d[b], scale=scale_arr[b], center=center_arr[b]).flatten().tolist(), raw_pd_depth[b].flatten().tolist(), cam_matrix_arr[b].flatten().tolist()), [-1, 3])
+
                     # Here I used the root aligned pose to evaluate the error
                     # according to https://github.com/geopavlakos/c2f-vol-demo/blob/master/matlab/utils/errorH36M.m
                     mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], mean_c_j_3d_pd - mean_c_j_3d_pd[0])
                     raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], raw_c_j_3d_pd - raw_c_j_3d_pd[0])
+
+                    opt_mean_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], opt_mean_c_j_3d_pd - opt_mean_c_j_3d_pd[0])
+                    opt_raw_coords_eval.add(gt_joints_3d_arr[b] - gt_joints_3d_arr[b][0], opt_raw_c_j_3d_pd - opt_raw_c_j_3d_pd[0])
 
                 sys.stdout.write("Mean: ")
                 mean_coords_eval.printMean()
@@ -145,7 +158,16 @@ if __name__ == "__main__":
                 sys.stdout.write("Raw: ")
                 raw_coords_eval.printMean()
 
+                sys.stdout.write("Opt Mean: ")
+                opt_mean_coords_eval.printMean()
+
+                sys.stdout.write("Opt Raw: ")
+                opt_raw_coords_eval.printMean()
+
                 print("\n\n")
 
             mean_coords_eval.save("../eval_result/f_4_1/coord_eval_{}w_mean.npy".format(cur_model_iterations / 10000))
             raw_coords_eval.save("../eval_result/f_4_1/coord_eval_{}w_raw.npy".format(cur_model_iterations / 10000))
+
+            opt_mean_coords_eval.save("../eval_result/f_4_1/coord_eval_{}w_mean_opt.npy".format(cur_model_iterations / 10000))
+            opt_raw_coords_eval.save("../eval_result/f_4_1/coord_eval_{}w_raw_opt.npy".format(cur_model_iterations / 10000))

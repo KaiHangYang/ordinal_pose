@@ -10,6 +10,12 @@ from common_utils import h36m_camera
 voxel_z_limits = np.load(os.path.join(CUR_DIR, "voxel_limits.npy"))
 voxel_z_centers = (voxel_z_limits[0:64] + voxel_z_limits[1:65]) / 2
 
+def recover_2d(joints_2d, scale, center, crop_box_size=256):
+    crop_box_size *= scale
+    offset = center - crop_box_size / 2
+
+    return joints_2d * scale + offset
+
 # The depths is related to the root joints
 def local_to_global(depths, root_depth, joints_2d, source_str, center, scale, crop_box_size=256):
     depths = depths.copy()
