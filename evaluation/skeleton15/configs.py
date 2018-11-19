@@ -42,7 +42,6 @@ model_path = None
 # ver the version of the experiment
 # d the data source valid(0) train(1)
 def parse_configs(t, ver, d, all_type=0):
-
     global loss_weight_heatmap, loss_weight_xyzmap, nJoints, batch_size, img_size, syn_img_size, sep_syn_img_size, learning_rate, lr_decay_rate, lr_decay_step, log_dir, range_file, img_path_fn, lbl_path_fn, restore_model_path_fn, syn_restore_model_path_fn, pose_restore_model_path_fn, model_dir, model_path, feature_map_size, joints_3d_scale, joints_2d_scale 
 
     eval_type = "gt"
