@@ -68,6 +68,7 @@ class mPoseNet(object):
                 reg = tf.layers.flatten(reg)
                 # fb information
                 self.poses = tf.layers.dense(inputs=reg, units=3*self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
+                self.poses = tf.reshape(self.poses, [self.batch_size, self.nJoints, 3])
 
     def get_joints_hm(self, heatmaps, batch_size, name="heatmap_to_joints"):
         with tf.variable_scope(name):

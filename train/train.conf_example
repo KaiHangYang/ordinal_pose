@@ -1,9 +1,10 @@
 [DEFAULT]
-PROJ_ROOT_DIR = /home/kaihang/Projects/syn_pose
-DATA_ROOT_DIR = /home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256
+PROJ_ROOT_DIR = /home/kaihang/Projects/pose_project/new_pose
+H36M_DATA_ROOT_DIR = /home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256
+LSP_DATA_ROOT_DIR = /home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/lsp
+MPII_DATA_ROOT_DIR = /home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/mpii
 
 [data]
-nJoints = 17
 train_batch_size = 4
 valid_batch_size = 4
 img_size = 256
@@ -11,10 +12,17 @@ train_iter = 300000
 valid_iter = 4
 
 [dataset]
-image_path = %(DATA_ROOT_DIR)s/{}/images_syn/{}.jpg
-label_path = %(DATA_ROOT_DIR)s/{}/labels/{}.npy
+range_file_dir = %(PROJ_ROOT_DIR)s/data_range
 
-range_file_dir = %(PROJ_ROOT_DIR)s/data_range/sec_3
+h36m_image_path = %(H36M_DATA_ROOT_DIR)s/{}/images/{}.jpg
+h36m_mask_path = %(H36M_DATA_ROOT_DIR)s/{}/masks/{}.jpg
+h36m_label_path = %(H36M_DATA_ROOT_DIR)s/{}/labels_syn/{}.npy
+
+lsp_image_path = %(LSP_DATA_ROOT_DIR)s/images/{}.jpg
+lsp_label_path = %(LSP_DATA_ROOT_DIR)s/labels/{}.npy
+
+mpii_image_path = %(MPII_DATA_ROOT_DIR)s/images/{}.jpg
+mpii_label_path = %(MPII_DATA_ROOT_DIR)s/labels/{}.npy
 
 [train]
 learning_rate = 2.5e-4
@@ -26,4 +34,3 @@ base_dir = %(PROJ_ROOT_DIR)s/logs
 
 [model]
 base_dir = %(PROJ_ROOT_DIR)s/models
-prefix = ordinal_{}_{}-{}

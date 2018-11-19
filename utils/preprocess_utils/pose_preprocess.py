@@ -32,26 +32,23 @@ class PoseProcessor(object):
             "flip_array": self.flip_array
         }
 
-    def preprocess(self, joints_2d, joints_3d, bone_status, bone_relations, is_training=True):
+    def preprocess(self, joints_2d, joints_3d, bone_relations, is_training=True):
         # a placeholder img
         img = np.zeros([self.img_size, self.img_size, 3], dtype=np.float32)
         joints_2d = joints_2d.copy()
         joints_3d = joints_3d.copy()
-        bone_status = bone_status.copy()
 
         if is_training:
             # TODO there is no flip
-            _, aug_annot = augment_data_2d(img, joints_2d, settings)
+            _, aug_annot = augment_data_2d(img, joints_2d, self.settings)
 
             aug_joints_2d = aug_annot
             aug_joints_3d = joints_3d
-            aug_bone_status = bone_status
             aug_bone_relations = bone_relations
 
         else:
             aug_joints_2d = joints_2d
             aug_joints_3d = joints_3d
-            aug_bone_status = bone_status
             aug_bone_relations = bone_relations
         #### Paint the synthetic image
         if aug_bone_relations is not None:
@@ -61,12 +58,23 @@ class PoseProcessor(object):
             aug_bone_order = np.arange(0, self.n_bones, 1)
             np.random.shuffle(aug_bone_order)
 
+        aug_bone_status = self.recalculate_bone_status(aug_joints_3d[:, 2])
         aug_img = self.draw_syn_img(joints_2d=aug_joints_2d, bone_status=aug_bone_status, bone_order=aug_bone_order)
         if np.max(aug_img) >= 2:
             aug_img = aug_img / 255.0
 
         return aug_img, aug_joints_2d, aug_joints_3d
 
+    def recalculate_bone_status(self, joints_z):
+        bone_status = []
+        for cur_bone_idx in self.bone_indices:
+            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < 100:
+                bone_status.append(0)
+            elif joints_z[cur_bone_idx[1]] < joints_z[cur_bone_idx[0]]:
+                bone_status.append(1)
+            else:
+                bone_status.append(2)
+        return np.array(bone_status)
     # the bone_relations is a up triangle matrix
     def bone_order_from_bone_relations(self, bone_relations, bone_relations_belief):
         br_mat = np.zeros([self.n_bones, self.n_bones])
@@ -128,7 +136,7 @@ class PoseProcessor(object):
 
         for cur_bone in bone_order:
             ####### get bone informations first #######
-            cur_bone_color = np.array([bone_colors[cur_bone][2] * 255, bone_colors[cur_bone][1] * 255, bone_colors[cur_bone][0] * 255])
+            cur_bone_color = np.array([self.bone_colors[cur_bone][2] * 255, self.bone_colors[cur_bone][1] * 255, self.bone_colors[cur_bone][0] * 255])
 
             if bone_status[cur_bone] == 0:
                 # not certain
@@ -140,8 +148,8 @@ class PoseProcessor(object):
                 # backward
                 cur_joint_color = (0, 0, 0)
 
-            source_joint = joints_2d[bones_indices[cur_bone][0]]
-            target_joint = joints_2d[bones_indices[cur_bone][1]]
+            source_joint = joints_2d[self.bone_indices[cur_bone][0]]
+            target_joint = joints_2d[self.bone_indices[cur_bone][1]]
             ###########################################
 
             dir_2d = (target_joint - source_joint) / (0.0000001 + np.linalg.norm(target_joint - source_joint))
