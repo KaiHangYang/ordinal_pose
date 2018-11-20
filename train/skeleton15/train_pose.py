@@ -25,7 +25,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = None
+restore_model_iteration = 100000
 #################################################################
 
 if __name__ == "__main__":
@@ -135,9 +135,9 @@ if __name__ == "__main__":
                 batch_joints_2d_np[b] = cur_joints_2d.copy()
                 batch_joints_3d_np[b] = cur_joints_3d.copy()
 
-                cv2.imshow("img", cur_img)
-                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
-                cv2.waitKey()
+                # cv2.imshow("img", cur_img)
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
+                # cv2.waitKey()
 
             acc_hm = 0
             acc_pose = 0
