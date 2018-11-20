@@ -31,7 +31,7 @@ restore_model_iteration = None
 if __name__ == "__main__":
     ################ Reseting  #################
     configs.loss_weight_heatmap = 1
-    configs.loss_weight_pose = 10
+    configs.loss_weight_pose = 100
     configs.joints_2d_scale = 4.0
     configs.pose_scale = 1000.0
     configs.is_use_bn = False
@@ -135,11 +135,9 @@ if __name__ == "__main__":
                 batch_joints_2d_np[b] = cur_joints_2d.copy()
                 batch_joints_3d_np[b] = cur_joints_3d.copy()
 
-                # cv2.imshow("img", cur_img)
-                # print(preprocessor.bones_indices)
-                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * 4, indices=preprocessor.bones_indices))
-                # print(batch_centers_np[b])
-                # cv2.waitKey()
+                cv2.imshow("img", cur_img)
+                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
+                cv2.waitKey()
 
             acc_hm = 0
             acc_pose = 0

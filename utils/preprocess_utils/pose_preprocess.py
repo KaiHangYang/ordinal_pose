@@ -15,7 +15,7 @@ class PoseProcessor(object):
         self.skeleton = skeleton
         self.bone_indices = self.skeleton.bone_indices
         self.flip_array = self.skeleton.flip_array
-        self.bone_colors = self.skeleton.flip_array
+        self.bone_colors = self.skeleton.bone_colors
         self.n_joints = self.skeleton.n_joints
         self.n_bones = self.skeleton.n_bones
         self.img_size = img_size
@@ -24,7 +24,7 @@ class PoseProcessor(object):
             "img_size": self.img_size,
             "crop_box_size": self.img_size,
             "num_of_joints": self.n_joints,
-            "scale_range": 0.15,# max is 0.5 no scale now
+            "scale_range": 0.25,# max is 0.5 no scale now
             "rotate_range": 0, # max 45
             "shift_range": 0, # pixel
             "is_flip": 0,

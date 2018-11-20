@@ -112,7 +112,7 @@ class mPoseNet(object):
     def build_evaluation(self):
         self.global_steps = tf.train.get_or_create_global_step()
         with tf.variable_scope("parser_pose"):
-            self.pose = (self.poses - self.poses[:, 0]) * self.pose_scale
+            self.pose = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoint, 1])) * self.pose_scale
 
     def build_loss(self, input_heatmaps, input_poses, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
@@ -143,8 +143,8 @@ class mPoseNet(object):
                 self.pd_joints_hm = all_joints_hm[cur_batch_size:cur_batch_size*2]
 
             with tf.variable_scope("parser_pose"):
-                self.gt_poses = (input_poses - input_poses[:, 0]) * self.pose_scale
-                self.pd_poses = (self.poses - self.poses[:, 0]) * self.pose_scale
+                self.gt_poses = (input_poses - tf.tile(input_poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_scale
+                self.pd_poses = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_scale
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy_pose = self.cal_accuracy(self.gt_poses, self.pd_poses, name="poses_accuracy")

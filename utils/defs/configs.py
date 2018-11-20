@@ -50,6 +50,7 @@ class mConfigs(object):
 
         self.model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}".format(prefix))
         self.model_path_fn = lambda x: os.path.join(self.model_dir, "{}-{}".format(prefix, x))
+        self.model_path = self.model_path_fn("")[0:-1]
 
     def printConfig(self):
         print("##################### Training Parameters #####################")
