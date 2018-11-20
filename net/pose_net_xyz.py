@@ -195,7 +195,9 @@ class mPoseNet(object):
 
             with tf.variable_scope("parser_pose"):
                 combined_xyzmaps = tf.concat([input_xyzmaps, self.posemaps[:, :, :, self.nJoints:]], axis=0, name="xyzmaps_combine")
-                all_xyz_joints = self.get_joints_xyzm(pd_joints_2d_final, combined_xyzmaps, batch_size=2*cur_batch_size, name="all_xyz_joints")
+
+                repeated_pd_joints_2d_final = tf.tile(pd_joints_2d_final, [2, 1, 1])
+                all_xyz_joints = self.get_joints_xyzm(repeated_pd_joints_2d_final, combined_xyzmaps, batch_size=2*cur_batch_size, name="all_xyz_joints")
 
                 gt_joints_3d = all_xyz_joints[0:cur_batch_size]
                 gt_joints_3d = gt_joints_3d - tf.tile(gt_joints_3d[:, 0][:, tf.newaxis], [1, self.nJoints, 1])
