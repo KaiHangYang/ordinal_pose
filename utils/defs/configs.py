@@ -5,6 +5,7 @@ import numpy as np
 
 class mConfigs(object):
     def __init__(self, conf_file, prefix):
+        self.prefix = prefix
         ### The conf_file is in the same directory with this script
         config_parser = ConfigParser.SafeConfigParser()
         config_parser.read(conf_file)
@@ -20,7 +21,7 @@ class mConfigs(object):
         self.lr_decay_rate = config_parser.getfloat("train", "lr_decay_rate")
         self.lr_decay_step = config_parser.getint("train", "lr_decay_step")
 
-        self.log_dir = os.path.join(config_parser.get("log", "base_dir"), "train/{}".format(prefix))
+        self.log_dir = os.path.join(config_parser.get("log", "base_dir"), "train/{}".format(self.prefix))
 
         # Dataset Settings
         self.h36m_train_range_file = os.path.join(config_parser.get("dataset", "range_file_dir"), "train_range.npy")
@@ -48,8 +49,8 @@ class mConfigs(object):
         self.mpii_img_path_fn = lambda x: _mpii_img_path.format(x)
         self.mpii_lbl_path_fn = lambda x: _mpii_lbl_path.format(x)
 
-        self.model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}".format(prefix))
-        self.model_path_fn = lambda x: os.path.join(self.model_dir, "{}-{}".format(prefix, x))
+        self.model_dir = os.path.join(config_parser.get("model", "base_dir"), "{}".format(self.prefix))
+        self.model_path_fn = lambda x: os.path.join(self.model_dir, "{}-{}".format(self.prefix, x))
         self.model_path = self.model_path_fn("")[0:-1]
 
     def printConfig(self):
@@ -76,3 +77,4 @@ class mConfigs(object):
 
         print("model_dir: {}".format(self.model_dir))
         print("model_path_fn: {}".format(self.model_path_fn("{}")))
+

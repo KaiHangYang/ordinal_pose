@@ -112,7 +112,7 @@ class mPoseNet(object):
     def build_evaluation(self):
         self.global_steps = tf.train.get_or_create_global_step()
         with tf.variable_scope("parser_pose"):
-            self.pose = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoint, 1])) * self.pose_scale
+            self.pd_3d = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoint, 1])) * self.pose_scale
 
     def build_loss(self, input_heatmaps, input_poses, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()

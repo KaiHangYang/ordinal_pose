@@ -61,7 +61,7 @@ class mPoseNet(object):
             reg = lin4
             with tf.variable_scope("final_res"):
                 for i in range(4):
-                    reg = self.res_utils.residual_block(reg, 256, name="res{}".format(j))
+                    reg = self.res_utils.residual_block(reg, 256, name="res{}".format(i))
 
             # x, y, z, 2d (2d is to get the x, y, z value)
             self.posemaps = tf.layers.conv2d(inputs=reg, filters=self.nJoints*4, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="pose_maps")
@@ -167,7 +167,9 @@ class mPoseNet(object):
             # include 2 part( heatmaps + xyzmaps )
             with tf.variable_scope("posemap_loss"):
                 self.posemap_loss = tf.nn.l2_loss(input_heatmaps - self.posemaps[:, :, :, 0:self.nJoints], name="posemap_hm_loss")
-                self.posemap_loss = self.posemap_loss + tf.nn.l2_loss(input_heatmaps * (input_xyzmaps - self.posemaps[:, :, :, self.nJoints:]), name="posemap_xyzm_loss")
+
+                repeated_heatmaps = tf.tile(input_heatmaps, [1, 1, 1, 3])
+                self.posemap_loss = self.posemap_loss + tf.nn.l2_loss(repeated_heatmaps * (input_xyzmaps - self.posemaps[:, :, :, self.nJoints:]), name="posemap_xyzm_loss")
                 self.posemap_loss = self.posemap_loss / self.batch_size * self.loss_weight_pose
 
             self.total_loss = self.heatmap_loss + self.posemap_loss
