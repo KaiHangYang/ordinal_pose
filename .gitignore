@@ -6,4 +6,5 @@ eval_result
 eval.conf
 train.conf
 debug.conf
+*.tar
 good_models
