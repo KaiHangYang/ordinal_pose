@@ -1,6 +1,7 @@
 import numpy as np
 
 class mSkeleton15(object):
+    skeleton_index = 1
     n_joints = 15
     n_bones = 14
     h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16])
@@ -26,6 +27,7 @@ class mSkeleton15(object):
     ])
 
 class mSkeleton17(object):
+    skeleton_index = 0
     n_joints = 17
     n_bones = 16
     h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])

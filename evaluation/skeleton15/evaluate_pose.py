@@ -18,7 +18,7 @@ from utils.defs.skeleton import mSkeleton15 as skeleton
 ##################### Evaluation Configs ######################
 configs = mConfigs("../eval.conf", "pose_net")
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=False, bone_width=6, joint_ratio=6, bg_color=0.2)
 
 evaluation_models = [760000]
 ###############################################################
@@ -88,13 +88,9 @@ if __name__ == "__main__":
                     data_index.val += 1
 
                     cur_joints_3d = cur_label["joints_3d"][skeleton.h36m_selected_index].copy()
-                    cur_joints_3d = cur_joints_3d - cur_joints_3d[0]
-
                     cur_joints_2d = cur_label["joints_2d"][skeleton.h36m_selected_index].copy()
 
-                    cur_bone_relations = None
-
-                    cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, bone_relations=cur_bone_relations, is_training=False)
+                    cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, is_training=False, scale=None, center=None, cam_mat=None)
                     batch_images_np[b] = cur_img.copy()
                     batch_joints_3d_np[b] = cur_joints_3d.copy()
 

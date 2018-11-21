@@ -7,9 +7,13 @@ import networkx
 from common import *
 import common
 
+sys.path.append(os.path.dirname(__file__))
+
+import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, bone_width=6, joint_ratio=6, bg_color=0.2):
+    def __init__(self, skeleton, img_size, with_br, bone_width=6, joint_ratio=6, bg_color=0.2):
+        self.with_br = with_br
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
         self.bg_color=bg_color
@@ -33,35 +37,46 @@ class PoseProcessor(object):
             "flip_array": self.flip_array
         }
 
-    # helper function
-    def selecte_bone_relation(self, raw_bone_relations, selected_indices):
-        bone_relations = np.zeros([len(selected_indices), len(selected_indices)])
-        for i in range(len(selected_indices)):
-            for j in range(len(selected_indices)):
-                bone_relations[i][j] = raw_bone_relation[selected_indices[i]][selected_indices[j]]
-        return bone_relations
+    def get_bone_relations(self, joints_2d, joints_3d, scale, center, cam_mat):
+        joints_2d = joints_2d.flatten().tolist()
+        joints_3d = joints_3d.flatten().tolist()
+        scale = scale
+        center = center.tolist()
+        cam_vec = [cam_mat[0, 0], cam_mat[1, 1], cam_mat[0, 2], cam_mat[1, 2]]
+        skeleton_type = self.skeleton.skeleton_index
 
-    def preprocess(self, joints_2d, joints_3d, bone_relations, is_training=True):
+        result_data = gbr_module.get_bone_relations(joints_2d, joints_3d, scale, center, cam_vec, self.img_size, 2*self.joint_ratio, skeleton_type)
+        result_data = np.reshape(result_data, [-1, self.skeleton.n_bones])
+
+        bone_order = result_data[0]
+        bone_relations = result_data[1:]
+
+        return bone_order, bone_relations
+
+    # TODO the joints_2d must be the cropped one, the joints_3d shouldn't be the root related
+    def preprocess(self, joints_2d, joints_3d, scale=None, center=None, cam_mat=None, is_training=True):
         # a placeholder img
         img = np.zeros([self.img_size, self.img_size, 3], dtype=np.float32)
         joints_2d = joints_2d.copy()
         joints_3d = joints_3d.copy()
 
+        # TODO there is no flip
+        raw_joints_2d = joints_2d.copy()
+        raw_joints_3d = joints_3d.copy()
+
         if is_training:
-            # TODO there is no flip
             _, aug_annot = augment_data_2d(img, joints_2d, self.settings)
 
             aug_joints_2d = aug_annot
             aug_joints_3d = joints_3d
-            aug_bone_relations = bone_relations
 
         else:
             aug_joints_2d = joints_2d
             aug_joints_3d = joints_3d
-            aug_bone_relations = bone_relations
+
         #### Paint the synthetic image
-        if aug_bone_relations is not None:
-            aug_bone_order = self.bone_order_from_bone_relations(aug_bone_relations, np.ones_like(aug_bone_relations))
+        if self.with_br:
+            aug_bone_order, _ = self.get_bone_relations(raw_joints_2d, raw_joints_3d, scale, center, cam_mat)
         else:
             # use the random bone_order for test
             aug_bone_order = np.arange(0, self.n_bones, 1)
@@ -71,6 +86,9 @@ class PoseProcessor(object):
         aug_img = self.draw_syn_img(joints_2d=aug_joints_2d, bone_status=aug_bone_status, bone_order=aug_bone_order)
         if np.max(aug_img) >= 2:
             aug_img = aug_img / 255.0
+
+        ####  Set the joints_3d related to the root
+        aug_joints_3d = aug_joints_3d - aug_joints_3d[0]
 
         return aug_img, aug_joints_2d, aug_joints_3d
 

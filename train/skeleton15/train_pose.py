@@ -17,7 +17,7 @@ from utils.defs.skeleton import mSkeleton15 as skeleton
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "pose_net")
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=False, bone_width=6, joint_ratio=6, bg_color=0.2)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -123,14 +123,11 @@ if __name__ == "__main__":
                 cur_label = np.load(cur_data_batch[b]).tolist()
 
                 cur_joints_3d = cur_label["joints_3d"].copy()[skeleton.h36m_selected_index]
-                cur_joints_3d = cur_joints_3d - cur_joints_3d[0] # related to the root
-
                 cur_joints_2d = cur_label["joints_2d"].copy()[skeleton.h36m_selected_index]
 
-                # cur_bone_relations = cur_label["bone_relations"].copy()
-                cur_bone_relations = None
-
-                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, bone_relations=cur_bone_relations, is_training=not is_valid)
+                # here the joints_3d is related to the root
+                # use the random bone relations
+                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, is_training=not is_valid, scale=None, center=None, cam_mat=None)
                 # generate the heatmaps
                 batch_images_np[b] = cur_img
                 cur_joints_2d = cur_joints_2d / configs.joints_2d_scale

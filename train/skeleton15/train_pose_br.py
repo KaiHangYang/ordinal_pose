@@ -15,9 +15,9 @@ from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "pose_net")
+configs = mConfigs("../train.conf", "pose_net_br")
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -122,12 +122,13 @@ if __name__ == "__main__":
                 cur_label = np.load(cur_data_batch[b]).tolist()
 
                 cur_joints_3d = cur_label["joints_3d"].copy()[skeleton.h36m_selected_index]
-                cur_joints_3d = cur_joints_3d - cur_joints_3d[0] # related to the root
-
                 cur_joints_2d = cur_label["joints_2d"].copy()[skeleton.h36m_selected_index]
-                cur_bone_relations = preprocessor.selecte_bone_relation(cur_label["bone_relations"].copy(), skeleton.h36m_selected_index)
+                cur_scale = cur_label["scale"]
+                cur_center = cur_label["center"]
+                cur_cam_mat = cur_label["cam_mat"]
 
-                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, bone_relations=cur_bone_relations, is_training=not is_valid)
+                # use the bone relations
+                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, scale=cur_scale, center=cur_center, cam_mat=cur_cam_mat, is_training=not is_valid)
                 # generate the heatmaps
                 batch_images_np[b] = cur_img
                 cur_joints_2d = cur_joints_2d / configs.joints_2d_scale
@@ -136,9 +137,9 @@ if __name__ == "__main__":
                 batch_joints_2d_np[b] = cur_joints_2d.copy()
                 batch_joints_3d_np[b] = cur_joints_3d.copy()
 
-                # cv2.imshow("img", cur_img)
-                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
-                # cv2.waitKey()
+                cv2.imshow("img", cur_img)
+                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
+                cv2.waitKey()
 
             acc_hm = 0
             acc_pose = 0
