@@ -31,13 +31,13 @@ restore_model_iteration = None
 if __name__ == "__main__":
     ################ Reseting  #################
     configs.loss_weight_heatmap = 1
-    configs.loss_weight_pose = 100
+    configs.loss_weight_pose = 10
     configs.pose_2d_scale = 4.0
     configs.pose_3d_scale = 1000.0
     configs.is_use_bn = False
 
     configs.learning_rate = 2.5e-5
-    configs.lr_decay_rate = 0.80
+    configs.lr_decay_rate = 0.90
     configs.lr_decay_step = 10000
 
     ################### Initialize the data reader ####################
