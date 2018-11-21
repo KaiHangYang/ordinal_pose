@@ -10,15 +10,17 @@ from utils.common_utils import my_utils
 from utils.common_utils import h36m_camera
 from utils.defs import pose_defs
 from utils.postprocess_utils import volume_utils
+from utils.preprocess_utils import get_bone_relations
+from utils.defs.skeleton import mSkeleton15 as skeleton
+from utils.preprocess_utils import pose_preprocess
 
-
+preprocessor = pose_preprocess.PoseProcessor(skeleton, 256)
 
 ############## some Parameters
-data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
+data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/"
 
 images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images"), "{}.jpg".format(x))
 annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels_syn"), "{}.npy".format(x))
-
 
 ############## function to handle the keyboard event
 class m_btn_callback(object):
@@ -76,7 +78,9 @@ if __name__ == "__main__":
             m_btn_callback.reset()
 
             cur_index = data_index.val
-            # cur_index = 628
+            # cur_index = 1228
+
+            print(cur_index)
 
             # cropped_img = cv2.imread(images_file_fn(cur_index))
             cropped_img = cv2.resize(cv2.imread(images_file_fn(cur_index)), (256, 256))
@@ -84,6 +88,9 @@ if __name__ == "__main__":
 
             joints_3d = cur_label["joints_3d"]
             joints_2d = cur_label["joints_2d"]
+
+            raw_joints_2d = joints_2d.copy()
+            raw_joints_3d = joints_3d.copy()
 
             cur_depth = joints_3d[:, 2] - joints_3d[0, 2]
             root_depth = joints_3d[0, 2]
@@ -96,25 +103,34 @@ if __name__ == "__main__":
             cur_img = display_utils.drawLines(cur_img, joints_2d, indices=pose_defs.h36m_pose)
             cur_img = display_utils.drawPoints(cur_img, joints_2d)
 
-            # print(cur_label["bone_status"])
-            # print(cur_label["bone_order"])
-            # print(cur_label["bone_relations"])
 
-            cur_bone_order = cur_label["bone_order"].tolist()
-            cur_bone_relations = cur_label["bone_relations"].tolist()
+            raw_joints_2d = raw_joints_2d[skeleton.h36m_selected_index]
+            raw_joints_3d = raw_joints_3d[skeleton.h36m_selected_index]
 
-            for i in range(len(cur_bone_order)):
-                for j in range(len(cur_bone_order)):
-                    if cur_bone_relations[i][j] == 1:
-                        assert(cur_bone_order.index(i) > cur_bone_order.index(j))
-                    elif cur_bone_relations[i][j] == 2:
-                        assert(cur_bone_order.index(i) < cur_bone_order.index(j))
+            result_data = get_bone_relations.get_bone_relations(raw_joints_2d.flatten().astype(np.float64).tolist(), raw_joints_3d.flatten().astype(np.float64).tolist(), cur_label["scale"], cur_label["center"].astype(np.float64).tolist(), np.array([cur_label["cam_mat"][0, 0], cur_label["cam_mat"][1, 1], cur_label["cam_mat"][0, 2], cur_label["cam_mat"][1, 2]]).tolist(), 256, 6*2, 1);
+            result_data = np.reshape(result_data, [-1, skeleton.n_bones])
+            new_bone_orders = result_data[0]
+            new_bone_relations = result_data[1:]
+            new_img = preprocessor.draw_syn_img(raw_joints_2d, preprocessor.recalculate_bone_status(raw_joints_3d[:, 2]), new_bone_orders)
+            cv2.imshow("syn_new", new_img)
 
-            # print(joints_3d - joints_3d[0])
+            # bone_orders = cur_label["bone_order"]
+            # bone_relations = cur_label["bone_relations"]
 
-            # joints_3d -= joints_3d[0] # minus the root
-            # joints_3d[:, 1:3] *= -1 # flip the y z
-            # joints_3d /= 600
+
+            # assert((bone_orders == new_bone_orders).all())
+            # assert((bone_relations == new_bone_relations).all())
+
+            # old_img = preprocessor.draw_syn_img(raw_joints_2d, cur_label["bone_status"], bone_orders)
+
+            # cv2.imshow("syn_old", old_img)
+
+            # for i in range(len(cur_bone_order)):
+                # for j in range(len(cur_bone_order)):
+                    # if cur_bone_relations[i][j] == 1:
+                        # assert(cur_bone_order.index(i) > cur_bone_order.index(j))
+                    # elif cur_bone_relations[i][j] == 2:
+                        # assert(cur_bone_order.index(i) < cur_bone_order.index(j))
 
 
         cv2.imshow("img_2d", cropped_img)
