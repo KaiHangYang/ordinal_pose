@@ -25,7 +25,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = 100000
+restore_model_iteration = None
 #################################################################
 
 if __name__ == "__main__":
@@ -35,9 +35,8 @@ if __name__ == "__main__":
     configs.joints_2d_scale = 4.0
     configs.pose_scale = 1000.0
     configs.is_use_bn = False
-
-    configs.learning_rate = 2.5e-4
-    configs.lr_decay_rate = 0.90
+    configs.learning_rate = 2.5e-5
+    configs.lr_decay_rate = 0.80
     configs.lr_decay_step = 10000
 
     ################### Initialize the data reader ####################
@@ -126,9 +125,7 @@ if __name__ == "__main__":
                 cur_joints_3d = cur_joints_3d - cur_joints_3d[0] # related to the root
 
                 cur_joints_2d = cur_label["joints_2d"].copy()[skeleton.h36m_selected_index]
-
-                # cur_bone_relations = cur_label["bone_relations"].copy()
-                cur_bone_relations = None
+                cur_bone_relations = preprocessor.selecte_bone_relation(cur_label["bone_relations"].copy(), skeleton.h36m_selected_index)
 
                 cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, bone_relations=cur_bone_relations, is_training=not is_valid)
                 # generate the heatmaps

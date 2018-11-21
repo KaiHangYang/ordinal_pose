@@ -36,6 +36,10 @@ if __name__ == "__main__":
     configs.pose_3d_scale = 1000.0
     configs.is_use_bn = False
 
+    configs.learning_rate = 2.5e-5
+    configs.lr_decay_rate = 0.80
+    configs.lr_decay_step = 10000
+
     ################### Initialize the data reader ####################
     train_range = np.load(configs.h36m_train_range_file)
     np.random.shuffle(train_range)

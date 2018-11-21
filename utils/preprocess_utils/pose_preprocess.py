@@ -7,6 +7,7 @@ import networkx
 from common import *
 import common
 
+
 class PoseProcessor(object):
     def __init__(self, skeleton, img_size, bone_width=6, joint_ratio=6, bg_color=0.2):
         self.bone_width=bone_width
@@ -31,6 +32,14 @@ class PoseProcessor(object):
             "pad_color": [0, 0, 0],
             "flip_array": self.flip_array
         }
+
+    # helper function
+    def selecte_bone_relation(self, raw_bone_relations, selected_indices):
+        bone_relations = np.zeros([len(selected_indices), len(selected_indices)])
+        for i in range(len(selected_indices)):
+            for j in range(len(selected_indices)):
+                bone_relations[i][j] = raw_bone_relation[selected_indices[i]][selected_indices[j]]
+        return bone_relations
 
     def preprocess(self, joints_2d, joints_3d, bone_relations, is_training=True):
         # a placeholder img
