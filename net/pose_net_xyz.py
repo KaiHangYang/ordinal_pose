@@ -144,7 +144,7 @@ class mPoseNet(object):
             accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
         return accuracy
 
-    def build_evaluation(self):
+    def build_evaluation(self, input_joints_2d=None):
         self.global_steps = tf.train.get_or_create_global_step()
 
         with tf.variable_scope("parser_pose"):
@@ -153,9 +153,11 @@ class mPoseNet(object):
 
             pd_hm_joints = self.get_joints_hm(pd_heatmaps, batch_size=self.batch_size, name="hm_joints")
             pd_xyz_joints = self.get_joints_xyzm(pd_hm_joints, pd_xyzmaps, batch_size=self.batch_size, name="xyz_joints")
+            pd_xyz_joints_gt2d = self.get_joints_xyzm(input_joints_2d, pd_xyzmaps, batch_size=self.batch_size, name="xyz_joints_gt2d")
 
             self.pd_2d = pd_hm_joints * self.pose_2d_scale
             self.pd_3d = (pd_xyz_joints - tf.tile(pd_xyz_joints[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_3d_scale
+            self.pd_3d_gt2d = (pd_xyz_joints_gt2d - tf.tile(pd_xyz_joints_gt2d[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_3d_scale
 
     def build_loss(self, input_heatmaps, input_xyzmaps, lr, lr_decay_step, lr_decay_rate):
 

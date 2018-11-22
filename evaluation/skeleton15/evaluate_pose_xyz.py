@@ -45,12 +45,13 @@ if __name__ == "__main__":
     lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
 
     input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
+    input_joints_2d = tf.placeholder(shape=[configs.batch_size, skeleton.n_joints, 2], dtype=tf.float32)
     pose_model = pose_net_xyz.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_pose=configs.loss_weight_pose, pose_2d_scale=configs.pose_2d_scale, pose_3d_scale=configs.pose_3d_scale, is_use_bn=configs.is_use_bn)
 
     with tf.Session() as sess:
         with tf.device("/device:GPU:0"):
             pose_model.build_model(input_images)
-            pose_model.build_evaluation()
+            pose_model.build_evaluation(input_joints_2d)
 
         print("Network built!")
 
@@ -60,6 +61,7 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
             pose3d_evaluator = evaluators.mEvaluatorPose3D(nJoints=skeleton.n_joints)
+            gt2d_pose3d_evaluator = evaluators.mEvaluatorPose3D(nJoints=skeleton.n_joints)
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
             ################# Restore the model ################
@@ -77,6 +79,7 @@ if __name__ == "__main__":
                 global_steps = sess.run(pose_model.global_steps)
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_joints_2d_np = np.zeros([configs.batch_size, skeleton.n_joints, 2], dtype=np.float32)
                 batch_joints_3d_np = np.zeros([configs.batch_size, skeleton.n_joints, 3], dtype=np.float32)
 
                 label_path_for_show = []
@@ -92,24 +95,33 @@ if __name__ == "__main__":
 
                     cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, is_training=False, scale=None, center=None, cam_mat=None)
                     batch_images_np[b] = cur_img.copy()
+                    batch_joints_2d_np[b] = cur_joints_2d.copy() / configs.pose_2d_scale
                     batch_joints_3d_np[b] = cur_joints_3d.copy()
 
                     # cv2.imshow("raw_img", batch_images_np[b])
                     # cv2.imshow("flipped_img", batch_images_flipped_np[b])
                     # cv2.waitKey()
 
-                pd_3d = sess.run(
-                        pose_model.pd_3d,
-                        feed_dict={input_images: batch_images_np})
+                pd_3d,\
+                pd_3d_gt2d = sess.run(
+                        [
+                            pose_model.pd_3d,
+                            pose_model.pd_3d_gt2d
+                        ],
+                        feed_dict={input_images: batch_images_np, input_joints_2d: batch_joints_2d_np})
 
                 print((len(label_path_for_show) * "{}\n").format(*label_path_for_show))
 
                 # ############# evaluate the coords recovered from the gt 2d and gt root depth
                 for b in range(configs.batch_size):
                     pose3d_evaluator.add(batch_joints_3d_np[b], pd_3d[b])
+                    gt2d_pose3d_evaluator.add(batch_joints_3d_np[b], pd_3d_gt2d[b])
 
-                sys.stdout.write("Pose Error: ")
+                sys.stdout.write("Pose Error: \n Pd 2d: ")
                 pose3d_evaluator.printMean()
+                sys.stdout.write("Gt 2d:")
+                gt2d_pose3d_evaluator.printMean()
                 print("\n\n")
 
             pose3d_evaluator.save("../eval_result/{}/mpje_{}w.npy".format(configs.prefix, cur_model_iterations / 10000))
+            gt2d_pose3d_evaluator.save("../eval_result/{}/mpje_{}w_gt2d.npy".format(configs.prefix, cur_model_iterations / 10000))

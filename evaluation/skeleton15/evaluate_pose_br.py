@@ -20,7 +20,7 @@ configs = mConfigs("../eval.conf", "pose_net_br")
 configs.printConfig()
 preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [100000, 200000, 300000, 400000, 500000, 600000]
+evaluation_models = [360000, 400000, 480000]
 ###############################################################
 
 if __name__ == "__main__":
