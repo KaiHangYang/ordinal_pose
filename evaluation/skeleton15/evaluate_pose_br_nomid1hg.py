@@ -7,7 +7,7 @@ import cv2
 import time
 
 sys.path.append("../../")
-from net import pose_net
+from net import pose_net_nomid1hg as pose_net
 from utils.preprocess_utils import pose_preprocess
 from utils.visualize_utils import display_utils
 from utils.common_utils import my_utils
@@ -16,22 +16,20 @@ from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
 
 ##################### Evaluation Configs ######################
-configs = mConfigs("../eval.conf", "pose_net_br_hg512")
+configs = mConfigs("../eval.conf", "pose_net_br_nomid1hg")
 configs.printConfig()
 preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [300000, 320000]
+evaluation_models = [580000, 560000, 540000, 500000]
 ###############################################################
 
 if __name__ == "__main__":
 
     ################### Resetting ####################
-    configs.loss_weight_heatmap = 1
     configs.loss_weight_pose = 100
     configs.pose_2d_scale = 4.0
     configs.pose_3d_scale = 1000.0
     configs.is_use_bn = False
-    configs.HG_nFeat = 512
 
     configs.batch_size = configs.valid_batch_size
 
@@ -46,7 +44,7 @@ if __name__ == "__main__":
     lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
 
     input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
-    pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_3d_scale, is_use_bn=configs.is_use_bn, HG_nFeat=configs.HG_nFeat)
+    pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_3d_scale, is_use_bn=configs.is_use_bn)
 
     with tf.Session() as sess:
         with tf.device("/device:GPU:0"):
