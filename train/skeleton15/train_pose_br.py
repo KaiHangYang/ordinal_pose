@@ -17,7 +17,7 @@ from utils.defs.skeleton import mSkeleton15 as skeleton
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "pose_net_br")
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=4, joint_ratio=6, bg_color=0.2)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -25,7 +25,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = None
+restore_model_iteration = 280000
 #################################################################
 
 if __name__ == "__main__":
@@ -35,9 +35,10 @@ if __name__ == "__main__":
     configs.joints_2d_scale = 4.0
     configs.pose_scale = 1000.0
     configs.is_use_bn = False
-    configs.learning_rate = 2.5e-4
-    configs.lr_decay_rate = 0.90
+    configs.learning_rate = 5e-6
+    configs.lr_decay_rate = 1.00
     configs.lr_decay_step = 10000
+    configs.HG_nFeat = 256
 
     ################### Initialize the data reader ####################
     train_range = np.load(configs.h36m_train_range_file)
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_scale, is_use_bn=configs.is_use_bn)
+    pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_scale, is_use_bn=configs.is_use_bn, HG_nFeat=configs.HG_nFeat)
 
     with tf.Session() as sess:
 
