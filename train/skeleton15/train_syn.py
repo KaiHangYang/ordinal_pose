@@ -7,17 +7,17 @@ import cv2
 import time
 
 sys.path.append("../../")
-from net import pose_net_nomid1hg as pose_net
+from net import syn_net
 from utils.dataread_utils import pose_reader as data_reader
-from utils.preprocess_utils import pose_preprocess
+from utils.preprocess_utils import syn_preprocess
 from utils.visualize_utils import display_utils
 from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "pose_net_br_nomid1hg")
+configs = mConfigs("../train.conf", "syn_net")
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -30,12 +30,14 @@ restore_model_iteration = None
 
 if __name__ == "__main__":
     ################ Reseting  #################
-    configs.loss_weight_pose = 100
-    configs.joints_2d_scale = 4.0
-    configs.pose_scale = 1000.0
+    configs.loss_weight_heatmap = 1.0
+    configs.loss_weight_br = 1.0
+    configs.loss_weight_fb = 1.0
+    configs.pose_2d_scale = 4.0
     configs.is_use_bn = False
-    configs.learning_rate = 1e-5
-    configs.lr_decay_rate = 1.00
+
+    configs.learning_rate = 2.5e-4
+    configs.lr_decay_rate = 0.90
     configs.lr_decay_step = 10000
 
     ################### Initialize the data reader ####################
@@ -53,19 +55,21 @@ if __name__ == "__main__":
         valid_data_iter, valid_data_init_op = data_reader.get_data_iterator(valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
 
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
-    input_poses = tf.placeholder(shape=[None, skeleton.n_joints, 3], dtype=tf.float32, name="input_poses")
+    input_centers_hm = tf.placeholder(shape=[None, skeleton.n_joints, 2], dtype=tf.float32, name="input_centers_hm")
+    input_bone_status = tf.placeholder(shape=[None, skeleton.], dtype=tf.float32, name="input_bone_status")
 
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_scale, is_use_bn=configs.is_use_bn)
+    pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_scale, is_use_bn=configs.is_use_bn)
 
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             pose_model.build_model(input_images)
+            input_heatmaps = pose_model.build_input_heatmaps(input_centers_hm, stddev=2.0, gaussian_coefficient=False)
 
-        pose_model.build_loss(input_poses=input_poses, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
+        pose_model.build_loss(input_heatmaps=input_heatmaps, input_poses=input_poses, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         print("Network built!")
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
@@ -120,13 +124,11 @@ if __name__ == "__main__":
 
                 cur_joints_3d = cur_label["joints_3d"].copy()[skeleton.h36m_selected_index]
                 cur_joints_2d = cur_label["joints_2d"].copy()[skeleton.h36m_selected_index]
-                cur_scale = cur_label["scale"]
-                cur_center = cur_label["center"]
-                cur_cam_mat = cur_label["cam_mat"]
 
-                # use the bone relations
-                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, scale=cur_scale, center=cur_center, cam_mat=cur_cam_mat, is_training=not is_valid)
-
+                # here the joints_3d is related to the root
+                # use the random bone relations
+                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, is_training=not is_valid, scale=None, center=None, cam_mat=None)
+                # generate the heatmaps
                 batch_images_np[b] = cur_img
                 cur_joints_2d = cur_joints_2d / configs.joints_2d_scale
                 cur_joints_3d = cur_joints_3d / configs.pose_scale
@@ -138,39 +140,52 @@ if __name__ == "__main__":
                 # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
                 # cv2.waitKey()
 
+            acc_hm = 0
             acc_pose = 0
 
             if is_valid:
+                acc_hm, \
                 acc_pose, \
+                loss, \
+                heatmap_loss, \
                 pose_loss, \
                 lr, \
                 summary  = sess.run(
                         [
+                         pose_model.accuracy_hm,
                          pose_model.accuracy_pose,
+                         pose_model.total_loss,
+                         pose_model.heatmap_loss,
                          pose_model.pose_loss,
                          pose_model.lr,
                          pose_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_poses: batch_joints_3d_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
+                        feed_dict={input_images: batch_images_np, input_centers_hm: batch_joints_2d_np, input_poses: batch_joints_3d_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
             else:
                 # if global_steps % write_log_iter == 0:
                 _, \
+                acc_hm, \
                 acc_pose, \
+                loss,\
+                heatmap_loss, \
                 pose_loss, \
                 lr,\
                 summary  = sess.run(
                         [
                          pose_model.train_op,
+                         pose_model.accuracy_hm,
                          pose_model.accuracy_pose,
+                         pose_model.total_loss,
+                         pose_model.heatmap_loss,
                          pose_model.pose_loss,
                          pose_model.lr,
                          pose_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_poses: batch_joints_3d_np, input_is_training: True, input_batch_size: configs.train_batch_size})
+                        feed_dict={input_images: batch_images_np, input_centers_hm: batch_joints_2d_np, input_poses: batch_joints_3d_np, input_is_training: True, input_batch_size: configs.train_batch_size})
                 train_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
-            print("Iteration: {:07d} \nlearning_rate: {:07f} \nPose Loss: {:07f}\n\n".format(global_steps, lr, pose_loss))
-            print("Pose Accuracy: {}".format(acc_pose))
+            print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmap Loss: {:07f}\nPose Loss: {:07f}\n\n".format(global_steps, lr, loss, heatmap_loss, pose_loss))
+            print("Heatmap Accuracy: {}\nPose Accuracy: {}".format(acc_hm, acc_pose))
             print((len(label_path_for_show) * "{}\n").format(*label_path_for_show))
             print("\n\n")
 
