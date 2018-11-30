@@ -52,19 +52,7 @@ class SynProcessor(object):
 
         return bone_order, bone_relations
 
-    # TODO the joints_2d must be the cropped one, the joints_3d shouldn't be the root related
-    def preprocess(self, img, joints_2d, joints_3d, scale, center, cam_mat, is_training=True):
-        joints_2d = joints_2d.copy()
-        joints_3d = joints_3d.copy()
-
-        raw_joints_2d = joints_2d.copy()
-        raw_joints_3d = joints_3d.copy()
-
-        ############ Calculate the bone_relations and bone_status ############
-        bone_order, bone_relations = self.get_bone_relations(raw_joints_2d, raw_joints_3d, scale, center, cam_mat)
-        bone_status = self.recalculate_bone_status(raw_joints_3d[:, 2])
-        ######################################################################
-
+    def preprocess_base(self, img, joints_2d, bone_status, bone_relations, is_training=True):
         if np.max(img) > 2:
             img = img / 255.0
 
@@ -77,9 +65,10 @@ class SynProcessor(object):
             array_order = np.arange(0, self.n_joints, 1) - 1
 
             annots = np.concatenate([joints_2d, array_order[:, np.newaxis]], axis=1)
-            aug_img, aug_annot = augment_data_2d(img, annots, settings)
+            aug_img, aug_annot = augment_data_2d(img, annots, self.settings)
 
             aug_joints_2d = aug_annot[:, 0:2]
+
             aug_array_order = aug_annot[:, 2][1:].astype(np.int32)
             array_order = array_order[1:].astype(np.int32)
 
@@ -99,6 +88,20 @@ class SynProcessor(object):
 
         return aug_img, aug_joints_2d, aug_bone_status, aug_bone_relations
 
+    # TODO the joints_2d must be the cropped one, the joints_3d shouldn't be the root related
+    def preprocess_h36m(self, img, joints_2d, joints_3d, scale, center, cam_mat, is_training=True):
+        joints_2d = joints_2d.copy()
+        joints_3d = joints_3d.copy()
+
+        raw_joints_2d = joints_2d.copy()
+        raw_joints_3d = joints_3d.copy()
+        ############ Calculate the bone_relations and bone_status ############
+        bone_order, bone_relations = self.get_bone_relations(raw_joints_2d, raw_joints_3d, scale, center, cam_mat)
+        bone_status = self.recalculate_bone_status(raw_joints_3d[:, 2])
+        ######################################################################
+
+        return self.preprocess_base(img, joints_2d, bone_status, bone_relations, is_training)
+
     def recalculate_bone_status(self, joints_z):
         bone_status = []
         for cur_bone_idx in self.bone_indices:
@@ -109,6 +112,7 @@ class SynProcessor(object):
             else:
                 bone_status.append(2)
         return np.array(bone_status)
+
     # the bone_relations is a up triangle matrix
     def bone_order_from_bone_relations(self, bone_relations, bone_relations_belief):
         br_mat = np.zeros([self.n_bones, self.n_bones])

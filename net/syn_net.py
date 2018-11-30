@@ -12,11 +12,12 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mSynNet(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmaps=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, is_use_bn=True):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, pose_2d_scale=4, is_use_bn=True):
 
-        self.loss_weight_heatmaps = loss_weight_heatmaps
+        self.loss_weight_heatmap = loss_weight_heatmap
         self.loss_weight_fb = loss_weight_fb
         self.loss_weight_br = loss_weight_br
+        self.pose_2d_scale = pose_2d_scale
 
         self.nJoints = nJoints
         self.img_size = img_size
@@ -123,7 +124,7 @@ class mSynNet(object):
 
         with tf.variable_scope("extract_heatmap"):
             cur_batch_size = tf.cast(eval_batch_size, dtype=tf.int32)
-            self.pd_joints_2d = self.get_joints_hm(self.heatmaps[1], batch_size=cur_batch_size, name="heatmap_to_joints")
+            self.pd_2d = self.get_joints_hm(self.heatmaps[1], batch_size=cur_batch_size, name="heatmap_to_joints")
         with tf.variable_scope("extract_fb"):
             self.pd_fb_result = tf.argmax(self.fb_info, axis=2)
             self.pd_fb_belief = tf.reduce_max(self.fb_info, axis=2)
@@ -147,7 +148,7 @@ class mSynNet(object):
 
             self.heatmaps_loss = 0
             for i in range(len(self.heatmaps)):
-                self.heatmaps_loss += tf.nn.l2_loss(input_heatmaps - self.heatmaps[i], name="heatmaps_loss_{}".format(i)) / self.batch_size * self.loss_weight_heatmaps
+                self.heatmaps_loss += tf.nn.l2_loss(input_heatmaps - self.heatmaps[i], name="heatmaps_loss_{}".format(i)) / self.batch_size * self.loss_weight_heatmap
 
             self.total_loss = self.fb_loss + self.br_loss + self.heatmaps_loss
 
@@ -165,10 +166,10 @@ class mSynNet(object):
                 cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
                 combined_heatmaps = tf.concat([input_heatmaps, self.heatmaps[1]], axis=0)
                 all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints")
-                self.gt_joints_2d = all_joints_2d[0:cur_batch_size]
-                self.pd_joints_2d = all_joints_2d[cur_batch_size:]
+                self.gt_2d = all_joints_2d[0:cur_batch_size] * self.pose_2d_scale
+                self.pd_2d = all_joints_2d[cur_batch_size:] * self.pose_2d_scale
 
-                self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_joints_2d, pd_joints=self.pd_joints_2d, name="joints_2d_acc")
+                self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_2d, pd_joints=self.pd_2d, name="joints_2d_acc")
             ######### classify accuracy
             with tf.variable_scope("fb_accuracy"):
                 self.pd_fb_result = tf.argmax(self.fb_info, axis=2)

@@ -180,7 +180,7 @@ def drawPoints(img, points, text_scale=0, point_color_table=point_color_table, p
                 cv2.putText(img, "%d" % num, (cur_x, cur_y), cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), 1)
     return img
 
-def drawLines(img, points, indices=bone_indices, linewidth = 3):
+def drawLines(img, points, indices=bone_indices, linewidth = 3, color_table=color_table):
     for i in range(indices.shape[0]):
         point_a = np.int32(points[indices[i][0]])
         point_b = np.int32(points[indices[i][1]])

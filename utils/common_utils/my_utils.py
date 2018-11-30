@@ -54,3 +54,23 @@ def list_all_files(root_dir):
 
     return file_list
 
+class mTrainValidCounter(object):
+    def __init__(self, train_steps, valid_steps):
+        self.train_steps = train_steps
+        self.valid_steps = valid_steps
+        # train, then valid
+        self.is_training_arr = [True] * self.train_steps + [False] * self.valid_steps
+        self.total = self.train_steps + self.valid_steps
+        self.count = 0
+
+    @property
+    def is_training(self):
+        return self.is_training_arr[self.count]
+
+    def next(self):
+        self.count += 1
+        if self.count >= self.total:
+            self.count = 0
+
+    def reset(self):
+        self.count = 0
