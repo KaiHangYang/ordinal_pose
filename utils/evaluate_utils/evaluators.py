@@ -83,6 +83,7 @@ class mEvaluatorFB_BR(object):
     def __init__(self, nData=16):
         self.nData = nData
         self.avg_counter = my_utils.mAverageCounter(shape=self.nData)
+        self.dist_avg_counter = my_utils.mAverageCounter(shape=self.nData)
 
     ### The root of each data is the same
     def add(self, gt_info, pd_info):
@@ -92,17 +93,70 @@ class mEvaluatorFB_BR(object):
 
         for batch_num in range(gt_info.shape[0]):
             self.avg_counter.add((gt_info[batch_num] == pd_info[batch_num]).astype(np.float32))
+            self.dist_avg_counter.add(np.abs(gt_info[batch_num] - pd_info[batch_num]))
 
     def mean(self):
-        return self.avg_counter.mean()
+        return self.avg_counter.mean(), self.dist_avg_counter.mean()
 
     def get(self):
-        return self.avg_counter.cur_average
+        return self.avg_counter.cur_average, self.dist_avg_counter.cur_average
 
     def printMean(self):
-        print("Mean accuracy: {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
+        acc_mean, dist_mean = self.mean()
+        print("Mean Accuracy: {}, Mean Distance: {}. Frame sum: {}".format(acc_mean, dist_mean, self.avg_counter.cur_data_sum))
 
     def save(self, path):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
-        np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
+
+        acc_mean, dist_mean = self.mean()
+        acc_all, dist_all = self.get()
+        np.save(path, {"mean_acc": acc_mean, "mean_dist": dist_mean, "all_acc": acc_all, "all_dist": dist_all, "frame_sum": self.avg_counter.cur_data_sum})
+
+############## Evaluator for 2D PCKh ###############
+""" Here the head length is estimated by the head and throat joints """
+class mEvaluatorPCKh(object):
+    def __init__(self, n_joints, head_indices, data_range):
+        self.n_joints = n_joints
+        self.head_indices = head_indices
+        self.data_range = data_range
+
+        self.frame_sum = 0
+        self.pck_counter = np.zeros([len(self.data_range), self.n_joints])
+
+    def get_head_length(self, gt_2d):
+        head_size = np.linalg.norm(gt_2d[:, self.head_indices[0]] - gt_2d[:, self.head_indices[1]], axis=1)
+        return head_size
+
+    def add(self, gt_2d, pd_2d):
+        assert(gt_2d.shape == pd_2d.shape)
+
+        gt_2d = np.reshape(gt_2d, [-1, self.n_joints, 2])
+        pd_2d = np.reshape(pd_2d, [-1, self.n_joints, 2])
+
+        cur_head_size = self.get_head_length(gt_2d)[:, np.newaxis]
+        dist_2d = np.linalg.norm(gt_2d - pd_2d, axis=2) / cur_head_size
+
+        for idx in range(len(self.data_range)):
+            self.pck_counter[idx] = self.pck_counter[idx] + np.sum((dist_2d <= self.data_range[idx]).astype(np.int32), axis=0)
+
+        self.frame_sum += gt_2d.shape[0]
+
+    def mean(self):
+        mean_per_pckh = self.pck_counter / self.frame_sum
+        mean_pckh = np.mean(mean_per_pckh, axis=1)
+
+        return mean_per_pckh, mean_pckh
+
+    def printMean(self):
+        mean_per_pckh, mean_pckh = self.mean()
+        print("Frame sum: {}".format(self.frame_sum))
+        for idx in range(len(self.data_range)):
+            print("Threshhold: {}, PCKh: {}. ".format(self.data_range[idx], mean_pckh[idx]))
+
+    def save(self, path):
+        if not os.path.exists(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+
+        mean_per_pckh, mean_pckh = self.mean()
+        np.save(path, {"mean_per_pckh": mean_per_pckh, "mean_pckh": mean_pckh, "frame_sum": self.frame_sum})

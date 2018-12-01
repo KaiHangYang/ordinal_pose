@@ -115,7 +115,7 @@ class mSynNet(object):
             accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
         return accuracy
 
-    def build_evaluation(self, eval_batch_size):
+    def build_evaluation(self):
 
         # 1 is forward, 0 is uncertain, -1 is backward
         self.fb_info = self.results[:, 0:self.nJoints-1]
@@ -123,8 +123,8 @@ class mSynNet(object):
         self.br_info = self.results[:, self.nJoints-1:]
 
         with tf.variable_scope("extract_heatmap"):
-            cur_batch_size = tf.cast(eval_batch_size, dtype=tf.int32)
-            self.pd_2d = self.get_joints_hm(self.heatmaps[1], batch_size=cur_batch_size, name="heatmap_to_joints")
+            cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
+            self.pd_2d = self.get_joints_hm(self.heatmaps[1], batch_size=cur_batch_size, name="heatmap_to_joints") * self.pose_2d_scale
         with tf.variable_scope("extract_fb"):
             self.pd_fb_result = tf.argmax(self.fb_info, axis=2)
             self.pd_fb_belief = tf.reduce_max(self.fb_info, axis=2)

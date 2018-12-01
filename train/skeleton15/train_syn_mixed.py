@@ -160,11 +160,11 @@ if __name__ == "__main__":
                 batch_br_np[b] = np.eye(3)[cur_bone_relations[np.triu_indices(skeleton.n_bones, k=1)]] # only get the upper triangle
 
                 ########## Visualize the datas ###########
-                cv2.imshow("img", cur_img)
-                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
-                cur_bone_order = preprocessor.bone_order_from_bone_relations(cur_bone_relations, np.ones_like(cur_bone_relations))
-                cv2.imshow("syn_img_python_order", preprocessor.draw_syn_img(cur_joints_2d*configs.pose_2d_scale, cur_bone_status, cur_bone_order))
-                cv2.waitKey()
+                # cv2.imshow("img", cur_img)
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
+                # cur_bone_order = preprocessor.bone_order_from_bone_relations(cur_bone_relations, np.ones_like(cur_bone_relations))
+                # cv2.imshow("syn_img_python_order", preprocessor.draw_syn_img(cur_joints_2d*configs.pose_2d_scale, cur_bone_status, cur_bone_order))
+                # cv2.waitKey()
                 ##########################################
 
             if train_valid_counter.is_training:

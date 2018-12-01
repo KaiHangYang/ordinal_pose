@@ -140,7 +140,6 @@ def augment_data_2d(img, annots, settings = {
                 annots[c_num][0:2] = cur_p
 
     if do_flip:
-        print("Flip the datas")
         for flip_pair in flip_array:
             tmp_annot = annots[flip_pair[0]].copy()
             annots[flip_pair[0]] = annots[flip_pair[1]].copy()

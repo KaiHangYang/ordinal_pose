@@ -4,6 +4,7 @@ class mSkeleton15(object):
     skeleton_index = 1
     n_joints = 15
     n_bones = 14
+    head_indices = np.array([7, 8])
     h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16])
     bone_indices = np.array([[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [0, 7], [7, 8], [7, 9], [9, 10], [10, 11], [7, 12], [12, 13], [13, 14]])
     flip_array = np.array([[1, 4], [2, 5], [3, 6], [9, 12], [10, 13], [11, 14]])
@@ -30,6 +31,7 @@ class mSkeleton17(object):
     skeleton_index = 0
     n_joints = 17
     n_bones = 16
+    head_indices = np.array([8, 10])
     h36m_selected_index = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
     bone_indices = np.array([[0, 1],[1, 2],[2, 3],[0, 4],[4, 5],[5, 6],[0, 7],[7, 8],[8, 9],[9, 10],[8, 11],[11, 12],[12, 13],[8, 14],[14, 15],[15, 16]])
     flip_array = np.array([[11, 14], [12, 15], [13, 16], [1, 4], [2, 5], [3, 6]])
