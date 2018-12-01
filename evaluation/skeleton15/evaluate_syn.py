@@ -137,6 +137,7 @@ if __name__ == "__main__":
                 br_evaluator.add(gt_info=batch_br_np, pd_info=pd_br)
                 pckh_evaluator.add(gt_2d=batch_joints_2d_np, pd_2d=pd_2d)
 
+                print("Current evaluate: {}-{}".format(configs.prefix, cur_model_iterations))
                 print("Bone status:")
                 fb_evaluator.printMean()
                 print("\n")
