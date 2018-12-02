@@ -11,6 +11,7 @@ import hourglass
 # is_training is a tensor or python bool
 class mPoseNet(object):
     def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_pose=1.0, pose_scale=1000.0, is_use_bn=True, HG_nFeat=256):
+        self.model_name = "PoseNet"
 
         self.loss_weight_heatmap = loss_weight_heatmap
         self.loss_weight_pose = loss_weight_pose
@@ -31,7 +32,7 @@ class mPoseNet(object):
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
-        with tf.variable_scope("PoseNet"):
+        with tf.variable_scope(self.model_name):
             net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
 
             net = self.res_utils.residual_block(net, 128, name="res1")

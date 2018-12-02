@@ -21,7 +21,7 @@ configs = mConfigs("../eval.conf", "syn_net_h36m")
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [500000]
+evaluation_models = [560000]
 ###############################################################
 
 if __name__ == "__main__":
