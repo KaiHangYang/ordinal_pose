@@ -27,7 +27,7 @@ pose_configs = mConfigs("../eval.conf", "pose_net_br")
 syn_preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 pose_preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [(740000, 900000)]
+evaluation_models = [(720000, 900000)]
 ###############################################################
 
 if __name__ == "__main__":
@@ -72,6 +72,8 @@ if __name__ == "__main__":
 
         for cur_model_iterations in evaluation_models:
             pose3d_evaluator = evaluators.mEvaluatorPose3D(nJoints=skeleton.n_joints)
+            mean_pose3d_evaluator = evaluators.mEvaluatorPose3D(nJoints=skeleton.n_joints)
+
 
             data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
             ################# Restore the model ################
@@ -106,6 +108,7 @@ if __name__ == "__main__":
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
                 batch_syn_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_syn_images_flipped_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
 
                 batch_joints_3d_np = np.zeros([configs.batch_size, skeleton.n_joints, 3], dtype=np.float32)
 
@@ -160,24 +163,49 @@ if __name__ == "__main__":
                     cur_syn_image = cur_syn_image / 255.0
                     batch_syn_images_np[b] = cur_syn_image.copy()
 
-                raw_img_display = np.concatenate(batch_images_np, axis=0)
-                syn_img_display = np.concatenate(batch_syn_images_np, axis=0)
+                    flipped_2d, flipped_fb, flipped_br, flipped_br_belief = syn_preprocessor.flip_annots(pd_2d[b], pd_fb[b], pd_br[b], pd_br_belief[b])
+                    cur_bone_order = syn_preprocessor.bone_order_from_bone_relations(flipped_br, flipped_br_belief)
+                    cur_syn_image = syn_preprocessor.draw_syn_img(flipped_2d, flipped_fb, cur_bone_order)
+                    cur_syn_image = cur_syn_image / 255.0
+                    batch_syn_images_flipped_np[b] = cur_syn_image.copy()
 
-                all_img_display = np.concatenate([raw_img_display, syn_img_display], axis=1)
-
+                # raw_img_display = np.concatenate(batch_images_np, axis=0)
+                # syn_img_display = np.concatenate(batch_syn_images_np, axis=0)
+                # syn_img_flipped_display = np.concatenate(batch_syn_images_flipped_np, axis=0)
+                # all_img_display = np.concatenate([raw_img_display, syn_img_display, syn_img_flipped_display], axis=1)
                 # cv2.imshow("all_img_display", all_img_display)
-                # cv2.waitKey(3)
+                # cv2.waitKey()
 
                 pd_3d = sess.run(
                         pose_model.pd_3d,
                         feed_dict={input_images: batch_syn_images_np}
                         )
 
+                flipped_pd_3d = sess.run(
+                        pose_model.pd_3d,
+                        feed_dict={input_images: batch_syn_images_flipped_np}
+                        )
+
+                ############ flip the 3d joints ############
+                flipped_pd_3d[:, :, 0] *= -1
+                new_flipped_pd_3d = flipped_pd_3d.copy()
+                for cur_flip_pair in skeleton.flip_array:
+                    new_flipped_pd_3d[:, cur_flip_pair[1]] = flipped_pd_3d[:, cur_flip_pair[0]].copy()
+                    new_flipped_pd_3d[:, cur_flip_pair[0]] = flipped_pd_3d[:, cur_flip_pair[1]].copy()
+
+                flipped_pd_3d = new_flipped_pd_3d.copy()
+                mean_pd_3d = (flipped_pd_3d + pd_3d) / 2
+
                 # Here the pd_3d is root related
                 pose3d_evaluator.add(batch_joints_3d_np - batch_joints_3d_np[:, 0][:, np.newaxis], pd_3d)
+                mean_pose3d_evaluator.add(batch_joints_3d_np - batch_joints_3d_np[:, 0][:, np.newaxis], mean_pd_3d)
 
                 sys.stdout.write("Pose Error: ")
                 pose3d_evaluator.printMean()
+
+                sys.stdout.write("Mean Pose Error: ")
+                mean_pose3d_evaluator.printMean()
                 print("\n\n")
 
             pose3d_evaluator.save("../eval_result/{}/mpje_syn{}w_pose{}w.npy".format(configs.prefix, cur_model_iterations[0] / 10000, cur_model_iterations[1] / 10000))
+            mean_pose3d_evaluator.save("../eval_result/{}/mean_mpje_syn{}w_pose{}w.npy".format(configs.prefix, cur_model_iterations[0] / 10000, cur_model_iterations[1] / 10000))

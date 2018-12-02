@@ -52,6 +52,35 @@ class SynProcessor(object):
 
         return bone_order, bone_relations
 
+    def flip_annots(self, joints_2d, bone_status, _bone_relations, _bone_relations_belief):
+        # the bone_relations is the flattened array
+        array_order = np.arange(0, self.n_joints, 1) - 1
+
+        annots = np.concatenate([joints_2d, array_order[:, np.newaxis]], axis=1)
+        flipped_annots = common._flip_annot(annots, self.flip_array, size=self.img_size)
+
+        flipped_joints_2d = flipped_annots[:, 0:2]
+        flipped_array_order = flipped_annots[:, 2][1:].astype(np.int32)
+        array_order = array_order[1:].astype(np.int32)
+
+        bone_relations = np.zeros([self.n_bones, self.n_bones])
+        bone_relations_belief = np.zeros([self.n_bones, self.n_bones])
+        bone_relations[np.triu_indices(self.n_bones, k=1)] = _bone_relations
+        bone_relations_belief[np.triu_indices(self.n_bones, k=1)] = _bone_relations_belief
+
+        flipped_bone_relations = np.zeros([self.n_bones, self.n_bones])
+        flipped_bone_relations_belief = np.zeros([self.n_bones, self.n_bones])
+
+        flipped_bone_status = np.zeros_like(bone_status)
+
+        for i in range(self.n_bones):
+            flipped_bone_status[flipped_array_order[i]] = bone_status[array_order[i]]
+            for j in range(self.n_bones):
+                flipped_bone_relations[flipped_array_order[i]][flipped_array_order[j]] = bone_relations[array_order[i]][array_order[j]]
+                flipped_bone_relations_belief[flipped_array_order[i]][flipped_array_order[j]] = bone_relations_belief[array_order[i]][array_order[j]]
+
+        return flipped_joints_2d, flipped_bone_status, flipped_bone_relations[np.triu_indices(self.n_bones, k=1)], flipped_bone_relations_belief[np.triu_indices(self.n_bones, k=1)]
+
     def preprocess_base(self, img, joints_2d, bone_status, bone_relations, is_training=True):
         if np.max(img) > 2:
             img = img / 255.0
