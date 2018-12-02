@@ -27,7 +27,7 @@ pose_configs = mConfigs("../eval.conf", "pose_net_br")
 syn_preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 pose_preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [(720000, 900000)]
+evaluation_models = [(740000, 900000)]
 ###############################################################
 
 if __name__ == "__main__":
@@ -180,4 +180,4 @@ if __name__ == "__main__":
                 pose3d_evaluator.printMean()
                 print("\n\n")
 
-            pose3d_evaluator.save("../eval_result/{}/mpje_{}w.npy".format(configs.prefix, cur_model_iterations / 10000))
+            pose3d_evaluator.save("../eval_result/{}/mpje_syn{}w_pose{}w.npy".format(configs.prefix, cur_model_iterations[0] / 10000, cur_model_iterations[1] / 10000))
