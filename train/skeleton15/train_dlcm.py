@@ -18,14 +18,14 @@ from utils.common_utils import my_utils
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "dlcm_net")
 ################ Reseting  #################
-configs.loss_weights = [1.0, 1.0, 1.0]
+configs.loss_weights = [10.0, 1.0, 1.0]
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
-configs.is_use_bn = False
+configs.is_use_bn = True
 
 configs.learning_rate = 2.5e-4
-configs.lr_decay_rate = 1.00
-configs.lr_decay_step = 10000
+configs.lr_decay_rate = 0.10
+configs.lr_decay_step = 200000
 configs.nFeats = 256
 configs.nModules = 1
 ################### Initialize the data reader ####################
@@ -91,8 +91,8 @@ if __name__ == "__main__":
 
         dlcm_model.build_loss(input_maps=input_maps, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
-        # train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
-        # valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
+        train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
+        valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
         print("Network built!")
 
         model_saver = tf.train.Saver(max_to_keep=70)
@@ -146,20 +146,21 @@ if __name__ == "__main__":
                 batch_heatmaps_level_2[b] = cur_maps[2]
 
                 ########## Visualize the datas ###########
-                cv2.imshow("img", cur_img)
-                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
+                # cv2.imshow("img", cur_img)
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
 
-                hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
-                hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
-                hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
+                # hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
+                # hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
+                # hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
 
-                cv2.imshow("hm_0", hm_level_0)
-                cv2.imshow("hm_1", hm_level_1)
-                cv2.imshow("hm_2", hm_level_2)
+                # cv2.imshow("hm_0", hm_level_0)
+                # cv2.imshow("hm_1", hm_level_1)
+                # cv2.imshow("hm_2", hm_level_2)
 
-                cv2.waitKey()
+                # cv2.waitKey()
                 ##########################################
 
+            PREPROCESS_TIME = time.clock()
             if train_valid_counter.is_training:
                 _, \
                 acc_hm, \
@@ -180,7 +181,7 @@ if __name__ == "__main__":
                                    input_heatmaps_level_2: batch_heatmaps_level_2,
                                    input_is_training: True,
                                    input_batch_size: configs.train_batch_size})
-                # train_log_writer.add_summary(summary, global_steps)
+                train_log_writer.add_summary(summary, global_steps)
             else:
                 acc_hm, \
                 total_loss, \
@@ -199,7 +200,10 @@ if __name__ == "__main__":
                                    input_heatmaps_level_2: batch_heatmaps_level_2,
                                    input_is_training: False,
                                    input_batch_size: configs.valid_batch_size})
-                # valid_log_writer.add_summary(summary, global_steps)
+                valid_log_writer.add_summary(summary, global_steps)
+
+            PREPROCESS_TIME = time.clock() - PREPROCESS_TIME
+            print("Preprocess time: {}".format(PREPROCESS_TIME))
 
             print("Train Iter:\n" if train_valid_counter.is_training else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}".format(global_steps, lr, total_loss))
