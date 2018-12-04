@@ -17,7 +17,7 @@ from utils.defs.skeleton import mSkeleton15 as skeleton
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "pose_net_br")
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=4, joint_ratio=6, bg_color=0.2)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, bone_width=6, joint_ratio=6, bg_color=0.2)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -25,7 +25,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = 280000
+restore_model_iteration = None
 #################################################################
 
 if __name__ == "__main__":
