@@ -35,6 +35,8 @@ class mSkeleton15(object):
         # level 2,
         np.array([[1, 2], [4, 5], [0, 3], [6, 7], [9, 10], [12, 13], [8, 11]])
     ]
+    level_n = len(level_structure)
+    level_nparts = [len(i) for i in level_structure]
 
 class mSkeleton17(object):
     skeleton_index = 0

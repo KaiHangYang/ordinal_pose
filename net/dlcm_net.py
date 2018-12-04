@@ -12,13 +12,14 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mDLCMNet(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weights=[1.0, 1.0, 1.0, 1.0, 1.0], pose_2d_scale=4, is_use_bn=True):
+    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weights, pose_2d_scale, is_use_bn, nFeats=256, nModules=1):
         self.model_name = "DLCMNet"
 
         self.loss_weights = loss_weights
         self.pose_2d_scale = pose_2d_scale
 
-        self.nJoints = nJoints
+        self.skeleton = skeleton
+        self.nJoints = self.skeleton.n_joints
         self.img_size = img_size
         self.is_use_bias = True
         self.is_tiny = False
@@ -30,11 +31,11 @@ class mDLCMNet(object):
 
         self.result_maps = []
 
-        self.nParts = [15, 14, 7]
-        self.nStacks = 5
-        self.nFeats = 256
-        self.nSemanticLevels = 3
-        self.nModules = 1
+        self.nModules = nModules
+        self.nParts = self.skeleton.level_nparts
+        self.nStacks = self.skeleton.level_n * 2 - 1
+        self.nFeats = nFeats
+        self.nSemanticLevels = self.skeleton.level_n
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
@@ -147,8 +148,8 @@ class mDLCMNet(object):
         self.total_loss = 0
         with tf.variable_scope("losses"):
             self.losses = []
-            for i in range(self.nStacks):
-                tmp_loss = tf.nn.l2_loss(input_maps[i] - self.result_maps[i], name="heatmaps_loss_{}".format(i)) / self.batch_size * self.loss_weights[i]
+            for pd_idx, gt_idx in enumerate(range(self.nSemanticLevels) + range(self.nSemanticLevels-1)[::-1]):
+                tmp_loss = tf.nn.l2_loss(input_maps[gt_idx] - self.result_maps[pd_idx], name="heatmaps_loss_{}".format(pd_idx)) / self.batch_size * self.loss_weights[gt_idx]
                 self.losses.append(tmp_loss)
                 self.total_loss = self.total_loss + tmp_loss
 
@@ -164,7 +165,7 @@ class mDLCMNet(object):
             ######### heatmap accuracy
             with tf.variable_scope("heatmap_acc"):
                 cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
-                combined_heatmaps = tf.concat([input_maps[-1], self.result_maps[-1]], axis=0)
+                combined_heatmaps = tf.concat([input_maps[0], self.result_maps[-1]], axis=0)
                 all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints")
 
                 self.gt_2d = all_joints_2d[0:cur_batch_size] * self.pose_2d_scale
