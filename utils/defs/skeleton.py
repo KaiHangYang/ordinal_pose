@@ -26,6 +26,15 @@ class mSkeleton15(object):
         "left_elbow",
         "left_wrist"
     ])
+    # definations for dlcm
+    level_structure = [
+        # level 0
+        np.arange(n_joints).astype(np.int32),
+        # level 1
+        bone_indices,
+        # level 2,
+        np.array([[1, 2], [4, 5], [0, 3], [6, 7], [9, 10], [12, 13], [8, 11]])
+    ]
 
 class mSkeleton17(object):
     skeleton_index = 0

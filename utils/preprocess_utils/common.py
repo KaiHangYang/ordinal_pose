@@ -14,9 +14,9 @@ import time
  Functional: Make the gaussian heatmap
  Parameter:  point: the gaussian center
              size: the heatmap size
-             ratio: the gaussian ratio
+             sigma: the gaussian sigma
 '''
-def make_gaussian(point, size=64, ratio=2):
+def make_gaussian(point, size=64, sigma=2):
     if point[0] < 0 or point[1] < 0 or point[0] >= size or point[1] >= size:
         return np.zeros((size, size), np.float32)
 
@@ -25,11 +25,11 @@ def make_gaussian(point, size=64, ratio=2):
     x0 = point[0]
     y0 = point[1]
 
-    heatmap = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / 2.0 / ratio/ ratio)
+    heatmap = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / 2.0 / sigma/ sigma)
     return heatmap
 
 ### Pay attentaion, the function is only used under (n, h, w, c) mode
-def make_gaussian_3d(point, size=64, ratio=2):
+def make_gaussian_3d(point, size=64, sigma=2):
     if point[0] < 0.000000 or point[1] < 0.000000 or point[2] < 0.000000 or point[0] >= size or point[1] >= size or point[2] >= size:
         return np.zeros((size, size, size), np.float32)
 
@@ -41,7 +41,7 @@ def make_gaussian_3d(point, size=64, ratio=2):
     y0 = point[1]
     z0 = point[2]
 
-    heatmaps_3d = np.exp(-((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / 2.0 / ratio /ratio)
+    heatmaps_3d = np.exp(-((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / 2.0 / sigma /sigma)
     return heatmaps_3d
 
 '''
