@@ -8,7 +8,7 @@ MPII_DATA_ROOT_DIR = /home/kaihang/DataSet_2/Ordinal/lsp_mpii/cropped_256/mpii
 train_batch_size = 4
 valid_batch_size = 4
 img_size = 256
-train_iter = 300000
+train_iter = 1000000
 valid_iter = 4
 
 [dataset]
