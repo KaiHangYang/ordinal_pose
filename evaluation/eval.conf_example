@@ -19,10 +19,10 @@ h36m_mask_path = %(H36M_DATA_ROOT_DIR)s/{}/masks/{}.jpg
 h36m_label_path = %(H36M_DATA_ROOT_DIR)s/{}/labels_syn/{}.npy
 
 lsp_image_path = %(LSP_DATA_ROOT_DIR)s/images/{}.jpg
-lsp_label_path = %(LSP_DATA_ROOT_DIR)s/labels/{}.npy
+lsp_label_path = %(LSP_DATA_ROOT_DIR)s/full_labels/{}.npy
 
 mpii_image_path = %(MPII_DATA_ROOT_DIR)s/images/{}.jpg
-mpii_label_path = %(MPII_DATA_ROOT_DIR)s/labels/{}.npy
+mpii_label_path = %(MPII_DATA_ROOT_DIR)s/full_labels/{}.npy
 
 [train]
 learning_rate = 2.5e-4
