@@ -136,10 +136,38 @@ class mDLCMNet(object):
             accuracy = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.pow(gt_joints - pd_joints, 2), axis=2)))
         return accuracy
 
-    def build_evaluation(self):
+    def flip_heatmaps(self, hms, flip_array, name="flip_heatmaps"):
+        with tf.variable_scope(name):
+            # flip the features map first
+            flipped_hms = tf.image.flip_left_right(hms)
+            # get the new hm orders
+            old_order = np.arange(0, self.nJoints, 1)
+            cur_order = old_order.copy()
+
+            cur_order[flip_array[:, 0]] = old_order[flip_array[:, 1]]
+            cur_order[flip_array[:, 1]] = old_order[flip_array[:, 0]]
+
+            cur_hms = []
+            for j in range(self.nJoints):
+                cur_idx = cur_order[j]
+                cur_hms.append(flipped_hms[:, :, :, cur_idx][:, :, :, tf.newaxis])
+
+            return tf.concat(cur_hms, axis=3, name="flipped_hms")
+
+    def build_evaluation(self, flip_array):
+        # here I assume the input image has raw_image and flipped_image
         with tf.variable_scope("extract_heatmap"):
-            cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
-            self.pd_2d = self.get_joints_hm(self.result_maps[-1], batch_size=cur_batch_size, name="heatmap_to_joints") * self.pose_2d_scale
+            cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32) / 2
+
+            raw_heatmaps = self.result_maps[-1][0:cur_batch_size]
+            flipped_heatmaps = self.flip_heatmaps(self.result_maps[-1][cur_batch_size:], flip_array, name="flip_heatmaps")
+
+            combined_heatmaps = tf.concat([raw_heatmaps, flipped_heatmaps], axis=0)
+
+            all_pd_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints") * self.pose_2d_scale
+
+            self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
+            self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
 
     def build_loss(self, input_maps, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
