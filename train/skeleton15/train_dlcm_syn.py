@@ -23,7 +23,7 @@ configs.loss_weight_fb = 1.0
 configs.loss_weight_br = 1.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
-configs.is_use_bn = False
+configs.is_use_bn = True
 
 configs.learning_rate = 2.5e-4
 configs.lr_decay_rate = 0.50
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                 valid_log_writer.add_summary(summary, global_steps)
 
             print("Train Iter:\n" if train_valid_counter.is_training else "Valid Iter:\n")
-            print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nFB Loss: {:07f}\nBR Loss: {:07f}\n\n".format(global_steps, lr, total_loss, fb_loss, br_loss))
+            print("Iteration: {:07d} \nLearning_rate: {:07f} \nTotal Loss : {:07f}\nFB Loss: {:07f}\nBR Loss: {:07f}".format(global_steps, lr, total_loss, fb_loss, br_loss))
             for l_idx in range(len(heatmaps_loss)):
                 print("Heatmap loss level {}: {}".format(l_idx, heatmaps_loss[l_idx]))
             print("Heatmap Accuracy: {}\nFB Accuracy: {}\nBR Accuracy: {}\n".format(acc_hm, acc_fb, acc_br))
