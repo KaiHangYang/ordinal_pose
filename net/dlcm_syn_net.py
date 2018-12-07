@@ -11,11 +11,14 @@ import hourglass
 # The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
 
 # is_training is a tensor or python bool
-class mDLCMNet(object):
-    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weights, pose_2d_scale, is_use_bn, nFeats=256, nModules=1):
-        self.model_name = "DLCMNet"
+class mDLCMSynNet(object):
+    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weights, loss_weight_fb, loss_weight_br, pose_2d_scale, is_use_bn, nFeats=256, nModules=1):
+        self.model_name = "DLCMSynNet"
 
         self.loss_weights = loss_weights
+        self.loss_weight_fb = loss_weight_fb
+        self.loss_weight_br = loss_weight_br
+
         self.pose_2d_scale = pose_2d_scale
 
         self.skeleton = skeleton
@@ -32,6 +35,7 @@ class mDLCMNet(object):
         self.result_maps = []
 
         self.nModules = nModules
+        self.nRegModules = 2
         self.nParts = self.skeleton.level_nparts
         self.nStacks = self.skeleton.level_n * 2 - 1
         self.nFeats = nFeats
@@ -63,11 +67,11 @@ class mDLCMNet(object):
 
                     self.result_maps.append(tmp_out)
                     ## Add predictions back if this is not the last hg module
-                    if len(self.result_maps) < self.nStacks:
-                        with tf.variable_scope("add_block"):
-                            ll_ = tf.layers.conv2d(inputs=ll, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
-                            tmp_out_ = tf.layers.conv2d(inputs=tmp_out, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_out_")
-                            inter = tf.add_n([inter, ll_, tmp_out_])
+                    # if len(self.result_maps) < self.nStacks:
+                    with tf.variable_scope("add_block"):
+                        ll_ = tf.layers.conv2d(inputs=ll, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
+                        tmp_out_ = tf.layers.conv2d(inputs=tmp_out, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_out_")
+                        inter = tf.add_n([inter, ll_, tmp_out_])
 
             for l_idx in range(self.nSemanticLevels-1)[::-1]:
                 with tf.variable_scope("t-d_seg_level_{}".format(l_idx)):
@@ -88,11 +92,25 @@ class mDLCMNet(object):
                     self.result_maps.append(tmp_out)
 
                     ## Add predictions back if this is not the last hg module
-                    if len(self.result_maps) < self.nStacks:
-                        with tf.variable_scope("add_block"):
-                            ll_ = tf.layers.conv2d(inputs=ll, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
-                            tmp_out_ = tf.layers.conv2d(inputs=tmp_out, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_out_")
-                            inter = tf.add_n([inter, ll_, tmp_out_])
+                    # if len(self.result_maps) < self.nStacks:
+                    with tf.variable_scope("add_block"):
+                        ll_ = tf.layers.conv2d(inputs=ll, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
+                        tmp_out_ = tf.layers.conv2d(inputs=tmp_out, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_out_")
+                        inter = tf.add_n([inter, ll_, tmp_out_])
+
+            reg = inter
+            with tf.variable_scope("relation_blocks"):
+                for i in range(4):
+                    with tf.variable_scope("final_downsample_{}".format(i)):
+                        for j in range(self.nRegModules):
+                            reg = self.res_utils.residual_block(reg, self.nFeats, name="res{}".format(j))
+                        reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
+
+                with tf.variable_scope("final_classify"):
+                    reg = tf.layers.flatten(reg)
+                    # fb information and br matrix (half matrix)
+                    self.relations = tf.layers.dense(inputs=reg, units= 3 * self.nJoints * (self.nJoints - 1) / 2, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
+                    self.relations = tf.reshape(self.relations, [self.batch_size, -1, 3])
 
             assert(len(self.result_maps) == self.nStacks)
 
@@ -168,17 +186,41 @@ class mDLCMNet(object):
             self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
             self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
 
-    def build_loss(self, input_maps, lr, lr_decay_step, lr_decay_rate):
+        self.fb_info = self.results[0:cur_batch_size, 0:self.nJoints-1]
+        # 1 is in front, 0 is unconcerned or unknown, -1 is behind
+        self.br_info = self.results[0:cur_batch_size, self.nJoints-1:]
+
+        with tf.variable_scope("extract_fb"):
+            self.pd_fb_result = tf.argmax(self.fb_info, axis=2)
+            self.pd_fb_belief = tf.reduce_max(self.fb_info, axis=2)
+
+        with tf.variable_scope("extract_br"):
+            self.pd_br_result = tf.argmax(self.br_info, axis=2)
+            self.pd_br_belief = tf.reduce_max(self.br_info, axis=2)
+
+    def build_loss(self, input_maps, input_fb, input_br, lr, lr_decay_step, lr_decay_rate):
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         self.total_loss = 0
         with tf.variable_scope("losses"):
+
+            # 1 is forward, 0 is uncertain, -1 is backward
+            self.fb_info = self.relations[:, 0:self.nJoints-1]
+            # 1 is in front, 0 is unconcerned or unknown, -1 is behind
+            self.br_info = self.relations[:, self.nJoints-1:]
+
+            self.fb_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_fb, logits=self.fb_info, dim=-1, name="fb_loss")) / self.batch_size * self.loss_weight_fb
+            self.br_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_br, logits=self.br_info, dim=-1, name="br_loss")) / self.batch_size * self.loss_weight_br
+
+            self.total_loss = self.total_loss + self.fb_loss + self.br_loss
+
             self.losses = []
             for pd_idx, gt_idx in enumerate(range(self.nSemanticLevels) + range(self.nSemanticLevels-1)[::-1]):
                 tmp_loss = tf.nn.l2_loss(input_maps[gt_idx] - self.result_maps[pd_idx], name="heatmaps_loss_{}".format(pd_idx)) / self.batch_size * self.loss_weights[gt_idx]
                 self.losses.append(tmp_loss)
                 self.total_loss = self.total_loss + tmp_loss
+
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
@@ -200,10 +242,34 @@ class mDLCMNet(object):
 
                 self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_2d, pd_joints=self.pd_2d, name="joints_2d_acc")
 
+            with tf.variable_scope("fb_accuracy"):
+                self.pd_fb_result = tf.argmax(self.fb_info, axis=2)
+                self.gt_fb_result = tf.argmax(input_fb, axis=2)
+
+                self.pd_fb_belief = tf.reduce_max(self.fb_info, axis=2)
+                self.gt_fb_belief = tf.reduce_max(input_fb, axis=2)
+
+                self.fb_acc = tf.reduce_mean(tf.cast(tf.equal(self.pd_fb_result, self.gt_fb_result), dtype=tf.float32))
+
+            with tf.variable_scope("br_accuracy"):
+                self.pd_br_result = tf.argmax(self.br_info, axis=2)
+                self.gt_br_result = tf.argmax(input_br, axis=2)
+
+                self.pd_br_belief = tf.reduce_max(self.br_info, axis=2)
+                self.gt_br_belief = tf.reduce_max(input_br, axis=2)
+
+                self.br_acc = tf.reduce_mean(tf.cast(tf.equal(self.pd_br_result, self.gt_br_result), dtype=tf.float32))
+
+
+        tf.summary.scalar("fb_loss_scalar", self.fb_loss)
+        tf.summary.scalar("br_loss_scalar", self.br_loss)
+        tf.summary.scalar("fb_acc_scalar", self.fb_acc)
+        tf.summary.scalar("br_acc_scalar", self.br_acc)
+
         tf.summary.scalar("total_loss_scalar", self.total_loss)
         for i in range(self.nStacks):
             tf.summary.scalar("component_heatmaps_loss_{}".format(i), self.losses[i])
-
         tf.summary.scalar("heatmaps_acc_scalar", self.heatmaps_acc)
+
         tf.summary.scalar("learning_rate", self.lr)
         self.merged_summary = tf.summary.merge_all()
