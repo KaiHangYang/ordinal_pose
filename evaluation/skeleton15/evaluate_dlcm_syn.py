@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -23,7 +23,7 @@ configs.loss_weight_fb = 1.0
 configs.loss_weight_br = 1.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
-configs.is_use_bn = False
+configs.is_use_bn = True
 
 configs.learning_rate = 2.5e-4
 configs.lr_decay_rate = 0.50
@@ -40,7 +40,7 @@ configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
 configs.printConfig()
 preprocessor = dlcm_syn_preprocess.DLCMSynProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [560000]
+evaluation_models = range(100000, 300001, 20000)
 ###############################################################
 
 if __name__ == "__main__":

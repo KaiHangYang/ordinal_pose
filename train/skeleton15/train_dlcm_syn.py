@@ -19,8 +19,8 @@ from utils.common_utils import my_utils
 configs = mConfigs("../train.conf", "dlcm_syn_net")
 ################ Reseting  #################
 configs.loss_weights = [10.0, 1.0, 1.0]
-configs.loss_weight_fb = 1.0
-configs.loss_weight_br = 1.0
+configs.loss_weight_fb = 2.0
+configs.loss_weight_br = 2.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
