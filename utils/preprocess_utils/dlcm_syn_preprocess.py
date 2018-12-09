@@ -96,8 +96,12 @@ class DLCMSynProcessor(object):
         # from 'Deeply Learned Compositional Models for Human Pose Estimation'
         # Draw gaussian heat maps along the limb between p1 and p2
         # p1 and p2 are 1-based locations [x, y]
+        p1 = np.round(p1)
+        p2 = np.round(p2)
+
         if p1[0] == p2[0] and p1[1] == p2[1]:
             return self.draw_gaussain(img, p1, sigma)
+
         segment_joints = self.get_segment_points(p1, p2)
 
         for cur_joint in segment_joints:
