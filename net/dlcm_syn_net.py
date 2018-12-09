@@ -104,7 +104,7 @@ class mDLCMSynNet(object):
                 for i in range(4):
                     with tf.variable_scope("final_downsample_{}".format(i)):
                         for j in range(self.nRegModules):
-                            reg = tf.layers.conv2d(inputs=reg, filters=self.nFeats, kernel_size=3, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.nn.relu, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv_{}".format(i))
+                            reg = tf.layers.conv2d(inputs=reg, filters=self.nFeats, kernel_size=3, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=tf.nn.relu, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv_{}".format(j))
                             # reg = self.res_utils.residual_block(reg, self.nFeats, name="res{}".format(j))
                         reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
 
