@@ -186,9 +186,9 @@ class mDLCMSynNet(object):
             self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
             self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
 
-        self.fb_info = self.results[0:cur_batch_size, 0:self.nJoints-1]
+        self.fb_info = self.relations[0:cur_batch_size, 0:self.nJoints-1]
         # 1 is in front, 0 is unconcerned or unknown, -1 is behind
-        self.br_info = self.results[0:cur_batch_size, self.nJoints-1:]
+        self.br_info = self.relations[0:cur_batch_size, self.nJoints-1:]
 
         with tf.variable_scope("extract_fb"):
             self.pd_fb_result = tf.argmax(self.fb_info, axis=2)

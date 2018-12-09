@@ -33,14 +33,14 @@ configs.nModules = 1
 
 configs.batch_size = configs.valid_batch_size
 ### train or valid
-configs.range_file = configs.h36m_valid_range_file
+configs.range_file =  configs.h36m_valid_range_file
 configs.img_path_fn = configs.h36m_valid_img_path_fn
 configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
 
 configs.printConfig()
 preprocessor = dlcm_syn_preprocess.DLCMSynProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = range(100000, 300001, 20000)
+evaluation_models = range(300000, 460001, 20000)
 ###############################################################
 
 if __name__ == "__main__":
@@ -87,6 +87,8 @@ if __name__ == "__main__":
             while not data_index.isEnd():
 
                 batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_images_flipped_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+
                 batch_joints_2d_np = np.zeros([configs.batch_size, skeleton.n_joints, 2], dtype=np.float32)
 
                 batch_fb_np = np.zeros([configs.batch_size, skeleton.n_bones], dtype=np.int32)
@@ -123,7 +125,9 @@ if __name__ == "__main__":
                         cur_img, cur_maps, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_base(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False)
 
                     batch_images_np[b] = cur_img.copy()
-                    batch_joints_2d_np[b] = cur_joints_2d.copy()
+                    batch_images_flipped_np[b] = cv2.flip(cur_img, 1)
+
+                    batch_joints_2d_np[b] = cur_joints_2d.copy() * configs.pose_2d_scale
                     batch_fb_np[b] = cur_bone_status.copy()
                     batch_br_np[b] = cur_bone_relations[np.triu_indices(skeleton.n_bones, k=1)].copy()
 
@@ -136,7 +140,7 @@ if __name__ == "__main__":
                         dlcm_syn_model.raw_pd_2d,
                         dlcm_syn_model.mean_pd_2d
                         ],
-                        feed_dict={input_images: batch_images_np})
+                        feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
 
                 print((len(lbl_path_for_show) * "{}\n").format(*zip(img_path_for_show, lbl_path_for_show)))
 
