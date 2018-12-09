@@ -18,7 +18,7 @@ from utils.common_utils import my_utils
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "dlcm_syn_net")
 ################ Reseting  #################
-configs.loss_weights = [10.0, 1.0, 1.0]
+configs.loss_weights = [7.0, 1.0, 1.0]
 configs.loss_weight_fb = 2.0
 configs.loss_weight_br = 2.0
 configs.pose_2d_scale = 4.0
@@ -26,8 +26,8 @@ configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
 
 configs.learning_rate = 2.5e-4
-configs.lr_decay_rate = 0.50
-configs.lr_decay_step = 100000
+configs.lr_decay_rate = 0.10
+configs.lr_decay_step = 200000
 configs.nFeats = 256
 configs.nModules = 1
 configs.printConfig()
@@ -63,8 +63,8 @@ if __name__ == "__main__":
     mpii_lsp_lbl_list = [configs.mpii_lbl_path_fn(i) for i in mpii_range] + [configs.lsp_lbl_path_fn(i) for i in lsp_range]
 
     # increase the mpii_lsp datas
-    mpii_lsp_img_list = mpii_lsp_img_list * 60
-    mpii_lsp_lbl_list = mpii_lsp_lbl_list * 60
+    mpii_lsp_img_list = mpii_lsp_img_list * 50
+    mpii_lsp_lbl_list = mpii_lsp_lbl_list * 50
 
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
@@ -76,6 +76,7 @@ if __name__ == "__main__":
 
     # now test the classification
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
+
     input_fb = tf.placeholder(shape=[None, skeleton.n_bones, 3], dtype=tf.float32, name="input_fb")
     input_br = tf.placeholder(shape=[None, (skeleton.n_bones-1) * skeleton.n_bones / 2, 3], dtype=tf.float32, name="input_br")
 
@@ -171,20 +172,20 @@ if __name__ == "__main__":
                 batch_br_np[b] = np.eye(3)[cur_bone_relations[np.triu_indices(skeleton.n_bones, k=1)]] # only get the upper triangle
 
                 ########## Visualize the datas ###########
-                cv2.imshow("img", cur_img)
-                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
-                cur_bone_order = preprocessor.bone_order_from_bone_relations(cur_bone_relations, np.ones_like(cur_bone_relations))
-                cv2.imshow("syn_img_python_order", preprocessor.draw_syn_img(cur_joints_2d*configs.pose_2d_scale, cur_bone_status, cur_bone_order))
+                # cv2.imshow("img", cur_img)
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
+                # cur_bone_order = preprocessor.bone_order_from_bone_relations(cur_bone_relations, np.ones_like(cur_bone_relations))
+                # cv2.imshow("syn_img_python_order", preprocessor.draw_syn_img(cur_joints_2d*configs.pose_2d_scale, cur_bone_status, cur_bone_order))
 
-                hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
-                hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
-                hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
+                # hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
+                # hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
+                # hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
 
-                cv2.imshow("hm_0", hm_level_0)
-                cv2.imshow("hm_1", hm_level_1)
-                cv2.imshow("hm_2", hm_level_2)
+                # cv2.imshow("hm_0", hm_level_0)
+                # cv2.imshow("hm_1", hm_level_1)
+                # cv2.imshow("hm_2", hm_level_2)
 
-                cv2.waitKey()
+                # cv2.waitKey()
                 ##########################################
 
             if train_valid_counter.is_training:
