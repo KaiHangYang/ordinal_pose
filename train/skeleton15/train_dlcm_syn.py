@@ -18,16 +18,16 @@ from utils.common_utils import my_utils
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "dlcm_syn_net")
 ################ Reseting  #################
-configs.loss_weights = [7.0, 1.0, 1.0]
-configs.loss_weight_fb = 2.0
+configs.loss_weights = [10.0, 1.0, 1.0]
+configs.loss_weight_fb = 10.0
 configs.loss_weight_br = 2.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
 
-configs.learning_rate = 2.5e-4
+configs.learning_rate = 2.5e-6
 configs.lr_decay_rate = 0.10
-configs.lr_decay_step = 200000
+configs.lr_decay_step = 800000
 configs.nFeats = 256
 configs.nModules = 1
 configs.printConfig()
@@ -40,7 +40,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = None
+restore_model_iteration = 520000
 #################################################################
 
 if __name__ == "__main__":

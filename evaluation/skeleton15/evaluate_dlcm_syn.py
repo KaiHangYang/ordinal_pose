@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -18,16 +18,16 @@ from utils.defs.skeleton import mSkeleton15 as skeleton
 ##################### Evaluation Configs ######################
 configs = mConfigs("../eval.conf", "dlcm_syn_net")
 ################ Reseting  #################
-configs.loss_weights = [10.0, 1.0, 1.0]
-configs.loss_weight_fb = 1.0
-configs.loss_weight_br = 1.0
+configs.loss_weights = [7.0, 1.0, 1.0]
+configs.loss_weight_fb = 2.0
+configs.loss_weight_br = 2.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
 
 configs.learning_rate = 2.5e-4
-configs.lr_decay_rate = 0.50
-configs.lr_decay_step = 100000
+configs.lr_decay_rate = 0.10
+configs.lr_decay_step = 200000
 configs.nFeats = 256
 configs.nModules = 1
 
@@ -40,7 +40,7 @@ configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
 configs.printConfig()
 preprocessor = dlcm_syn_preprocess.DLCMSynProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = range(300000, 460001, 20000)
+evaluation_models = range(400000, 500001, 20000)
 ###############################################################
 
 if __name__ == "__main__":
@@ -115,14 +115,14 @@ if __name__ == "__main__":
                         cur_center = cur_label["center"]
                         cur_cam_mat = cur_label["cam_mat"]
 
-                        cur_img, cur_maps, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_h36m(img=cur_img, joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, scale=cur_scale, center=cur_center, cam_mat=cur_cam_mat, is_training=False)
+                        cur_img, cur_maps, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_h36m(img=cur_img, joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, scale=cur_scale, center=cur_center, cam_mat=cur_cam_mat, is_training=False, is_drawmaps=False)
                     else:
                         # the mpii lsp datas
                         cur_joints_2d = cur_label["joints_2d"].copy()
                         cur_bone_status = cur_label["bone_status"].copy()
                         cur_bone_relations = cur_label["bone_relations"].copy()
 
-                        cur_img, cur_maps, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_base(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False)
+                        cur_img, cur_maps, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_base(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False, is_drawmaps=False)
 
                     batch_images_np[b] = cur_img.copy()
                     batch_images_flipped_np[b] = cv2.flip(cur_img, 1)

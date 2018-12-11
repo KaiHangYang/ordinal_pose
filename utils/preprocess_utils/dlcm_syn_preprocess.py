@@ -160,7 +160,7 @@ class DLCMSynProcessor(object):
 
         return flipped_joints_2d, flipped_bone_status, flipped_bone_relations[np.triu_indices(self.n_bones, k=1)], flipped_bone_relations_belief[np.triu_indices(self.n_bones, k=1)]
 
-    def preprocess_base(self, img, joints_2d, bone_status, bone_relations, is_training=True):
+    def preprocess_base(self, img, joints_2d, bone_status, bone_relations, is_training=True, is_drawmaps=True):
         if np.max(img) > 2:
             img = img / 255.0
 
@@ -199,28 +199,30 @@ class DLCMSynProcessor(object):
         aug_joints_2d *= self.joints_2d_scale
 
         # then get the result_maps
-        result_maps = []
-        ######## first heatmaps level 0
-        heatmaps_level_0 = np.zeros([self.hm_size, self.hm_size, self.skeleton.level_nparts[0]])
-        for cur_part in self.skeleton.level_structure[0]:
-            heatmaps_level_0[:, :, cur_part] = self.draw_gaussain(heatmaps_level_0[:, :, cur_part], p=aug_joints_2d[cur_part], sigma=self.sigma)
-        result_maps.append(heatmaps_level_0)
-        ######## Second heatmaps level 1
-        heatmaps_level_1 = np.zeros([self.hm_size, self.hm_size, self.skeleton.level_nparts[1]])
-        for cur_idx, cur_part in enumerate(self.skeleton.level_structure[1]):
-            heatmaps_level_1[:, :, cur_idx] = self.draw_limbmap(heatmaps_level_1[:, :, cur_idx], p1=aug_joints_2d[cur_part[0]], p2=aug_joints_2d[cur_part[1]], sigma=self.sigma)
-        result_maps.append(heatmaps_level_1)
-        ######## the last maps
-        for cur_level in range(2, self.skeleton.level_n):
-            heatmaps_level_n = np.zeros([self.hm_size, self.hm_size, self.skeleton.level_nparts[cur_level]])
-            for cur_idx, cur_part in enumerate(self.skeleton.level_structure[cur_level]):
-                heatmaps_level_n[:, :, cur_idx] = self.compose_maps(heatmaps_level_n[:, :, cur_idx], result_maps[cur_level-1], cur_part)
-            result_maps.append(heatmaps_level_n)
+        result_maps = None
+        if is_drawmaps:
+            result_maps = []
+            ######## first heatmaps level 0
+            heatmaps_level_0 = np.zeros([self.hm_size, self.hm_size, self.skeleton.level_nparts[0]])
+            for cur_part in self.skeleton.level_structure[0]:
+                heatmaps_level_0[:, :, cur_part] = self.draw_gaussain(heatmaps_level_0[:, :, cur_part], p=aug_joints_2d[cur_part], sigma=self.sigma)
+            result_maps.append(heatmaps_level_0)
+            ######## Second heatmaps level 1
+            heatmaps_level_1 = np.zeros([self.hm_size, self.hm_size, self.skeleton.level_nparts[1]])
+            for cur_idx, cur_part in enumerate(self.skeleton.level_structure[1]):
+                heatmaps_level_1[:, :, cur_idx] = self.draw_limbmap(heatmaps_level_1[:, :, cur_idx], p1=aug_joints_2d[cur_part[0]], p2=aug_joints_2d[cur_part[1]], sigma=self.sigma)
+            result_maps.append(heatmaps_level_1)
+            ######## the last maps
+            for cur_level in range(2, self.skeleton.level_n):
+                heatmaps_level_n = np.zeros([self.hm_size, self.hm_size, self.skeleton.level_nparts[cur_level]])
+                for cur_idx, cur_part in enumerate(self.skeleton.level_structure[cur_level]):
+                    heatmaps_level_n[:, :, cur_idx] = self.compose_maps(heatmaps_level_n[:, :, cur_idx], result_maps[cur_level-1], cur_part)
+                result_maps.append(heatmaps_level_n)
 
         return aug_img, result_maps, aug_joints_2d, aug_bone_status, aug_bone_relations
 
     # TODO the joints_2d must be the cropped one, the joints_3d shouldn't be the root related
-    def preprocess_h36m(self, img, joints_2d, joints_3d, scale, center, cam_mat, is_training=True):
+    def preprocess_h36m(self, img, joints_2d, joints_3d, scale, center, cam_mat, is_training=True, is_drawmaps=True):
         joints_2d = joints_2d.copy()
         joints_3d = joints_3d.copy()
 
@@ -231,7 +233,7 @@ class DLCMSynProcessor(object):
         bone_status = self.recalculate_bone_status(raw_joints_3d[:, 2])
         ######################################################################
 
-        return self.preprocess_base(img, joints_2d, bone_status, bone_relations, is_training)
+        return self.preprocess_base(img, joints_2d, bone_status, bone_relations, is_training, is_drawmaps)
 
     def recalculate_bone_status(self, joints_z):
         bone_status = []
