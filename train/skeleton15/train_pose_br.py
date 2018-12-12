@@ -13,6 +13,7 @@ from utils.preprocess_utils import pose_preprocess
 from utils.visualize_utils import display_utils
 from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
+from utils.common_utils import my_utils
 
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "pose_net_br")
@@ -63,6 +64,8 @@ if __name__ == "__main__":
 
     pose_model = pose_net.mPoseNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_pose=configs.loss_weight_pose, pose_scale=configs.pose_scale, is_use_bn=configs.is_use_bn, HG_nFeat=configs.HG_nFeat)
 
+    train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_iter, valid_steps=1)
+
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
@@ -88,26 +91,14 @@ if __name__ == "__main__":
                 print("The prev model is not existing!")
                 quit()
 
-        is_valid = False
-        valid_count = 0
-
-        write_log_iter = configs.valid_iter
-
         while True:
             global_steps = sess.run(pose_model.global_steps)
 
-            if valid_count == configs.valid_iter:
-                valid_count = 0
-                is_valid = True
-            else:
-                valid_count += 1
-                is_valid = False
-
             # get the data path
-            if is_valid:
-                cur_data_batch = sess.run(valid_data_iter)
-            else:
+            if train_valid_counter.is_training:
                 cur_data_batch = sess.run(train_data_iter)
+            else:
+                cur_data_batch = sess.run(valid_data_iter)
 
             batch_size = len(cur_data_batch)
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
@@ -129,7 +120,7 @@ if __name__ == "__main__":
                 cur_cam_mat = cur_label["cam_mat"]
 
                 # use the bone relations
-                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, scale=cur_scale, center=cur_center, cam_mat=cur_cam_mat, is_training=not is_valid)
+                cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(joints_2d=cur_joints_2d, joints_3d=cur_joints_3d, scale=cur_scale, center=cur_center, cam_mat=cur_cam_mat, is_training=train_valid_counter.is_training)
                 # generate the heatmaps
                 batch_images_np[b] = cur_img
                 cur_joints_2d = cur_joints_2d / configs.joints_2d_scale
@@ -145,26 +136,7 @@ if __name__ == "__main__":
             acc_hm = 0
             acc_pose = 0
 
-            if is_valid:
-                acc_hm, \
-                acc_pose, \
-                loss, \
-                heatmap_loss, \
-                pose_loss, \
-                lr, \
-                summary  = sess.run(
-                        [
-                         pose_model.accuracy_hm,
-                         pose_model.accuracy_pose,
-                         pose_model.total_loss,
-                         pose_model.heatmap_loss,
-                         pose_model.pose_loss,
-                         pose_model.lr,
-                         pose_model.merged_summary],
-                        feed_dict={input_images: batch_images_np, input_centers_hm: batch_joints_2d_np, input_poses: batch_joints_3d_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
-                valid_log_writer.add_summary(summary, global_steps)
-            else:
-                # if global_steps % write_log_iter == 0:
+            if train_valid_counter.is_training:
                 _, \
                 acc_hm, \
                 acc_pose, \
@@ -184,15 +156,36 @@ if __name__ == "__main__":
                          pose_model.merged_summary],
                         feed_dict={input_images: batch_images_np, input_centers_hm: batch_joints_2d_np, input_poses: batch_joints_3d_np, input_is_training: True, input_batch_size: configs.train_batch_size})
                 train_log_writer.add_summary(summary, global_steps)
+            else:
+                acc_hm, \
+                acc_pose, \
+                loss, \
+                heatmap_loss, \
+                pose_loss, \
+                lr, \
+                summary  = sess.run(
+                        [
+                         pose_model.accuracy_hm,
+                         pose_model.accuracy_pose,
+                         pose_model.total_loss,
+                         pose_model.heatmap_loss,
+                         pose_model.pose_loss,
+                         pose_model.lr,
+                         pose_model.merged_summary],
+                        feed_dict={input_images: batch_images_np, input_centers_hm: batch_joints_2d_np, input_poses: batch_joints_3d_np, input_is_training: False, input_batch_size: configs.valid_batch_size})
+                valid_log_writer.add_summary(summary, global_steps)
 
-            print("Train Iter:\n" if not is_valid else "Valid Iter:\n")
+            print("Train Iter:\n" if train_valid_counter.is_training else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}\nHeatmap Loss: {:07f}\nPose Loss: {:07f}\n\n".format(global_steps, lr, loss, heatmap_loss, pose_loss))
             print("Heatmap Accuracy: {}\nPose Accuracy: {}".format(acc_hm, acc_pose))
             print((len(label_path_for_show) * "{}\n").format(*label_path_for_show))
             print("\n\n")
 
-            if global_steps % 20000 == 0 and not is_valid:
+            if global_steps % 20000 == 0 and train_valid_counter.is_training:
                 model_saver.save(sess=sess, save_path=configs.model_path, global_step=global_steps)
 
-            if global_steps >= configs.train_iter and not is_valid:
+            if global_steps >= configs.train_iter and train_valid_counter.is_training:
                 break
+
+            ################### Pay attention to this !!!!!!################
+            train_valid_counter.next()

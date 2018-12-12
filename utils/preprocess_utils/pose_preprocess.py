@@ -12,8 +12,10 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, with_br, bone_width=6, joint_ratio=6, bg_color=0.2):
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, bg_color=0.2):
         self.with_br = with_br
+        self.with_fb = with_fb
+
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
         self.bg_color=bg_color
@@ -29,7 +31,7 @@ class PoseProcessor(object):
             "img_size": self.img_size,
             "crop_box_size": self.img_size,
             "num_of_joints": self.n_joints,
-            "scale_range": 0.25,# max is 0.5 no scale now
+            "scale_range": 0.10,# max is 0.5 no scale now
             "rotate_range": 0, # max 45
             "shift_range": 0, # pixel
             "is_flip": 0,
@@ -78,12 +80,15 @@ class PoseProcessor(object):
         if self.with_br:
             aug_bone_order, _ = self.get_bone_relations(raw_joints_2d, raw_joints_3d, scale, center, cam_mat)
         else:
-            # use the random bone_order for test
             aug_bone_order = np.arange(0, self.n_bones, 1)
-            np.random.shuffle(aug_bone_order)
 
-        aug_bone_status = self.recalculate_bone_status(aug_joints_3d[:, 2])
+        if self.with_fb:
+            aug_bone_status = self.recalculate_bone_status(aug_joints_3d[:, 2])
+        else:
+            aug_bone_status = np.zeros([self.n_bones])
+
         aug_img = self.draw_syn_img(joints_2d=aug_joints_2d, bone_status=aug_bone_status, bone_order=aug_bone_order)
+
         if np.max(aug_img) >= 2:
             aug_img = aug_img / 255.0
 
