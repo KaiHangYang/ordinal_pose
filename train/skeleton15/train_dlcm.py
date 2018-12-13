@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -25,7 +25,7 @@ configs.is_use_bn = True
 
 configs.learning_rate = 2.5e-4
 configs.lr_decay_rate = 0.10
-configs.lr_decay_step = 200000
+configs.lr_decay_step = 400000
 configs.nFeats = 256
 configs.nModules = 1
 ################### Initialize the data reader ####################
@@ -60,8 +60,8 @@ if __name__ == "__main__":
     mpii_lsp_lbl_list = [configs.mpii_lbl_path_fn(i) for i in mpii_range] + [configs.lsp_lbl_path_fn(i) for i in lsp_range]
 
     # increase the mpii_lsp datas
-    mpii_lsp_img_list = mpii_lsp_img_list * 60
-    mpii_lsp_lbl_list = mpii_lsp_lbl_list * 60
+    mpii_lsp_img_list = mpii_lsp_img_list * 10
+    mpii_lsp_lbl_list = mpii_lsp_lbl_list * 10
 
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list

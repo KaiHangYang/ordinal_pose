@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     configs.learning_rate = 2.5e-4
     configs.lr_decay_rate = 0.10
-    configs.lr_decay_step = 200000
+    configs.lr_decay_step = 300000
 
     ################### Initialize the data reader ####################
     train_range = np.load(configs.h36m_train_range_file)
@@ -128,9 +128,9 @@ if __name__ == "__main__":
                 batch_joints_2d_np[b] = cur_joints_2d.copy()
                 batch_joints_3d_np[b] = cur_joints_3d.copy()
 
-                cv2.imshow("img", cur_img)
-                cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
-                cv2.waitKey()
+                # cv2.imshow("img", cur_img)
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.joints_2d_scale, indices=skeleton.bone_indices))
+                # cv2.waitKey()
 
             acc_hm = 0
             acc_pose = 0
