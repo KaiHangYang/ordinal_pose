@@ -10,10 +10,11 @@ import common
 sys.path.append(os.path.dirname(__file__))
 
 class DLCMProcessor(object):
-    def __init__(self, skeleton, img_size, hm_size, sigma=1.0):
+    def __init__(self, skeleton, img_size, hm_size, sigma=1.0, is_norm=False):
         self.skeleton = skeleton
         self.bone_indices = self.skeleton.bone_indices
         self.sigma = sigma
+        self.is_norm = is_norm
 
         self.flip_array = self.skeleton.flip_array
         self.n_joints = self.skeleton.n_joints
@@ -38,6 +39,9 @@ class DLCMProcessor(object):
     # the pt must be in the heatmaps range [64, 64]
     def draw_gaussain(self, img, p, sigma):
         tmp_gaussain = common.make_gaussian(p, size=self.hm_size, sigma=sigma)
+        if self.is_norm:
+            tmp_gaussain = tmp_gaussain / tmp_gaussain.sum()
+
         img = np.maximum(img, tmp_gaussain)
         return img
 
