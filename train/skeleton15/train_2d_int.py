@@ -7,19 +7,19 @@ import cv2
 import time
 
 sys.path.append("../../")
-from net import dlcm_net_int as dlcm_net
+from net import net_int_2d as net_int
 from utils.dataread_utils import syn_reader as data_reader
-from utils.preprocess_utils import dlcm_preprocess
+from utils.preprocess_utils import int_preprocess
 from utils.visualize_utils import display_utils
 from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
 from utils.common_utils import my_utils
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "dlcm_net_int")
+configs = mConfigs("../train.conf", "net_int_l2")
 ################ Reseting  #################
-configs.loss_weights = [10.0, 1.0, 1.0]
-configs.loss_weight_integral = 1
+configs.loss_weight_heatmap = 1.0
+configs.loss_weight_integral = 1.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
@@ -28,10 +28,11 @@ configs.learning_rate = 2.5e-4
 configs.lr_decay_rate = 0.10
 configs.lr_decay_step = 300000
 configs.nFeats = 256
-configs.nModules = 1
+configs.nModules = 2
+configs.nStacks = 2
 ################### Initialize the data reader ####################
 configs.printConfig()
-preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0, is_norm=True)
+preprocessor = int_preprocess.INTProcessor(skeleton=skeleton, img_size=configs.img_size)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -75,23 +76,21 @@ if __name__ == "__main__":
     # now test the classification
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
     input_joints_2d = tf.placeholder(shape=[None, skeleton.n_joints, 2], dtype=tf.float32, name="input_joints_2d")
-    input_heatmaps_level_0 = tf.placeholder(shape=[None, configs.hm_size, configs.hm_size, skeleton.level_nparts[0]], dtype=tf.float32, name="heatmaps_level_0")
-    input_heatmaps_level_1 = tf.placeholder(shape=[None, configs.hm_size, configs.hm_size, skeleton.level_nparts[1]], dtype=tf.float32, name="heatmaps_level_1")
-    input_heatmaps_level_2 = tf.placeholder(shape=[None, configs.hm_size, configs.hm_size, skeleton.level_nparts[2]], dtype=tf.float32, name="heatmaps_level_2")
-    input_maps = [input_heatmaps_level_0, input_heatmaps_level_1, input_heatmaps_level_2]
 
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    dlcm_model = dlcm_net.mDLCMNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weights=configs.loss_weights, loss_weight_integral=configs.loss_weight_integral, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules)
+    int_model = int_net.mINTNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_integral=configs.loss_weight_integral, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules, nStacks=configs.nStacks)
 
     train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_iter, valid_steps=1)
+
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
-            dlcm_model.build_model(input_images)
+            int_model.build_model(input_images)
+            input_heatmap = int_model.build_input_heatmaps(input_center=input_joints_2d, stddev=1.0, gaussian_coefficient=True, name="input_heatmap")
 
-        dlcm_model.build_loss(input_maps=input_maps, input_joints_2d=input_joints_2d, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
+        int_model.build_loss(input_heatmap=input_heatmap, input_joints_2d=input_joints_2d, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
 
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
@@ -111,7 +110,7 @@ if __name__ == "__main__":
                 quit()
 
         while True:
-            global_steps = sess.run(dlcm_model.global_steps)
+            global_steps = sess.run(int_model.global_steps)
 
             # get the data path
             cur_img_batch, cur_lbl_batch = sess.run(train_data_iter if train_valid_counter.is_training else valid_data_iter)
@@ -119,9 +118,6 @@ if __name__ == "__main__":
             batch_size = len(cur_img_batch)
             batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
             batch_joints_2d_np = np.zeros([batch_size, skeleton.n_joints, 2], dtype=np.float32)
-            batch_heatmaps_level_0 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[0]], dtype=np.float32)
-            batch_heatmaps_level_1 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[1]], dtype=np.float32)
-            batch_heatmaps_level_2 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[2]], dtype=np.float32)
 
             img_path_for_show = [[] for i in range(batch_size)]
             lbl_path_for_show = [[] for i in range(batch_size)]
@@ -139,53 +135,38 @@ if __name__ == "__main__":
                 else:
                     cur_joints_2d = cur_label["joints_2d"].copy()
 
-                batch_joints_2d_np[b] = cur_joints_2d.copy() / configs.pose_2d_scale
-
-                cur_img, cur_maps, cur_joints_2d = preprocessor.preprocess(img=cur_img, joints_2d=cur_joints_2d, is_training=train_valid_counter.is_training)
+                cur_img, cur_joints_2d = preprocessor.preprocess(img=cur_img, joints_2d=cur_joints_2d, is_training=train_valid_counter.is_training)
 
                 # generate the heatmaps
                 batch_images_np[b] = cur_img
-
-                batch_heatmaps_level_0[b] = cur_maps[0]
-                batch_heatmaps_level_1[b] = cur_maps[1]
-                batch_heatmaps_level_2[b] = cur_maps[2]
+                batch_joints_2d_np[b] = cur_joints_2d / configs.pose_2d_scale
 
                 ########## Visualize the datas ###########
                 # cv2.imshow("img", cur_img)
                 # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
 
-                # hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
-                # hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
-                # hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
-
-                # cv2.imshow("hm_0", hm_level_0)
-                # cv2.imshow("hm_1", hm_level_1)
-                # cv2.imshow("hm_2", hm_level_2)
-
                 # cv2.waitKey()
                 ##########################################
 
-            PREPROCESS_TIME = time.clock()
             if train_valid_counter.is_training:
                 _, \
                 acc_hm, \
                 acc_int, \
                 total_loss,\
                 heatmaps_loss, \
+                integral_loss, \
                 lr,\
                 summary  = sess.run(
                         [
-                         dlcm_model.train_op,
-                         dlcm_model.heatmaps_acc,
-                         dlcm_model.integral_acc,
-                         dlcm_model.total_loss,
-                         dlcm_model.losses,
-                         dlcm_model.lr,
-                         dlcm_model.merged_summary],
+                         int_model.train_op,
+                         int_model.heatmaps_acc,
+                         int_model.integral_acc,
+                         int_model.total_loss,
+                         int_model.heatmap_losses,
+                         int_model.integral_losses,
+                         int_model.lr,
+                         int_model.merged_summary],
                         feed_dict={input_images: batch_images_np,
-                                   input_heatmaps_level_0: batch_heatmaps_level_0,
-                                   input_heatmaps_level_1: batch_heatmaps_level_1,
-                                   input_heatmaps_level_2: batch_heatmaps_level_2,
                                    input_joints_2d: batch_joints_2d_np,
                                    input_is_training: True,
                                    input_batch_size: configs.train_batch_size})
@@ -195,31 +176,30 @@ if __name__ == "__main__":
                 acc_int, \
                 total_loss, \
                 heatmaps_loss, \
+                integral_loss, \
                 lr, \
                 summary  = sess.run(
                         [
-                         dlcm_model.heatmaps_acc,
-                         dlcm_model.integral_acc,
-                         dlcm_model.total_loss,
-                         dlcm_model.losses,
-                         dlcm_model.lr,
-                         dlcm_model.merged_summary],
+                         int_model.heatmaps_acc,
+                         int_model.integral_acc,
+                         int_model.total_loss,
+                         int_model.heatmap_losses,
+                         int_model.integral_losses,
+                         int_model.lr,
+                         int_model.merged_summary],
                         feed_dict={input_images: batch_images_np,
-                                   input_heatmaps_level_0: batch_heatmaps_level_0,
-                                   input_heatmaps_level_1: batch_heatmaps_level_1,
-                                   input_heatmaps_level_2: batch_heatmaps_level_2,
                                    input_joints_2d: batch_joints_2d_np,
                                    input_is_training: False,
                                    input_batch_size: configs.valid_batch_size})
                 valid_log_writer.add_summary(summary, global_steps)
 
-            PREPROCESS_TIME = time.clock() - PREPROCESS_TIME
-            print("Preprocess time: {}".format(PREPROCESS_TIME))
-
             print("Train Iter:\n" if train_valid_counter.is_training else "Valid Iter:\n")
             print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}".format(global_steps, lr, total_loss))
             for l_idx in range(len(heatmaps_loss)):
                 print("Heatmap loss level {}: {}".format(l_idx, heatmaps_loss[l_idx]))
+
+            for l_idx in range(len(integral_loss)):
+                print("Integral loss level {}: {}".format(l_idx, integral_loss[l_idx]))
 
             print("Heatmap Accuracy: {}\n".format(acc_hm))
             print("Integral Accuracy: {}\n".format(acc_int))

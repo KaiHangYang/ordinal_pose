@@ -28,7 +28,7 @@ class DLCMProcessor(object):
             "img_size": self.img_size,
             "crop_box_size": self.img_size,
             "num_of_joints": self.n_joints,
-            "scale_range": 0.25,# max is 0.5 no scale now
+            "scale_range": 0.15,# max is 0.5 no scale now
             "rotate_range": 30, # max 45
             "shift_range": 0, # pixel
             "is_flip": 1,
@@ -40,7 +40,9 @@ class DLCMProcessor(object):
     def draw_gaussain(self, img, p, sigma):
         tmp_gaussain = common.make_gaussian(p, size=self.hm_size, sigma=sigma)
         if self.is_norm:
-            tmp_gaussain = tmp_gaussain / tmp_gaussain.sum()
+            tmp_sum = tmp_gaussain.sum()
+            if tmp_sum > 0:
+                tmp_gaussain = tmp_gaussain / tmp_sum
 
         img = np.maximum(img, tmp_gaussain)
         return img

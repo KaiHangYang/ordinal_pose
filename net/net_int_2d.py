@@ -11,11 +11,11 @@ import hourglass
 # The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
 
 # is_training is a tensor or python bool
-class mDLCMNet(object):
-    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weights, loss_weight_integral, pose_2d_scale, is_use_bn, nFeats=256, nModules=1):
-        self.model_name = "DLCMNet_Int"
+class mINTNet(object):
+    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weight_heatmap, loss_weight_integral, pose_2d_scale, is_use_bn, nFeats=256, nModules=1, nStacks=1):
+        self.model_name = "Net_Int"
 
-        self.loss_weights = loss_weights
+        self.loss_weight_heatmap = loss_weight_heatmap
         self.loss_weight_integral = loss_weight_integral
         self.pose_2d_scale = pose_2d_scale
 
@@ -30,13 +30,28 @@ class mDLCMNet(object):
         self.batch_size = batch_size
         self.feature_size = 64
 
-        self.result_maps = []
+        self.heatmaps = []
+        self.integrals = []
 
         self.nModules = nModules
-        self.nParts = self.skeleton.level_nparts
-        self.nStacks = self.skeleton.level_n * 2 - 1
+        self.nStacks = nStacks
         self.nFeats = nFeats
-        self.nSemanticLevels = self.skeleton.level_n
+
+        with tf.variable_scope("heat_vec"):
+            self.heat_vec = tf.constant(np.arange(0, self.feature_size, 1).astype(np.float32)[np.newaxis, :, np.newaxis])
+            self.heat_vec = tf.tile(heat_vec, [self.batch_size, 1, self.nJoints])
+
+    def build_integral(self, input_heatmap, name="integral"):
+        with tf.variable_scope(name):
+            hm_softmax = tf.reshape(tf.nn.softmax(tf.reshape(input_heatmap, [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.nJoints])
+
+            hm_x_vec = tf.reduce_sum(hm_softmax, axis=1)
+            hm_y_vec = tf.reduce_sum(hm_softmax, axis=2)
+
+            hm_x = tf.reduce_sum(self.heat_vec * hm_x_vec, axis=1, keepdims=True)
+            hm_y = tf.reduce_sum(self.heat_vec * hm_y_vec, axis=1, keepdims=True)
+
+            return tf.transpose(tf.concat([hm_x, hm_y], axis=1), perm=[0, 2, 1])
 
     def build_model(self, input_images):
         with tf.variable_scope(self.model_name):
@@ -52,78 +67,26 @@ class mDLCMNet(object):
 
             inter = net
 
-            for l_idx in range(self.nSemanticLevels):
-                with tf.variable_scope("b-u_seg_level_{}".format(l_idx)):
+            for l_idx in range(self.nStacks):
+                with tf.variable_scope("hg_level_{}".format(l_idx)):
                     hg = hourglass.build_hourglass(inter, self.nFeats, 4, name="hg", is_training=self.is_training, nModules=self.nModules, res_utils=self.res_utils)
-
                     ll = hg
                     ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin")
 
-                    n_heatmaps = self.nParts[l_idx]
-                    tmp_out = tf.layers.conv2d(inputs=ll, filters=n_heatmaps, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="result_map")
+                    tmp_hm = tf.layers.conv2d(inputs=ll, filters=self.nJoints, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="heatmaps")
+                    tmp_int = self.build_integral(input_heatmap=tmp_hm, name="integrals")
 
-                    self.result_maps.append(tmp_out)
+                    self.heatmaps.append(tmp_hm)
+                    self.integrals.append(tmp_int)
                     ## Add predictions back if this is not the last hg module
-                    if len(self.result_maps) < self.nStacks:
+                    if len(self.heatmaps) < self.nStacks:
                         with tf.variable_scope("add_block"):
                             ll_ = tf.layers.conv2d(inputs=ll, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
-                            tmp_out_ = tf.layers.conv2d(inputs=tmp_out, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_out_")
-                            inter = tf.add_n([inter, ll_, tmp_out_])
-
-            for l_idx in range(self.nSemanticLevels-1)[::-1]:
-                with tf.variable_scope("t-d_seg_level_{}".format(l_idx)):
-
-                    with tf.variable_scope("input_block"):
-                        n_remain_channels = self.nFeats - self.nParts[l_idx]
-                        inter_ = self.res_utils.residual_block(inter, n_remain_channels, name="res")
-                        inter = tf.concat([self.result_maps[l_idx], inter_], axis=3)
-
-                    hg = hourglass.build_hourglass(inter, self.nFeats, 4, name="hg", is_training=self.is_training, nModules=self.nModules, res_utils=self.res_utils)
-
-                    ll = hg
-                    ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin")
-
-                    n_heatmaps = self.nParts[l_idx]
-                    tmp_out = tf.layers.conv2d(inputs=ll, filters=n_heatmaps, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="result_map")
-
-                    self.result_maps.append(tmp_out)
-
-                    ## Add predictions back if this is not the last hg module
-                    if len(self.result_maps) < self.nStacks:
-                        with tf.variable_scope("add_block"):
-                            ll_ = tf.layers.conv2d(inputs=ll, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="ll_")
-                            tmp_out_ = tf.layers.conv2d(inputs=tmp_out, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_out_")
-                            inter = tf.add_n([inter, ll_, tmp_out_])
-
-            assert(len(self.result_maps) == self.nStacks)
-            self.integral_2ds = []
-            ####### The integral supervision #######
-            with tf.variable_scope("heat_vec"):
-                heat_vec = tf.constant(np.arange(0, self.feature_size, 1).astype(np.float32)[np.newaxis, :, np.newaxis])
-                heat_vec = tf.tile(heat_vec, [self.batch_size, 1, self.nJoints])
-
-            with tf.variable_scope("hm_0_integral"):
-                hm_0_softmax = tf.reshape(tf.nn.softmax(tf.reshape(self.result_maps[0], [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.nJoints])
-                hm_0_x_vec = tf.reduce_sum(hm_0_softmax, axis=1)
-                hm_0_y_vec = tf.reduce_sum(hm_0_softmax, axis=2)
-
-                hm_0_x = tf.reduce_sum(heat_vec * hm_0_x_vec, axis=1, keepdims=True)
-                hm_0_y = tf.reduce_sum(heat_vec * hm_0_y_vec, axis=1, keepdims=True)
-
-                self.integral_2ds.append(tf.transpose(tf.concat([hm_0_x, hm_0_y], axis=1), perm=[0, 2, 1]))
-
-            with tf.variable_scope("hm_1_integral"):
-                hm_1_softmax = tf.reshape(tf.nn.softmax(tf.reshape(self.result_maps[-1], [self.batch_size, -1, self.nJoints]), axis=1), [self.batch_size, self.feature_size, self.feature_size, self.nJoints])
-                hm_1_x_vec = tf.reduce_sum(hm_1_softmax, axis=1)
-                hm_1_y_vec = tf.reduce_sum(hm_1_softmax, axis=2)
-
-                hm_1_x = tf.reduce_sum(heat_vec * hm_1_x_vec, axis=1, keepdims=True)
-                hm_1_y = tf.reduce_sum(heat_vec * hm_1_y_vec, axis=1, keepdims=True)
-
-                self.integral_2ds.append(tf.transpose(tf.concat([hm_1_x, hm_1_y], axis=1), perm=[0, 2, 1]))
+                            tmp_hm_ = tf.layers.conv2d(inputs=tmp_hm, filters=self.nFeats, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="tmp_hm_")
+                            inter = tf.add_n([inter, ll_, tmp_hm_])
 
     # input_joints shape (None, 17, 2)
-    def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps", gaussian_coefficient=False):
+    def build_input_heatmaps(self, input_center, stddev=1.0, name="input_heatmaps", gaussian_coefficient=True):
         with tf.variable_scope(name):
             raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size), [self.feature_size, self.feature_size, 1]).astype(np.float32), name="raw_arr_y")
 
@@ -194,24 +157,27 @@ class mDLCMNet(object):
             self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
             self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
 
-    def build_loss(self, input_maps, input_joints_2d, lr, lr_decay_step, lr_decay_rate):
+    def build_loss(self, input_heatmap, input_joints_2d, lr, lr_decay_step, lr_decay_rate):
+
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         self.total_loss = 0
         with tf.variable_scope("losses"):
-            with tf.variable_scope("hm_loss"):
-                self.losses = []
-                for pd_idx, gt_idx in enumerate(range(self.nSemanticLevels) + range(self.nSemanticLevels-1)[::-1]):
-                    tmp_loss = tf.nn.l2_loss(input_maps[gt_idx] - self.result_maps[pd_idx], name="heatmaps_loss_{}".format(pd_idx)) / self.batch_size * self.loss_weights[gt_idx]
-                    self.losses.append(tmp_loss)
-                    self.total_loss = self.total_loss + tmp_loss
+            with tf.variable_scope("heatmap_loss"):
+                self.heatmap_losses = []
+                for idx in range(self.nStacks):
+                    hm_loss = tf.nn.l2_loss(input_heatmap - self.heatmaps[idx], name="heatmap_loss_{}".format(idx)) / self.batch_size * self.loss_weight_heatmap
+                    self.heatmap_losses.append(hm_loss)
+                    self.total_loss = self.total_loss + hm_loss
 
             with tf.variable_scope("integral_loss"):
-                self.integral_loss = []
-                for idx, cur_integral_2d in enumerate(self.integral_2ds):
-                    self.integral_loss.append(m_l1_loss(cur_integral_2d - input_joints_2d, name="integral_loss_{}".format(idx)) * self.loss_weight_integral)
-                    self.total_loss = self.total_loss + self.integral_loss[idx]
+                self.integral_losses = []
+                for idx in range(self.nStacks):
+                    # self.integral_loss.append(m_l1_loss(cur_integral_2d - input_joints_2d, name="integral_loss_{}".format(idx)) * self.loss_weight_integral)
+                    int_loss = tf.nn.l2_loss(input_joints_2d - self.integrals[idx], name="integral_loss_{}".format(idx)) / self.batch_size * self.loss_weight_integral
+                    self.integral_losses.append(int_loss)
+                    self.total_loss = self.total_loss + int_loss
 
         # NOTICE: The dependencies must be added, because of the BN used in the residual 
         # https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm
@@ -225,21 +191,25 @@ class mDLCMNet(object):
             ######### heatmap accuracy
             with tf.variable_scope("heatmap_acc"):
                 cur_batch_size = tf.cast(self.batch_size, dtype=tf.int32)
-                combined_heatmaps = tf.concat([input_maps[0], self.result_maps[-1]], axis=0)
-                all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints")
+                combined_heatmaps = tf.concat([input_heatmap, self.heatmaps[-1]], axis=0)
+                hm_all_joints_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints")
 
-                self.gt_2d = all_joints_2d[0:cur_batch_size] * self.pose_2d_scale
-                self.pd_2d = all_joints_2d[cur_batch_size:] * self.pose_2d_scale
+                hm_gt_2d = hm_all_joints_2d[0:cur_batch_size] * self.pose_2d_scale
+                hm_pd_2d = hm_all_joints_2d[cur_batch_size:] * self.pose_2d_scale
 
                 self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_2d, pd_joints=self.pd_2d, name="joints_2d_acc")
-                self.integral_acc = self.cal_accuracy(gt_joints=input_joints_2d*self.pose_2d_scale, pd_joints=self.integral_2ds[-1] * self.pose_2d_scale)
+
+                int_gt_2d = input_joints_2d * self.pose_2d_scale
+                int_pd_2d = self.integrals[-1] * self.pose_2d_scale
+
+                self.integral_acc = self.cal_accuracy(gt_joints=int_gt_2d, pd_joints=int_pd_2d, name="integral_2d_acc")
 
         tf.summary.scalar("total_loss_scalar", self.total_loss)
         for i in range(self.nStacks):
-            tf.summary.scalar("component_heatmaps_loss_{}".format(i), self.losses[i])
+            tf.summary.scalar("heatmaps_loss_{}".format(i), self.heatmap_losses[i])
 
-        for i in range(len(self.integral_loss)):
-            tf.summary.scalar("integral_loss_{}".format(i), self.integral_loss[i])
+        for i in range(self.nStacks):
+            tf.summary.scalar("integral_loss_{}".format(i), self.integral_losses[i])
 
         tf.summary.scalar("heatmaps_acc_scalar", self.heatmaps_acc)
         tf.summary.scalar("integral_acc_scalar", self.integral_acc)
