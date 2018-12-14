@@ -157,7 +157,7 @@ class mINTNet(object):
             self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
             self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
 
-    def build_loss(self, input_heatmap, input_joints_2d, lr, lr_decay_step, lr_decay_rate):
+    def build_loss(self, input_heatmap, input_joints_2d, lr, lr_decay_step, lr_decay_rate, use_l2=True):
 
         self.global_steps = tf.train.get_or_create_global_step()
         self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
@@ -169,13 +169,17 @@ class mINTNet(object):
                 for idx in range(self.nStacks):
                     hm_loss = tf.nn.l2_loss(input_heatmap - self.heatmaps[idx], name="heatmap_loss_{}".format(idx)) / self.batch_size * self.loss_weight_heatmap
                     self.heatmap_losses.append(hm_loss)
-                    self.total_loss = self.total_loss + hm_loss
+                    # self.total_loss = self.total_loss + hm_loss
 
             with tf.variable_scope("integral_loss"):
                 self.integral_losses = []
                 for idx in range(self.nStacks):
                     # self.integral_loss.append(m_l1_loss(cur_integral_2d - input_joints_2d, name="integral_loss_{}".format(idx)) * self.loss_weight_integral)
-                    int_loss = tf.nn.l2_loss(input_joints_2d - self.integrals[idx], name="integral_loss_{}".format(idx)) / self.batch_size * self.loss_weight_integral
+                    if use_l2:
+                        int_loss = tf.nn.l2_loss(input_joints_2d - self.integrals[idx], name="integral_loss_{}".format(idx)) / self.batch_size * self.loss_weight_integral
+                    else:
+                        int_loss = m_l1_loss(input_joints_2d - self.integrals[idx], name="integral_loss_{}".format(idx)) / self.batch_size * self.loss_weight_integral
+
                     self.integral_losses.append(int_loss)
                     self.total_loss = self.total_loss + int_loss
 

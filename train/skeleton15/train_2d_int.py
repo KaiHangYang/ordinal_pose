@@ -18,18 +18,19 @@ from utils.common_utils import my_utils
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "net_int_l2")
 ################ Reseting  #################
-configs.loss_weight_heatmap = 1.0
+configs.use_l2 = True
+configs.loss_weight_heatmap = 100.0
 configs.loss_weight_integral = 1.0
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
 
-configs.learning_rate = 2.5e-4
+configs.learning_rate = 2.5e-5
 configs.lr_decay_rate = 0.10
 configs.lr_decay_step = 300000
 configs.nFeats = 256
 configs.nModules = 2
-configs.nStacks = 1
+configs.nStacks = 2
 ################### Initialize the data reader ####################
 configs.printConfig()
 preprocessor = int_preprocess.INTProcessor(skeleton=skeleton, img_size=configs.img_size)
@@ -90,7 +91,7 @@ if __name__ == "__main__":
             int_model.build_model(input_images)
             input_heatmap = int_model.build_input_heatmaps(input_center=input_joints_2d, stddev=1.0, gaussian_coefficient=True, name="input_heatmap")
 
-        int_model.build_loss(input_heatmap=input_heatmap, input_joints_2d=input_joints_2d, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
+        int_model.build_loss(input_heatmap=input_heatmap, input_joints_2d=input_joints_2d, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate, use_l2=configs.use_l2)
 
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
