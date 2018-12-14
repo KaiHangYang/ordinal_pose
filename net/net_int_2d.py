@@ -39,7 +39,7 @@ class mINTNet(object):
 
         with tf.variable_scope("heat_vec"):
             self.heat_vec = tf.constant(np.arange(0, self.feature_size, 1).astype(np.float32)[np.newaxis, :, np.newaxis])
-            self.heat_vec = tf.tile(heat_vec, [self.batch_size, 1, self.nJoints])
+            self.heat_vec = tf.tile(self.heat_vec, [self.batch_size, 1, self.nJoints])
 
     def build_integral(self, input_heatmap, name="integral"):
         with tf.variable_scope(name):
@@ -197,7 +197,7 @@ class mINTNet(object):
                 hm_gt_2d = hm_all_joints_2d[0:cur_batch_size] * self.pose_2d_scale
                 hm_pd_2d = hm_all_joints_2d[cur_batch_size:] * self.pose_2d_scale
 
-                self.heatmaps_acc = self.cal_accuracy(gt_joints=self.gt_2d, pd_joints=self.pd_2d, name="joints_2d_acc")
+                self.heatmaps_acc = self.cal_accuracy(gt_joints=hm_gt_2d, pd_joints=hm_pd_2d, name="joints_2d_acc")
 
                 int_gt_2d = input_joints_2d * self.pose_2d_scale
                 int_pd_2d = self.integrals[-1] * self.pose_2d_scale

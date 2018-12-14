@@ -29,7 +29,7 @@ configs.lr_decay_rate = 0.10
 configs.lr_decay_step = 300000
 configs.nFeats = 256
 configs.nModules = 2
-configs.nStacks = 2
+configs.nStacks = 1
 ################### Initialize the data reader ####################
 configs.printConfig()
 preprocessor = int_preprocess.INTProcessor(skeleton=skeleton, img_size=configs.img_size)
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    int_model = int_net.mINTNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_integral=configs.loss_weight_integral, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules, nStacks=configs.nStacks)
+    int_model = net_int.mINTNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_integral=configs.loss_weight_integral, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules, nStacks=configs.nStacks)
 
     train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_iter, valid_steps=1)
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
                 ########## Visualize the datas ###########
                 # cv2.imshow("img", cur_img)
-                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
+                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
 
                 # cv2.waitKey()
                 ##########################################

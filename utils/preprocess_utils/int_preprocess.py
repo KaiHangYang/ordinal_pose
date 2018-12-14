@@ -13,7 +13,6 @@ class INTProcessor(object):
     def __init__(self, skeleton, img_size):
         self.skeleton = skeleton
         self.bone_indices = self.skeleton.bone_indices
-        self.sigma = sigma
 
         self.flip_array = self.skeleton.flip_array
         self.n_joints = self.skeleton.n_joints
