@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -36,7 +36,9 @@ configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
 configs.printConfig()
 preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0)
 
-evaluation_models = [140000]
+evaluation_models = range(100000, 700001, 100000)[::-1]
+evaluation_models = evaluation_models + range(140000, 700001, 100000)[::-1]
+evaluation_models = evaluation_models + range(180000, 700001, 100000)[::-1]
 ###############################################################
 
 if __name__ == "__main__":
