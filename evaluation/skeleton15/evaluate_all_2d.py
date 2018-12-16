@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 print("#######################Restored all weights ###########################")
                 dlcm_vars = []
                 pose_vars = []
-                for variable in tf.trainable_variables():
+                for variable in tf.global_variables():
                     if variable.name.split("/")[0] == dlcm_model.model_name:
                         dlcm_vars.append(variable)
                     elif variable.name.split("/")[0] == pose_model.model_name:
@@ -121,6 +121,7 @@ if __name__ == "__main__":
                 batch_syn_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
 
                 batch_joints_3d_np = np.zeros([configs.batch_size, skeleton.n_joints, 3], dtype=np.float32)
+                batch_joints_2d_np = np.zeros([configs.batch_size, skeleton.n_joints, 2], dtype=np.float32)
 
                 img_path_for_show = []
                 lbl_path_for_show = []
@@ -139,6 +140,7 @@ if __name__ == "__main__":
                     batch_images_np[b] = cur_img.copy() / 255.0
                     batch_images_flipped_np[b] = cv2.flip(cur_img, 1) / 255.0
 
+                    batch_joints_2d_np[b] = cur_joints_2d
                     batch_joints_3d_np[b] = cur_joints_3d.copy()
 
                 print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, lbl_path_for_show)))
@@ -151,6 +153,15 @@ if __name__ == "__main__":
                 pd_2d = pd_2d[0]
 
                 # The pd_2d is already in 256x256
+                # for b in range(configs.batch_size):
+                    # pd_img = (batch_images_np[b] * 255).astype(np.uint8)
+                    # raw_img = pd_img.copy()
+                    # pd_img = display_utils.drawLines(pd_img, pd_2d[b], indices=skeleton.bone_indices, color_table=skeleton.bone_colors)
+                    # raw_img = display_utils.drawLines(raw_img, batch_joints_2d_np[b], indices=skeleton.bone_indices, color_table=skeleton.bone_colors)
+
+                    # cv2.imshow("test", np.concatenate([raw_img, pd_img], axis=1))
+                    # cv2.waitKey()
+
                 ############## evaluate the coords recovered from the gt 2d and gt root depth
                 for b in range(configs.batch_size):
                     cur_img, _, _ = pose_preprocessor.preprocess(joints_2d=pd_2d[b], joints_3d=np.zeros([skeleton.n_joints, 3]), is_training=False, scale=None, center=None, cam_mat=None)

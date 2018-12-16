@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -36,9 +36,10 @@ configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
 configs.printConfig()
 preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0)
 
-evaluation_models = range(100000, 700001, 100000)[::-1]
-evaluation_models = evaluation_models + range(140000, 700001, 100000)[::-1]
-evaluation_models = evaluation_models + range(180000, 700001, 100000)[::-1]
+evaluation_models = [480000]
+# evaluation_models = range(100000, 700001, 100000)[::-1]
+# evaluation_models = evaluation_models + range(140000, 700001, 100000)[::-1]
+# evaluation_models = evaluation_models + range(180000, 700001, 100000)[::-1]
 ###############################################################
 
 if __name__ == "__main__":
@@ -61,7 +62,6 @@ if __name__ == "__main__":
 
         print("Network built!")
 
-        model_saver = tf.train.Saver()
         net_init = tf.global_variables_initializer()
         sess.run([net_init])
 
@@ -74,6 +74,13 @@ if __name__ == "__main__":
 
             if os.path.exists(configs.model_path_fn(cur_model_iterations)+".index"):
                 print("#######################Restored all weights ###########################")
+                dlcm_vars = []
+                for variable in tf.global_variables():
+                    if variable.name.split("/")[0] == dlcm_model.model_name:
+                        dlcm_vars.append(variable)
+
+                print("{} Trainable variables: {}".format(dlcm_model.model_name, len(dlcm_vars)))
+                model_saver = tf.train.Saver(var_list=dlcm_vars)
                 model_saver.restore(sess, configs.model_path_fn(cur_model_iterations))
             else:
                 print(configs.model_path_fn(cur_model_iterations))
