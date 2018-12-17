@@ -20,7 +20,7 @@ from utils.evaluate_utils.evaluators import mEvaluatorPCK
 ##################### Setting for training ######################
 configs = mConfigs("../train.conf", "dlcm_net_mpii")
 ################ Reseting  #################
-configs.loss_weights = [10.0, 1.0, 1.0]
+configs.loss_weights = [5.0, 1.0, 1.0]
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = False
@@ -30,12 +30,11 @@ configs.data_range = [0.1, 0.25, 0.5]
 configs.extra_log_dir = "../train_log/dlcm"
 configs.schedule = [180, 225] # when at 180 epoch and 225 epoch, the learning rate is scaled by gamma
 configs.gamma = 0.1
-
 configs.learning_rate = 2.5e-4
 
 configs.nFeats = 256
 configs.nModules = 1
-configs.valid_step = 5 # every 5 train epoch, valid once
+configs.valid_step = 4 # every 4 train epoch, valid once
 
 configs.train_img_dir = "/home/kaihang/DataSet_2/Ordinal/mpii/train/images"
 configs.train_lbl_dir = "/home/kaihang/DataSet_2/Ordinal/mpii/train/labels"
@@ -81,7 +80,7 @@ if __name__ == "__main__":
 
     dlcm_model = dlcm_net.mDLCMNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weights=configs.loss_weights, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules)
 
-    train_valid_counter = my_utils.mTrainValidCounter(train_steps=4, valid_steps=1)
+    train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_step, valid_steps=1)
 
     with tf.Session() as sess:
 
@@ -198,7 +197,7 @@ if __name__ == "__main__":
                 print("\n\n")
                 cur_train_global_steps += 1
 
-            train_pck_evaluator.save(configs.extra_log_dir, prefix="train", epoch=cur_epoch)
+            train_pck_evaluator.save(os.path.join(configs.extra_log_dir, "train"), prefix="train", epoch=cur_epoch)
 
             train_valid_counter.next()
             ############## Evaluate ################
@@ -271,7 +270,7 @@ if __name__ == "__main__":
                     print("\n\n")
                     cur_valid_global_steps += 1
 
-                valid_pck_evaluator.save(configs.extra_log_dir, prefix="valid", epoch=cur_epoch)
+                valid_pck_evaluator.save(os.path.join(configs.extra_log_dir, "valid"), prefix="valid", epoch=cur_epoch)
                 valid_score_mean, _ = valid_pck_evaluator.mean()
 
                 if cur_max_acc < valid_score_mean[-1]:
