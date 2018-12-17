@@ -160,3 +160,60 @@ class mEvaluatorPCKh(object):
 
         mean_per_pckh, mean_pckh = self.mean()
         np.save(path, {"mean_per_pckh": mean_per_pckh, "mean_pckh": mean_pckh, "frame_sum": self.frame_sum})
+
+class mEvaluatorPCK(object):
+    def __init__(self, skeleton, data_range):
+        self.skeleton = skeleton
+        self.n_joints = self.skeleton.n_joints
+        self.data_range = data_range
+
+        self.frame_sum = 0
+        self.pck_counter = np.zeros([len(self.data_range), self.n_joints])
+        self.valid_counter = np.zeros([self.n_joints])
+
+    def add(self, gt_2d, pd_2d, norm):
+        assert(gt_2d.shape == pd_2d.shape)
+
+        gt_2d = np.reshape(gt_2d, [-1, self.n_joints, 2])
+        pd_2d = np.reshape(pd_2d, [-1, self.n_joints, 2])
+
+        ### Calculate the distance
+        dist_2d = np.zeros([gt_2d.shape[0], gt_2d.shape[1]])
+        for b in range(dist_2d.shape[0]):
+            for j in range(dist_2d.shape[1]):
+                # The valid labels
+                if (gt_2d[b][j] > 0).all():
+                    dist_2d[b][j] = np.linalg.norm(gt_2d[b][j] - pd_2d[b][j]) / float(norm)
+                    self.valid_counter[j] += 1
+                else:
+                    dist_2d[b][j] = -1
+
+        for idx in range(len(self.data_range)):
+            # only count the valid labels in ground true label (not (0, 0))
+            self.pck_counter[idx] = self.pck_counter[idx] + np.sum((np.logical_and(dist_2d <= self.data_range[idx], dist_2d >= 0)).astype(np.int32), axis=0)
+        self.frame_sum += gt_2d.shape[0]
+
+    def mean(self):
+        # Now only print the mean result
+        # total mean
+        total_mean = np.sum(self.pck_counter, axis=1) / np.sum(self.valid_counter, axis=0)
+        score_mean = np.sum(self.pck_counter[:, self.skeleton.score_joints_idx], axis=1) / np.sum(self.valid_counter[self.skeleton.score_joints_idx], axis=0)
+        return score_mean, total_mean
+
+    def printMean(self):
+        score_mean, total_mean = self.mean()
+        for idx in range(len(self.data_range)):
+            print("Threshhold: {:0.2f}, All PCK: {:0.5f}, Score PCK: {:0.5f}".format(self.data_range[idx], total_mean[idx], score_mean[idx]))
+
+    def save(self, save_dir, prefix, epoch):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        score_mean, total_mean = self.mean()
+
+        data_file = os.path.join(save_dir, "{}-{}.npy".format(prefix, epoch))
+        np.save(data_file, {"total_mean": total_mean, "score_mean": score_mean, "valid_counter": self.valid_counter, "pck_counter": self.pck_counter})
+
+        log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
+        with open(log_file, "aw") as f:
+            f.write(("Epoch: {:05d} | Score pck: ("+", ".join(["{:0.2f}".format(i) + ":{:0.5f}" for i in self.data_range])+") | All pck: ("+", ".join(["{:0.2f}".format(i) + ":{:0.5f}" for i in self.data_range])+")\n").format(epoch, *(score_mean.tolist()+total_mean.tolist())))

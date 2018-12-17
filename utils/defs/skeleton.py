@@ -66,3 +66,43 @@ class mSkeleton17(object):
         "left_elbow",
         "left_wrist"
     ])
+
+
+class mSkeleton16(object):
+    skeleton_index = 2
+    n_joints = 16
+    n_bones = 15
+
+    score_joints_idx = np.array([0, 1, 2, 3, 4, 5, 10, 11, 14, 15]) # the joints to compute accuracy according to the code of DLCM
+    bone_indices = np.array([[0, 1], [1, 2], [6, 2], [6, 3], [3, 4], [4, 5], [6, 7], [7, 8], [8, 9], [10, 11], [11, 12], [12, 8], [8, 13], [13, 14], [14, 15]])
+    flip_array = np.array([[0, 5], [1, 4], [2, 3], [10, 15], [11, 14], [12, 13]])
+    bone_colors = np.array([[1.000000, 1.000000, 0.000000], [0.492543, 0.000000, 0.000000], [0.492543, 0.000000, 0.000000], [0.000000, 1.000000, 0.000000], [1.000000, 0.349454, 0.000000], [0.499439, 0.558884, 1.000000], [0.000000, 0.362774, 0.000000], [0.500312, 0.000000, 0.624406], [0.000000, 1.000000, 1.000000], [1.000000, 0.499433, 0.611793], [1.000000, 0.800000, 1.000000], [0.000000, 0.502502, 0.611632], [0.200000, 0.700000, 0.300000], [0.700000, 0.300000, 0.100000], [0.300000, 0.200000, 0.800000]])
+    joint_names = np.array([
+        "r ankle",
+        "r knee",
+        "r hip",
+        "l hip",
+        "l knee",
+        "l ankle",
+        "pelvis",
+        "thorax",
+        "upper neck",
+        "head top",
+        "r wrist",
+        "r elbow",
+        "r shoulder",
+        "l shoulder",
+        "l elbow",
+        "l wrist"
+    ])
+    # definations for dlcm
+    level_structure = [
+        # level 0
+        np.arange(n_joints).astype(np.int32),
+        # level 1
+        np.array([[0, 1], [1, 2], [3, 4], [4, 5], [2, 6], [3, 6], [7, 8], [8, 9], [10, 11], [11, 12], [13, 14], [14, 15]]),
+        # level 2,
+        np.array([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9], [10, 11]])
+    ]
+    level_n = len(level_structure)
+    level_nparts = [len(i) for i in level_structure]

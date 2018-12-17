@@ -168,9 +168,13 @@ class mDLCMNet(object):
             self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
             self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
 
-    def build_loss(self, input_maps, lr, lr_decay_step, lr_decay_rate):
+    def build_loss(self, input_maps, lr, lr_decay_step=None, lr_decay_rate=None):
         self.global_steps = tf.train.get_or_create_global_step()
-        self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
+
+        if lr_decay_rate is None or lr_decay_step is None:
+            self.lr = lr
+        else:
+            self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         self.total_loss = 0
         with tf.variable_scope("losses"):

@@ -17,7 +17,7 @@ import time
              sigma: the gaussian sigma
 '''
 def make_gaussian(point, size=64, sigma=2):
-    if point[0] < 0 or point[1] < 0 or point[0] >= size or point[1] >= size:
+    if point[0] <= 0 or point[1] <= 0 or point[0] >= size or point[1] >= size:
         return np.zeros((size, size), np.float32)
 
     x = np.arange(0, size, 1, np.float32)
@@ -76,7 +76,11 @@ def augment_data_2d(img, annots, settings = {
     pad_color = settings["pad_color"]
     flip_array = settings["flip_array"] # contain the joints pairs which need to be exchanged if do flip
 
-    scale_size = (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * scale_range
+    if isinstance(scale_range, list):
+        scale_size = np.random.uniform(scale_range[0], scale_range[1])
+    else:
+        scale_size = (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * scale_range
+
     rotate_size = (0 if random.uniform(0, 1) >= 0.4 else 1) * (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * rotate_range
 
     shift_size_l = (-1 if random.uniform(0, 1) >= 0.5 else 1) * random.random() * shift_range

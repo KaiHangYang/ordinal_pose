@@ -28,7 +28,7 @@ class DLCMProcessor(object):
             "img_size": self.img_size,
             "crop_box_size": self.img_size,
             "num_of_joints": self.n_joints,
-            "scale_range": 0.15,# max is 0.5 no scale now
+            "scale_range": [-0.10, 0.30],# max is 0.5 no scale now
             "rotate_range": 30, # max 45
             "shift_range": 0, # pixel
             "is_flip": 1,
@@ -39,6 +39,7 @@ class DLCMProcessor(object):
     # the pt must be in the heatmaps range [64, 64]
     def draw_gaussain(self, img, p, sigma):
         tmp_gaussain = common.make_gaussian(p, size=self.hm_size, sigma=sigma)
+
         if self.is_norm:
             tmp_sum = tmp_gaussain.sum()
             if tmp_sum > 0:
@@ -97,6 +98,10 @@ class DLCMProcessor(object):
         # from 'Deeply Learned Compositional Models for Human Pose Estimation'
         # Draw gaussian heat maps along the limb between p1 and p2
         # p1 and p2 are 1-based locations [x, y]
+
+        if (p1<=0).any() or (p2<=0).any() or (p1>=self.hm_size).any() or (p2>=self.hm_size).any():
+            return img
+
         p1 = np.round(p1)
         p2 = np.round(p2)
 
