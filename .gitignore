@@ -2,7 +2,6 @@
 *.pyc
 *logs
 models
-eval_result
 eval.conf
 train.conf
 debug.conf
