@@ -34,7 +34,7 @@ configs.loss_weight_heatmap = 1.0
 configs.loss_weight_br = 1.0
 configs.loss_weight_fb = 1.0
 configs.pose_2d_scale = 4.0
-configs.is_use_bn = False
+configs.is_use_bn = True
 configs.extra_data_scale = training_protocol["extra_data_scale"]
 
 configs.n_epoches = 100
