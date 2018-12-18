@@ -52,7 +52,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = None
+restore_model_epoch = None
 #################################################################
 
 def get_learning_rate(configs, epoch):
@@ -98,10 +98,10 @@ if __name__ == "__main__":
 
         sess.run([net_init])
         # reload the model
-        if restore_model_iteration is not None:
-            if os.path.exists(configs.model_path_fn(restore_model_iteration)+".index"):
+        if restore_model_epoch is not None:
+            if os.path.exists(configs.model_path_fn(restore_model_epoch)+".index"):
                 print("#######################Restored all weights ###########################")
-                model_saver.restore(sess, configs.model_path_fn(restore_model_iteration))
+                model_saver.restore(sess, configs.model_path_fn(restore_model_epoch))
             else:
                 print("The prev model is not existing!")
                 quit()
@@ -111,20 +111,19 @@ if __name__ == "__main__":
 
         cur_max_acc = 0
 
-        for cur_epoch in range(configs.n_epoches):
+        for cur_epoch in range(0 if restore_model_epoch is None else restore_model_epoch, configs.n_epoches):
 
             cur_learning_rate = get_learning_rate(configs, cur_epoch)
 
+            ################### Train #################
             train_pck_evaluator = mEvaluatorPCK(skeleton=skeleton, data_range=configs.data_range)
             train_data_reader.reset()
-            ################### Train #################
             is_epoch_finished = False
             while not is_epoch_finished:
                 # get the data path
                 cur_batch, is_epoch_finished = train_data_reader.get()
 
                 batch_size = len(cur_batch)
-
                 batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
                 batch_joints_2d_np = np.zeros([batch_size, skeleton.n_joints, 2], dtype=np.float32)
                 batch_heatmaps_level_0 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[0]], dtype=np.float32)

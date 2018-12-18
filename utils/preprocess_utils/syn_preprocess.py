@@ -12,7 +12,8 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class SynProcessor(object):
-    def __init__(self, skeleton, img_size, bone_width=6, joint_ratio=6, bg_color=0.2):
+    def __init__(self, skeleton, img_size, bone_width=6, joint_ratio=6, bg_color=0.2, bone_status_threshhold=80):
+        self.bone_status_threshhold = bone_status_threshhold
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
         self.bg_color=bg_color
@@ -134,7 +135,7 @@ class SynProcessor(object):
     def recalculate_bone_status(self, joints_z):
         bone_status = []
         for cur_bone_idx in self.bone_indices:
-            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < 100:
+            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < self.bone_status_threshhold:
                 bone_status.append(0)
             elif joints_z[cur_bone_idx[1]] < joints_z[cur_bone_idx[0]]:
                 bone_status.append(1)

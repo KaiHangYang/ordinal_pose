@@ -80,38 +80,49 @@ class mEvaluatorPose3D(object):
 
 ############### Evaluator for BR and FB accuracy ############
 class mEvaluatorFB_BR(object):
-    def __init__(self, nData=16):
-        self.nData = nData
-        self.avg_counter = my_utils.mAverageCounter(shape=self.nData)
-        self.dist_avg_counter = my_utils.mAverageCounter(shape=self.nData)
+    def __init__(self, n_fb, n_br):
+        self.n_fb = n_fb
+        self.n_br = n_br
 
-    ### The root of each data is the same
-    def add(self, gt_info, pd_info):
-        assert(gt_info.shape == pd_info.shape)
-        gt_info = np.reshape(gt_info, [-1, self.nData])
-        pd_info = np.reshape(pd_info, [-1, self.nData])
+        self.fb_avg_counter = my_utils.mAverageCounter(shape=self.n_fb)
+        self.br_avg_counter = my_utils.mAverageCounter(shape=self.n_br)
 
-        for batch_num in range(gt_info.shape[0]):
-            self.avg_counter.add((gt_info[batch_num] == pd_info[batch_num]).astype(np.float32))
-            self.dist_avg_counter.add(np.abs(gt_info[batch_num] - pd_info[batch_num]))
+    def add(self, gt_fb, pd_fb, gt_br, pd_br):
+        assert(gt_fb.shape == pd_fb.shape and gt_br.shape == pd_br.shape)
+        gt_fb = np.reshape(gt_fb, [-1, self.n_fb])
+        pd_fb = np.reshape(pd_fb, [-1, self.n_fb])
+
+        gt_br = np.reshape(gt_br, [-1, self.n_br])
+        pd_br = np.reshape(pd_br, [-1, self.n_br])
+
+        assert(gt_fb.shape[0] == gt_br.shape[0])
+
+        for batch_num in range(gt_fb.shape[0]):
+            self.fb_avg_counter.add((gt_fb[batch_num] == pd_fb[batch_num]).astype(np.float32))
+            self.br_avg_counter.add((gt_br[batch_num] == pd_br[batch_num]).astype(np.float32))
 
     def mean(self):
-        return self.avg_counter.mean(), self.dist_avg_counter.mean()
+        return self.fb_avg_counter.mean(), self.br_avg_counter.mean()
 
     def get(self):
-        return self.avg_counter.cur_average, self.dist_avg_counter.cur_average
+        return self.fb_avg_counter.cur_average, self.br_avg_counter.cur_average
 
     def printMean(self):
-        acc_mean, dist_mean = self.mean()
-        print("Mean Accuracy: {}, Mean Distance: {}. Frame sum: {}".format(acc_mean, dist_mean, self.avg_counter.cur_data_sum))
+        fb_acc, br_acc = self.mean()
+        print("Mean Bone Status Acc: {:05f}. Mean Bone Relation Acc: {:05f}".format(fb_acc, br_acc))
 
-    def save(self, path):
-        if not os.path.exists(os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))
+    def save(self, save_dir, prefix, epoch):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
 
-        acc_mean, dist_mean = self.mean()
-        acc_all, dist_all = self.get()
-        np.save(path, {"mean_acc": acc_mean, "mean_dist": dist_mean, "all_acc": acc_all, "all_dist": dist_all, "frame_sum": self.avg_counter.cur_data_sum})
+        fb_acc, br_acc = self.mean()
+
+        data_file = os.path.join(save_dir, "{}-{}.npy".format(prefix, epoch))
+        np.save(data_file, {"fb_acc": fb_acc, "br_acc": br_acc, "fb_per_acc":self.fb_avg_counter.cur_average, "br_per_acc":self.br_avg_counter.cur_average, "frame_sum": self.br_avg_counter.cur_data_sum})
+
+        log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
+        with open(log_file, "aw") as f:
+            f.write(("Epoch: {:05d} | Bone Status Acc: {:05f} | Bone Relation Acc: {:05f}\n").format(epoch, fb_acc, br_acc))
 
 ############## Evaluator for 2D PCKh ###############
 """ Here the head length is estimated by the head and throat joints """
