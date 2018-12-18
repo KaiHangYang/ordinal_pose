@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -23,7 +23,7 @@ configs = mConfigs("../train.conf", "dlcm_net_mpii")
 configs.loss_weights = [5.0, 1.0, 1.0]
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
-configs.is_use_bn = False
+configs.is_use_bn = True
 configs.n_epoches = 250
 
 configs.data_range = [0.1, 0.25, 0.5]
