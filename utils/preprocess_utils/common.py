@@ -43,6 +43,46 @@ def make_gaussian_3d(point, size=64, sigma=2):
 
     heatmaps_3d = np.exp(-((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / 2.0 / sigma /sigma)
     return heatmaps_3d
+'''
+ Functional: Augmentate the multiscale data
+ Parameter: img: the input image
+            joints_2d: the joints_2d
+            size: the target size
+'''
+
+def center_pad_or_crop(img, joints_2d, size=256, pad_color=[128, 128, 128]):
+    img = img.copy()
+    joints_2d = joints_2d.copy()
+
+    img_width = img.shape[1]
+    img_height = img.shape[0]
+    assert(img_width == img_height)
+    offset = (size - img_width) / 2.0
+
+    if offset > 0:
+        if np.round(offset) > offset:
+            offset = int(offset)
+            extra_pixel = 1
+        else:
+            offset = int(offset)
+            extra_pixel = 0
+
+        valid_mask = (joints_2d != [0, 0]).all(axis=1)
+        result_joints_2d = joints_2d.copy()
+        result_joints_2d[valid_mask] = joints_2d[valid_mask] + np.array([offset, offset])
+        # pad the image
+        result_img = cv2.copyMakeBorder(img, top=offset, left=offset, right=offset+extra_pixel, bottom=offset+extra_pixel, value=pad_color, borderType=cv2.BORDER_CONSTANT)
+    else:
+        offset = int(offset)
+
+        valid_mask = (joints_2d != [0, 0]).all(axis=1)
+        result_joints_2d = joints_2d.copy()
+        result_joints_2d[valid_mask] = joints_2d[valid_mask] + np.array([offset, offset])
+
+        offset = -offset
+        result_img = img[offset:offset+size, offset:offset+size].copy()
+
+    return result_img, result_joints_2d
 
 '''
  Functional: Augmentate the 2d data

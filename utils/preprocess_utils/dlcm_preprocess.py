@@ -119,6 +119,19 @@ class DLCMProcessor(object):
             img = np.maximum(img, children[:, :, i])
         return img
 
+    # only use for multiscale evaluation
+    def preprocess_multiscale(self, img, joints_2d, scale_range, size=256, pad_color=[128, 128, 128]):
+        multiscale_data = []
+        for cur_scale in scale_range:
+            scaled_img = cv2.resize(img, dsize=None, fx=1+cur_scale, fy=1+cur_scale)
+            scaled_joints_2d = joints_2d * (1 + cur_scale)
+
+            ### Then pad and scale
+            scaled_img, scaled_joints_2d = common.center_pad_or_crop(scaled_img, scaled_joints_2d, size=size, pad_color=pad_color)
+            multiscale_data.append([scaled_img, scaled_joints_2d])
+
+        return multiscale_data
+
     def preprocess(self, img, joints_2d, is_training=True):
         if np.max(img) > 2:
             img = img / 255.0

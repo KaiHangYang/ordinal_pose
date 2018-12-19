@@ -161,12 +161,12 @@ class mDLCMNet(object):
             raw_heatmaps = self.result_maps[-1][0:cur_batch_size]
             flipped_heatmaps = self.flip_heatmaps(self.result_maps[-1][cur_batch_size:], flip_array, name="flip_heatmaps")
 
-            combined_heatmaps = tf.concat([raw_heatmaps, flipped_heatmaps], axis=0)
+            combined_heatmaps = tf.concat([raw_heatmaps, (raw_heatmaps + flipped_heatmaps) / 2.0], axis=0)
 
             all_pd_2d = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="heatmap_to_joints") * self.pose_2d_scale
 
             self.raw_pd_2d = all_pd_2d[0:cur_batch_size]
-            self.mean_pd_2d = (all_pd_2d[0:cur_batch_size] + all_pd_2d[cur_batch_size:]) / 2
+            self.mean_pd_2d = all_pd_2d[cur_batch_size:]
 
     def build_loss(self, input_maps, lr, lr_decay_step=None, lr_decay_rate=None):
         self.global_steps = tf.train.get_or_create_global_step()
