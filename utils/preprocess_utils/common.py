@@ -60,7 +60,8 @@ def center_pad_or_crop(img, joints_2d, size=256, pad_color=[128, 128, 128]):
     offset = (size - img_width) / 2.0
 
     if offset > 0:
-        if np.round(offset) > offset:
+        # !!!!! np.round 0.5 = 0
+        if round(offset) > offset:
             offset = int(offset)
             extra_pixel = 1
         else:

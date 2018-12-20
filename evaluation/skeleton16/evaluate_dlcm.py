@@ -24,7 +24,7 @@ configs = mConfigs("../eval.conf", "dlcm_net_mpii")
 ################ Reseting  #################
 configs.data_range = [0.1, 0.25, 0.5]
 configs.loss_weights = []
-configs.valid_scale = [0.0]
+configs.valid_scale = [-0.1, 0.0]
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
@@ -43,7 +43,7 @@ configs.valid_lbl_dir = "/home/kaihang/DataSet_2/Ordinal/mpii/valid/labels"
 configs.printConfig()
 preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0)
 
-restore_model_epoch = 128
+restore_model_epoch = 183
 #################################################################
 
 if __name__ == "__main__":
