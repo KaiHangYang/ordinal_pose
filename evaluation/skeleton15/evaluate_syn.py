@@ -5,50 +5,76 @@ import sys
 import tensorflow as tf
 import cv2
 import time
+import math
 
 sys.path.append("../../")
 from net import syn_net
+from utils.dataread_utils import epoch_reader
 from utils.preprocess_utils import syn_preprocess
 from utils.visualize_utils import display_utils
-from utils.common_utils import my_utils
-from utils.evaluate_utils import evaluators
 from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
+from utils.common_utils import my_utils
+from utils.evaluate_utils.evaluators import mEvaluatorFB_BR
 
-##################### Evaluation Configs ######################
-configs = mConfigs("../eval.conf", "syn_net_h36m")
-# configs = mConfigs("../eval.conf", "syn_net_mixed")
+##################### Setting for training ######################
+
+####################### Setting the training protocols ########################
+training_protocol = [
+        {"prefix": "syn_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
+        {"prefix": "syn_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
+        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 5, "mpii_range_file": "mpii_range.npy"}
+        ][2]
+###############################################################################
+configs = mConfigs("../eval.conf", training_protocol["prefix"])
+
+################ Reseting  #################
+configs.loss_weight_heatmap = 1.0
+configs.loss_weight_br = 1.0
+configs.loss_weight_fb = 1.0
+configs.pose_2d_scale = 4.0
+configs.is_use_bn = True
+configs.extra_data_scale = training_protocol["extra_data_scale"]
+configs.batch_size = 4
+
+configs.n_epoches = 100
+configs.learning_rate = 2.5e-4
+configs.gamma = 0.1
+configs.schedule = [30, 80]
+configs.valid_steps = 4
+
+configs.nFeats = 256
+configs.nModules = 2
+configs.nStacks = 2
+configs.nRegModules = 2
+
+configs.extra_log_dir = "../eval_result/" + configs.prefix
+
+### Use the smaller dataset to test and tune the hyper parameters
+
+configs.h36m_train_range_file = os.path.join(configs.range_file_dir, "train_range.npy")
+configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range.npy")
+configs.mpii_range_file = os.path.join(configs.range_file_dir, training_protocol["mpii_range_file"])
+configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
+
+################### Initialize the data reader ####################
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-evaluation_models = [560000]
-###############################################################
-
+restore_model_epoch = None
 if __name__ == "__main__":
+    ########################### Initialize the data list #############################
+    valid_range = np.load(configs.h36m_valid_range_file)
+    valid_img_list = [configs.h36m_valid_img_path_fn(i) for i in valid_range]
+    valid_lbl_list = [configs.h36m_valid_lbl_path_fn(i) for i in valid_range]
+    ###################################################################
+    valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
-    ################### Resetting ####################
-    configs.loss_weight_heatmap = 1
-    configs.loss_weight_fb = 1.0
-    configs.loss_weight_br = 1.0
-    configs.pose_2d_scale = 4.0
-    configs.is_use_bn = False
+    # now test the classification
+    input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
+    input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
 
-    configs.batch_size = configs.valid_batch_size
-
-    ### train or valid
-    configs.range_file =  configs.h36m_valid_range_file
-    configs.img_path_fn = configs.h36m_valid_img_path_fn
-    configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
-    ################### Initialize the data reader ###################
-
-    range_arr = np.load(configs.range_file)
-    data_from = 0
-    data_to = len(range_arr)
-    img_list = [configs.img_path_fn(i) for i in range_arr]
-    lbl_list = [configs.lbl_path_fn(i) for i in range_arr]
-
-    input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32)
-    syn_model = syn_net.mSynNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn)
+    syn_model = syn_net.mSynNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=configs.batch_size, is_training=False, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_fb=configs.loss_weight_fb, loss_weight_br=configs.loss_weight_br, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn)
 
     with tf.Session() as sess:
         with tf.device("/device:GPU:0"):
@@ -59,43 +85,38 @@ if __name__ == "__main__":
 
         model_saver = tf.train.Saver()
         net_init = tf.global_variables_initializer()
+
         sess.run([net_init])
-
-        for cur_model_iterations in evaluation_models:
-            fb_evaluator = evaluators.mEvaluatorFB_BR(nData=skeleton.n_bones)
-            br_evaluator = evaluators.mEvaluatorFB_BR(nData=(skeleton.n_bones-1)*skeleton.n_bones / 2)
-            pckh_evaluator = evaluators.mEvaluatorPCKh(n_joints=skeleton.n_joints, head_indices=skeleton.head_indices, data_range=[0.10, 0.25, 0.5])
-
-            data_index = my_utils.mRangeVariable(min_val=data_from, max_val=data_to-1, initial_val=data_from)
-            ################# Restore the model ################
-
-            if os.path.exists(configs.model_path_fn(cur_model_iterations)+".index"):
+        # reload the model
+        if restore_model_epoch is not None:
+            if os.path.exists(configs.model_path_fn(restore_model_epoch)+".index"):
                 print("#######################Restored all weights ###########################")
-                model_saver.restore(sess, configs.model_path_fn(cur_model_iterations))
+                model_saver.restore(sess, configs.model_path_fn(restore_model_epoch))
             else:
-                print(configs.model_path_fn(cur_model_iterations))
                 print("The prev model is not existing!")
                 quit()
-            ####################################################
 
-            while not data_index.isEnd():
+        cur_valid_global_steps = 0
 
-                batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-                batch_joints_2d_np = np.zeros([configs.batch_size, skeleton.n_joints, 2], dtype=np.float32)
+        if not train_valid_counter.is_training:
+            valid_data_reader.reset()
+            valid_relation_evaluator = mEvaluatorFB_BR(n_fb=skeleton.n_bones, n_br=(skeleton.n_bones-1) * skeleton.n_bones / 2)
+            is_epoch_finished = False
 
-                batch_fb_np = np.zeros([configs.batch_size, skeleton.n_bones], dtype=np.int32)
-                batch_br_np = np.zeros([configs.batch_size, (skeleton.n_bones-1) * skeleton.n_bones / 2], dtype=np.int32)
+            while not is_epoch_finished:
+                cur_batch, is_epoch_finished = valid_data_reader.get()
 
-                img_path_for_show = []
-                lbl_path_for_show = []
+                batch_size = len(cur_batch)
+                batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_joints_2d_np = np.zeros([batch_size, skeleton.n_joints, 2], dtype=np.float32)
+                batch_fb_np = np.zeros([batch_size, skeleton.n_bones], dtype=np.float32)
+                batch_br_np = np.zeros([batch_size, (skeleton.n_bones-1) * skeleton.n_bones / 2], dtype=np.float32)
 
-                for b in range(configs.batch_size):
-                    img_path_for_show.append(os.path.basename(img_list[data_index.val]))
-                    lbl_path_for_show.append(os.path.basename(lbl_list[data_index.val]))
+                for b in range(batch_size):
+                    assert(os.path.basename(cur_batch[b][0]).split(".")[0] == os.path.basename(cur_batch[b][1]).split(".")[0])
 
-                    cur_img = cv2.imread(img_list[data_index.val])
-                    cur_label = np.load(lbl_list[data_index.val]).tolist()
-                    data_index.val += 1
+                    cur_img = cv2.imread(cur_batch[b][0])
+                    cur_label = np.load(cur_batch[b][1]).tolist()
 
                     if "joints_3d" in cur_label.keys():
                         ##!!!!! the joints_3d is the joints under the camera coordinates !!!!!##
@@ -116,40 +137,31 @@ if __name__ == "__main__":
 
                         cur_img, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_base(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False)
 
-                    batch_images_np[b] = cur_img.copy()
+                    # generate the heatmaps
+                    batch_images_np[b] = cur_img
+                    cur_joints_2d = cur_joints_2d / configs.pose_2d_scale
+
                     batch_joints_2d_np[b] = cur_joints_2d.copy()
-                    batch_fb_np[b] = cur_bone_status.copy()
-                    batch_br_np[b] = cur_bone_relations[np.triu_indices(skeleton.n_bones, k=1)].copy()
+                    #### convert the bone_status and bone_relations to one-hot representation
+                    batch_fb_np[b] = cur_bone_status
+                    batch_br_np[b] = cur_bone_relations[np.triu_indices(skeleton.n_bones, k=1)] # only get the upper triangle
 
-                pd_fb, \
-                pd_br, \
-                pd_2d = sess.run([
-                        syn_model.pd_fb_result,
-                        syn_model.pd_br_result,
-                        syn_model.pd_2d
+                pd_fb_result, \
+                pd_br_result  = sess.run(
+                        [
+                         syn_model.pd_fb_result,
+                         syn_model.pd_br_result,
                         ],
-                        feed_dict={input_images: batch_images_np})
+                        feed_dict={input_images: batch_images_np,
+                                   input_batch_size: configs.batch_size})
 
-                print((len(lbl_path_for_show) * "{}\n").format(*zip(img_path_for_show, lbl_path_for_show)))
+                valid_relation_evaluator.add(gt_fb=batch_fb_np, pd_fb=pd_fb_result, gt_br=batch_br_np, pd_br=pd_br_result)
 
-                # ############# evaluate the coords recovered from the gt 2d and gt root depth
-                fb_evaluator.add(gt_info=batch_fb_np, pd_info=pd_fb)
-                br_evaluator.add(gt_info=batch_br_np, pd_info=pd_br)
-                pckh_evaluator.add(gt_2d=batch_joints_2d_np, pd_2d=pd_2d)
+                print("Validing | Epoch: {:05d}/{:05d}. Iteration: {:05d}/{:05d}".format(cur_epoch, configs.n_epoches, *valid_data_reader.progress()))
 
-                print("Current evaluate: {}-{}".format(configs.prefix, cur_model_iterations))
-                print("Bone status:")
-                fb_evaluator.printMean()
-                print("\n")
+                valid_relation_evaluator.printMean()
+                print("\n\n")
 
-                print("Bone relations:")
-                br_evaluator.printMean()
-                print("\n")
+                cur_valid_global_steps += 1
 
-                print("2D PCKh:")
-                pckh_evaluator.printMean()
-                print("\n")
-
-            fb_evaluator.save("../eval_result/{}/fb_{}w.npy".format(configs.prefix, cur_model_iterations / 10000))
-            br_evaluator.save("../eval_result/{}/br_{}w.npy".format(configs.prefix, cur_model_iterations / 10000))
-            pckh_evaluator.save("../eval_result/{}/pckh_{}w.npy".format(configs.prefix, cur_model_iterations / 10000))
+            valid_relation_evaluator.save(os.path.join(configs.extra_log_dir, "valid"), prefix="valid", epoch=cur_epoch)
