@@ -24,7 +24,7 @@ training_protocol = [
         {"prefix": "syn_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-11000", "extra_data_scale": 5, "mpii_range_file": "mpii_range.npy"}
-        ][2]
+        ][0]
 ###############################################################################
 
 configs = mConfigs("../train.conf", training_protocol["prefix"])
@@ -36,6 +36,7 @@ configs.loss_weight_fb = 1.0
 configs.pose_2d_scale = 4.0
 configs.is_use_bn = True
 configs.extra_data_scale = training_protocol["extra_data_scale"]
+configs.zero_debias_moving_mean = True
 
 configs.n_epoches = 100
 configs.learning_rate = 2.5e-4
@@ -102,7 +103,6 @@ if __name__ == "__main__":
 
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
-
     ###################################################################
 
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.train_batch_size, name="Train DataSet")
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
     input_lr = tf.placeholder(shape=[], dtype=tf.float32, name="input_lr")
 
-    syn_model = syn_net.mSynNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_fb=configs.loss_weight_fb, loss_weight_br=configs.loss_weight_br, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn)
+    syn_model = syn_net.mSynNet(nJoints=skeleton.n_joints, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weight_heatmap=configs.loss_weight_heatmap, loss_weight_fb=configs.loss_weight_fb, loss_weight_br=configs.loss_weight_br, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, zero_debias_moving_mean=configs.zero_debias_moving_mean)
 
     train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_steps, valid_steps=1)
 

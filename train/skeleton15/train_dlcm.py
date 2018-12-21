@@ -1,34 +1,58 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
 import cv2
 import time
+import math
 
 sys.path.append("../../")
 from net import dlcm_net
-from utils.dataread_utils import syn_reader as data_reader
+from utils.dataread_utils import epoch_reader
 from utils.preprocess_utils import dlcm_preprocess
 from utils.visualize_utils import display_utils
 from utils.defs.configs import mConfigs
 from utils.defs.skeleton import mSkeleton15 as skeleton
 from utils.common_utils import my_utils
+from utils.evaluate_utils.evaluators import mEvaluatorPCK
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "dlcm_net")
+
+####################### Setting the training protocols ########################
+training_protocol = [
+        {"prefix": "dlcm_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
+        {"prefix": "dlcm_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
+        {"prefix": "dlcm_mixed-11000", "extra_data_scale": 5, "mpii_range_file": "mpii_range.npy"}
+        ][0]
+###############################################################################
+configs = mConfigs("../train.conf", training_protocol["prefix"])
 ################ Reseting  #################
-configs.loss_weights = [10.0, 1.0, 1.0]
+configs.loss_weights = [5.0, 1.0, 1.0]
 configs.pose_2d_scale = 4.0
 configs.hm_size = int(configs.img_size / configs.pose_2d_scale)
 configs.is_use_bn = True
+configs.n_epoches = 150
 
+configs.extra_data_scale = training_protocol["extra_data_scale"]
+configs.data_range = [0.1, 0.25, 0.5]
+configs.extra_log_dir = "../train_log/" + configs.prefix
+configs.schedule = [40, 70, 120] # when at 180 epoch and 225 epoch, the learning rate is scaled by gamma
+configs.gamma = 0.1
 configs.learning_rate = 2.5e-4
-configs.lr_decay_rate = 0.10
-configs.lr_decay_step = 400000
+configs.zero_debias_moving_mean = True
+
 configs.nFeats = 256
 configs.nModules = 1
-################### Initialize the data reader ####################
+configs.valid_step = 4 # every 4 train epoch, valid once
+
+configs.h36m_train_range_file = os.path.join(configs.range_file_dir, "train_range.npy")
+configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range_training.npy")
+configs.mpii_range_file = os.path.join(configs.range_file_dir, training_protocol["mpii_range_file"])
+configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
+
+################### Initialize the preprocessor ####################
+
 configs.printConfig()
 preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs.img_size, hm_size=configs.hm_size, sigma=1.0)
 
@@ -38,10 +62,19 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_iteration = None
+restore_model_epoch = None
 #################################################################
 
+def get_learning_rate(configs, epoch):
+    decay = 0
+    for i in range(len(configs.schedule)):
+        if epoch >= configs.schedule[i]:
+            decay = 1 + i
+    return configs.learning_rate * math.pow(configs.gamma, decay)
+
+
 if __name__ == "__main__":
+    ########################### Initialize the data list #############################
     train_range = np.load(configs.h36m_train_range_file)
     np.random.shuffle(train_range)
 
@@ -60,16 +93,22 @@ if __name__ == "__main__":
     mpii_lsp_lbl_list = [configs.mpii_lbl_path_fn(i) for i in mpii_range] + [configs.lsp_lbl_path_fn(i) for i in lsp_range]
 
     # increase the mpii_lsp datas
-    mpii_lsp_img_list = mpii_lsp_img_list * 10
-    mpii_lsp_lbl_list = mpii_lsp_lbl_list * 10
+    mpii_lsp_img_list = mpii_lsp_img_list * configs.extra_data_scale
+    mpii_lsp_lbl_list = mpii_lsp_lbl_list * configs.extra_data_scale
 
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
+
+    train_img_list = train_img_list[0:100]
+    train_lbl_list = train_lbl_list[0:100]
+
+    valid_img_list = valid_img_list[0:100]
+    valid_lbl_list = valid_lbl_list[0:100]
+
     ###################################################################
 
-    with tf.device('/cpu:0'):
-        train_data_iter, train_data_init_op = data_reader.get_data_iterator(train_img_list, train_lbl_list, batch_size=configs.train_batch_size, name="train_reader")
-        valid_data_iter, valid_data_init_op = data_reader.get_data_iterator(valid_img_list, valid_lbl_list, batch_size=configs.valid_batch_size, name="valid_reader", is_shuffle=False)
+    train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.train_batch_size, name="Train DataSet")
+    valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.valid_batch_size, name="Valid DataSet")
 
     # now test the classification
     input_images = tf.placeholder(shape=[None, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
@@ -80,89 +119,96 @@ if __name__ == "__main__":
 
     input_is_training = tf.placeholder(shape=[], dtype=tf.bool, name="input_is_training")
     input_batch_size = tf.placeholder(shape=[], dtype=tf.float32, name="input_batch_size")
+    input_lr = tf.placeholder(shape=[], dtype=tf.float32, name="input_learning_rate")
 
-    dlcm_model = dlcm_net.mDLCMNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weights=configs.loss_weights, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules)
+    dlcm_model = dlcm_net.mDLCMNet(skeleton=skeleton, img_size=configs.img_size, batch_size=input_batch_size, is_training=input_is_training, loss_weights=configs.loss_weights, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules, zero_debias_moving_mean=configs.zero_debias_moving_mean)
 
-    train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_iter, valid_steps=1)
+    train_valid_counter = my_utils.mTrainValidCounter(train_steps=configs.valid_step, valid_steps=1)
+
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
             dlcm_model.build_model(input_images)
 
-        dlcm_model.build_loss(input_maps=input_maps, lr=configs.learning_rate, lr_decay_step=configs.lr_decay_step, lr_decay_rate=configs.lr_decay_rate)
+        dlcm_model.build_loss(input_maps=input_maps, lr=input_lr)
 
         train_log_writer = tf.summary.FileWriter(logdir=train_log_dir, graph=sess.graph)
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
         print("Network built!")
 
-        model_saver = tf.train.Saver(max_to_keep=70)
+        model_saver = tf.train.Saver(max_to_keep=10)
         net_init = tf.global_variables_initializer()
 
-        sess.run([train_data_init_op, valid_data_init_op, net_init])
+        sess.run([net_init])
         # reload the model
-        if restore_model_iteration is not None:
-            if os.path.exists(configs.model_path_fn(restore_model_iteration)+".index"):
+        if restore_model_epoch is not None:
+            if os.path.exists(configs.model_path_fn(restore_model_epoch)+".index"):
                 print("#######################Restored all weights ###########################")
-                model_saver.restore(sess, configs.model_path_fn(restore_model_iteration))
+                model_saver.restore(sess, configs.model_path_fn(restore_model_epoch))
             else:
                 print("The prev model is not existing!")
                 quit()
 
-        while True:
-            global_steps = sess.run(dlcm_model.global_steps)
+        cur_train_global_steps = 0
+        cur_valid_global_steps = 0
 
-            # get the data path
-            cur_img_batch, cur_lbl_batch = sess.run(train_data_iter if train_valid_counter.is_training else valid_data_iter)
+        cur_max_acc = 0
 
-            batch_size = len(cur_img_batch)
-            batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
-            batch_heatmaps_level_0 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[0]], dtype=np.float32)
-            batch_heatmaps_level_1 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[1]], dtype=np.float32)
-            batch_heatmaps_level_2 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[2]], dtype=np.float32)
+        for cur_epoch in range(0 if restore_model_epoch is None else restore_model_epoch, configs.n_epoches):
 
-            img_path_for_show = [[] for i in range(batch_size)]
-            lbl_path_for_show = [[] for i in range(batch_size)]
+            cur_learning_rate = get_learning_rate(configs, cur_epoch)
 
-            for b in range(batch_size):
-                img_path_for_show[b] = os.path.basename(cur_img_batch[b])
-                lbl_path_for_show[b] = os.path.basename(cur_lbl_batch[b])
+            ################### Train #################
+            train_pck_evaluator = mEvaluatorPCK(skeleton=skeleton, data_range=configs.data_range)
+            train_data_reader.reset()
+            is_epoch_finished = False
+            while not is_epoch_finished:
+                # get the data path
+                cur_batch, is_epoch_finished = train_data_reader.get()
 
-                cur_img = cv2.imread(cur_img_batch[b])
-                cur_label = np.load(cur_lbl_batch[b]).tolist()
+                batch_size = len(cur_batch)
+                batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                batch_joints_2d_np = np.zeros([batch_size, skeleton.n_joints, 2], dtype=np.float32)
+                batch_heatmaps_level_0 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[0]], dtype=np.float32)
+                batch_heatmaps_level_1 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[1]], dtype=np.float32)
+                batch_heatmaps_level_2 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[2]], dtype=np.float32)
 
-                if "joints_3d" in cur_label.keys():
-                    # human3.6m datas
-                    cur_joints_2d = cur_label["joints_2d"].copy()[skeleton.h36m_selected_index]
-                else:
-                    cur_joints_2d = cur_label["joints_2d"].copy()
+                for b in range(batch_size):
 
-                cur_img, cur_maps, cur_joints_2d = preprocessor.preprocess(img=cur_img, joints_2d=cur_joints_2d, is_training=train_valid_counter.is_training)
+                    cur_img = cv2.imread(cur_batch[b][0])
+                    cur_lbl = np.load(cur_batch[b][1]).tolist()
 
-                # generate the heatmaps
-                batch_images_np[b] = cur_img
+                    if "joints_3d" in cur_lbl.keys():
+                        cur_joints_2d = cur_lbl["joints_2d"].copy()[skeleton.h36m_selected_index]
+                    else:
+                        cur_joints_2d = cur_lbl["joints_2d"].copy()
 
-                batch_heatmaps_level_0[b] = cur_maps[0]
-                batch_heatmaps_level_1[b] = cur_maps[1]
-                batch_heatmaps_level_2[b] = cur_maps[2]
+                    cur_img, cur_maps, cur_joints_2d = preprocessor.preprocess(img=cur_img, joints_2d=cur_joints_2d, is_training=True)
 
-                ########## Visualize the datas ###########
-                # cv2.imshow("img", cur_img)
-                # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
+                    # generate the heatmaps
+                    batch_joints_2d_np[b] = cur_joints_2d * configs.pose_2d_scale
+                    batch_images_np[b] = cur_img
+                    batch_heatmaps_level_0[b] = cur_maps[0]
+                    batch_heatmaps_level_1[b] = cur_maps[1]
+                    batch_heatmaps_level_2[b] = cur_maps[2]
 
-                # hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
-                # hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
-                # hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
+                    ########## Visualize the datas ###########
+                    # cv2.imshow("img", cur_img)
+                    # cv2.imshow("test", display_utils.drawLines((255.0 * cur_img).astype(np.uint8), cur_joints_2d * configs.pose_2d_scale, indices=skeleton.bone_indices, color_table=skeleton.bone_colors * 255))
 
-                # cv2.imshow("hm_0", hm_level_0)
-                # cv2.imshow("hm_1", hm_level_1)
-                # cv2.imshow("hm_2", hm_level_2)
+                    # hm_level_0 = np.concatenate(np.transpose(cur_maps[0], axes=[2, 0, 1]), axis=1)
+                    # hm_level_1 = np.concatenate(np.transpose(cur_maps[1], axes=[2, 0, 1]), axis=1)
+                    # hm_level_2 = np.concatenate(np.transpose(cur_maps[2], axes=[2, 0, 1]), axis=1)
 
-                # cv2.waitKey()
-                ##########################################
+                    # cv2.imshow("hm_0", hm_level_0)
+                    # cv2.imshow("hm_1", hm_level_1)
+                    # cv2.imshow("hm_2", hm_level_2)
 
-            PREPROCESS_TIME = time.clock()
-            if train_valid_counter.is_training:
+                    # cv2.waitKey()
+                    ##########################################
+
                 _, \
+                pd_2d, \
                 acc_hm, \
                 total_loss,\
                 heatmaps_loss, \
@@ -170,6 +216,7 @@ if __name__ == "__main__":
                 summary  = sess.run(
                         [
                          dlcm_model.train_op,
+                         dlcm_model.pd_2d,
                          dlcm_model.heatmaps_acc,
                          dlcm_model.total_loss,
                          dlcm_model.losses,
@@ -179,46 +226,107 @@ if __name__ == "__main__":
                                    input_heatmaps_level_0: batch_heatmaps_level_0,
                                    input_heatmaps_level_1: batch_heatmaps_level_1,
                                    input_heatmaps_level_2: batch_heatmaps_level_2,
+                                   input_lr: cur_learning_rate,
                                    input_is_training: True,
                                    input_batch_size: configs.train_batch_size})
-                train_log_writer.add_summary(summary, global_steps)
-            else:
-                acc_hm, \
-                total_loss, \
-                heatmaps_loss, \
-                lr, \
-                summary  = sess.run(
-                        [
-                         dlcm_model.heatmaps_acc,
-                         dlcm_model.total_loss,
-                         dlcm_model.losses,
-                         dlcm_model.lr,
-                         dlcm_model.merged_summary],
-                        feed_dict={input_images: batch_images_np,
-                                   input_heatmaps_level_0: batch_heatmaps_level_0,
-                                   input_heatmaps_level_1: batch_heatmaps_level_1,
-                                   input_heatmaps_level_2: batch_heatmaps_level_2,
-                                   input_is_training: False,
-                                   input_batch_size: configs.valid_batch_size})
-                valid_log_writer.add_summary(summary, global_steps)
+                train_log_writer.add_summary(summary, cur_train_global_steps)
+                train_pck_evaluator.add(gt_2d=np.round(batch_joints_2d_np), pd_2d=pd_2d, norm=configs.img_size / 10.0)
 
-            PREPROCESS_TIME = time.clock() - PREPROCESS_TIME
-            print("Preprocess time: {}".format(PREPROCESS_TIME))
+                print("Training | Epoch: {:05d}/{:05d}. Iteration: {:05d}/{:05d}".format(cur_epoch, configs.n_epoches, *train_data_reader.progress()))
+                print("learning_rate: {:07f}".format(lr))
+                print("Heatmap pixel error: {}".format(acc_hm))
+                print("Total loss: {:.08f}".format(total_loss))
+                for l_idx in range(len(heatmaps_loss)):
+                    print("Heatmap loss level {}: {}".format(l_idx, heatmaps_loss[l_idx]))
+                train_pck_evaluator.printMean()
 
-            print("Train Iter:\n" if train_valid_counter.is_training else "Valid Iter:\n")
-            print("Iteration: {:07d} \nlearning_rate: {:07f} \nTotal Loss : {:07f}".format(global_steps, lr, total_loss))
-            for l_idx in range(len(heatmaps_loss)):
-                print("Heatmap loss level {}: {}".format(l_idx, heatmaps_loss[l_idx]))
+                print("\n\n")
+                cur_train_global_steps += 1
 
-            print("Heatmap Accuracy: {}\n".format(acc_hm))
-            print((len(img_path_for_show) * "{}\n").format(*zip(img_path_for_show, lbl_path_for_show)))
-            print("\n\n")
+            train_pck_evaluator.save(os.path.join(configs.extra_log_dir, "train"), prefix="train", epoch=cur_epoch)
 
-            if global_steps % 20000 == 0 and train_valid_counter.is_training:
-                model_saver.save(sess=sess, save_path=configs.model_path, global_step=global_steps)
-
-            if global_steps >= configs.train_iter and train_valid_counter.is_training:
-                break
-
-            ################### Pay attention to this !!!!!!################
             train_valid_counter.next()
+            ############## Evaluate ################
+
+            if not train_valid_counter.is_training:
+                valid_data_reader.reset()
+                valid_pck_evaluator = mEvaluatorPCK(skeleton=skeleton, data_range=configs.data_range)
+
+                is_epoch_finished = False
+                while not is_epoch_finished:
+                    # get the data path
+                    cur_batch, is_epoch_finished = valid_data_reader.get()
+
+                    batch_size = len(cur_batch)
+
+                    batch_images_np = np.zeros([batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
+                    batch_joints_2d_np = np.zeros([batch_size, skeleton.n_joints, 2], dtype=np.float32)
+
+                    batch_heatmaps_level_0 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[0]], dtype=np.float32)
+                    batch_heatmaps_level_1 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[1]], dtype=np.float32)
+                    batch_heatmaps_level_2 = np.zeros([batch_size, configs.hm_size, configs.hm_size, skeleton.level_nparts[2]], dtype=np.float32)
+
+                    for b in range(batch_size):
+
+                        cur_img = cv2.imread(cur_batch[b][0])
+                        cur_lbl = np.load(cur_batch[b][1]).tolist()
+
+                        if "joints_3d" in cur_lbl.keys():
+                            cur_joints_2d = cur_lbl["joints_2d"].copy()[skeleton.h36m_selected_index]
+                        else:
+                            cur_joints_2d = cur_lbl["joints_2d"].copy()
+
+                        cur_img, cur_maps, cur_joints_2d = preprocessor.preprocess(img=cur_img, joints_2d=cur_joints_2d, is_training=False)
+
+                        # generate the heatmaps
+                        batch_images_np[b] = cur_img
+                        batch_joints_2d_np[b] = cur_joints_2d * configs.pose_2d_scale
+                        batch_heatmaps_level_0[b] = cur_maps[0]
+                        batch_heatmaps_level_1[b] = cur_maps[1]
+                        batch_heatmaps_level_2[b] = cur_maps[2]
+
+                    acc_hm, \
+                    pd_2d, \
+                    total_loss,\
+                    heatmaps_loss, \
+                    lr,\
+                    summary  = sess.run(
+                            [
+                             dlcm_model.heatmaps_acc,
+                             dlcm_model.pd_2d,
+                             dlcm_model.total_loss,
+                             dlcm_model.losses,
+                             dlcm_model.lr,
+                             dlcm_model.merged_summary],
+                            feed_dict={input_images: batch_images_np,
+                                       input_heatmaps_level_0: batch_heatmaps_level_0,
+                                       input_heatmaps_level_1: batch_heatmaps_level_1,
+                                       input_heatmaps_level_2: batch_heatmaps_level_2,
+                                       input_lr: cur_learning_rate,
+                                       input_is_training: False,
+                                       input_batch_size: configs.valid_batch_size})
+
+                    valid_log_writer.add_summary(summary, cur_valid_global_steps)
+
+                    valid_pck_evaluator.add(gt_2d=np.round(batch_joints_2d_np), pd_2d=pd_2d, norm=configs.img_size / 10.0)
+
+                    print("Validing | Epoch: {:05d}/{:05d}. Iteration: {:05d}/{:05d}".format(cur_epoch, configs.n_epoches, *valid_data_reader.progress()))
+                    print("learning_rate: {:07f}".format(lr))
+                    print("Heatmap pixel error: {}".format(acc_hm))
+                    print("Total loss: {:.08f}".format(total_loss))
+                    for l_idx in range(len(heatmaps_loss)):
+                        print("Heatmap loss level {}: {}".format(l_idx, heatmaps_loss[l_idx]))
+                    valid_pck_evaluator.printMean()
+                    print("\n\n")
+                    cur_valid_global_steps += 1
+
+                valid_pck_evaluator.save(os.path.join(configs.extra_log_dir, "valid"), prefix="valid", epoch=cur_epoch)
+                valid_score_mean, _ = valid_pck_evaluator.mean()
+
+                if cur_max_acc < valid_score_mean[-1]:
+                    #### Only save the higher score models
+                    with open(os.path.join(configs.model_dir, "best_model.txt"), "w") as f:
+                        f.write("{}".format(cur_epoch))
+
+                    cur_max_acc = valid_score_mean[-1]
+                    model_saver.save(sess=sess, save_path=configs.model_path, global_step=cur_epoch)

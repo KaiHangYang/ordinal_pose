@@ -28,7 +28,7 @@ class DLCMProcessor(object):
             "img_size": self.img_size,
             "crop_box_size": self.img_size,
             "num_of_joints": self.n_joints,
-            "scale_range": [-0.10, 0.30],# max is 0.5 no scale now
+            "scale_range": 0.25,# max is 0.5 no scale now
             "rotate_range": 30, # max 45
             "shift_range": 0, # pixel
             "is_flip": 1,

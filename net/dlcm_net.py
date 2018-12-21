@@ -12,7 +12,7 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mDLCMNet(object):
-    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weights, pose_2d_scale, is_use_bn, nFeats=256, nModules=1):
+    def __init__(self, skeleton, is_training, batch_size, img_size, loss_weights, pose_2d_scale, is_use_bn, nFeats=256, nModules=1, zero_debias_moving_mean=False):
         self.model_name = "DLCMNet"
 
         self.loss_weights = loss_weights
@@ -25,7 +25,8 @@ class mDLCMNet(object):
         self.is_tiny = False
         self.is_use_bn = is_use_bn
         self.is_training = is_training
-        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn)
+        self.zero_debias_moving_mean = zero_debias_moving_mean
+        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn, zero_debias_moving_mean=self.zero_debias_moving_mean)
         self.batch_size = batch_size
         self.feature_size = 64
 
@@ -39,10 +40,10 @@ class mDLCMNet(object):
 
     def build_model(self, input_images):
         with tf.variable_scope(self.model_name):
-            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=3, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
+            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=3, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1", zero_debias_moving_mean=self.zero_debias_moving_mean)
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling1")
-            net = mConvBnRelu(inputs=net, nOut=64, kernel_size=3, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv2")
-            net = mConvBnRelu(inputs=net, nOut=64, kernel_size=3, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv3")
+            net = mConvBnRelu(inputs=net, nOut=64, kernel_size=3, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv2", zero_debias_moving_mean=self.zero_debias_moving_mean)
+            net = mConvBnRelu(inputs=net, nOut=64, kernel_size=3, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv3", zero_debias_moving_mean=self.zero_debias_moving_mean)
 
             net = self.res_utils.residual_block(net, 128, name="res1")
             net = tf.layers.max_pooling2d(net, 2, 2, name="pooling2")
@@ -56,7 +57,7 @@ class mDLCMNet(object):
                     hg = hourglass.build_hourglass(inter, self.nFeats, 4, name="hg", is_training=self.is_training, nModules=self.nModules, res_utils=self.res_utils)
 
                     ll = hg
-                    ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin")
+                    ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin", zero_debias_moving_mean=self.zero_debias_moving_mean)
 
                     n_heatmaps = self.nParts[l_idx]
                     tmp_out = tf.layers.conv2d(inputs=ll, filters=n_heatmaps, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="result_map")
@@ -80,7 +81,7 @@ class mDLCMNet(object):
                     hg = hourglass.build_hourglass(inter, self.nFeats, 4, name="hg", is_training=self.is_training, nModules=self.nModules, res_utils=self.res_utils)
 
                     ll = hg
-                    ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin")
+                    ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin", zero_debias_moving_mean=self.zero_debias_moving_mean)
 
                     n_heatmaps = self.nParts[l_idx]
                     tmp_out = tf.layers.conv2d(inputs=ll, filters=n_heatmaps, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="result_map")

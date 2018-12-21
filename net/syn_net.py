@@ -12,7 +12,7 @@ import hourglass
 
 # is_training is a tensor or python bool
 class mSynNet(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, pose_2d_scale=4, nModules=2, nStacks=2, nRegModules=2, nFeats=256, is_use_bn=True):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_fb=1.0, loss_weight_br=1.0, pose_2d_scale=4, nModules=2, nStacks=2, nRegModules=2, nFeats=256, is_use_bn=True, zero_debias_moving_mean=False):
         self.model_name = "SynNet"
 
         self.loss_weight_heatmap = loss_weight_heatmap
@@ -26,7 +26,8 @@ class mSynNet(object):
         self.is_tiny = False
         self.is_use_bn = is_use_bn
         self.is_training = is_training
-        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn)
+        self.zero_debias_moving_mean = zero_debias_moving_mean
+        self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn, zero_debias_moving_mean=self.zero_debias_moving_mean)
         self.batch_size = batch_size
         self.feature_size = 64
         self.nModules = nModules
@@ -38,7 +39,7 @@ class mSynNet(object):
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
         with tf.variable_scope(self.model_name):
-            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
+            net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1", zero_debias_moving_mean=self.zero_debias_moving_mean)
 
             net = self.res_utils.residual_block(net, 128, name="res1")
             net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
@@ -53,7 +54,7 @@ class mSynNet(object):
                     with tf.variable_scope("ll_block"):
                         for i in range(self.nModules):
                             ll = self.res_utils.residual_block(ll, self.nFeats, name="res{}".format(i))
-                        ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin")
+                        ll = mConvBnRelu(inputs=ll, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin", zero_debias_moving_mean=self.zero_debias_moving_mean)
 
                     with tf.variable_scope("out"):
                         # output the heatmaps
