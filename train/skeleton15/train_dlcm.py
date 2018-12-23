@@ -22,8 +22,7 @@ from utils.evaluate_utils.evaluators import mEvaluatorPCK
 ####################### Setting the training protocols ########################
 training_protocol = [
         {"prefix": "dlcm_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "dlcm_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "dlcm_mixed-11000", "extra_data_scale": 5, "mpii_range_file": "mpii_range.npy"}
+        {"prefix": "dlcm_mixed-15000", "extra_data_scale": 5, "mpii_range_file": "mpii_range_1.2w.npy"}
         ][0]
 ###############################################################################
 configs = mConfigs("../train.conf", training_protocol["prefix"])
