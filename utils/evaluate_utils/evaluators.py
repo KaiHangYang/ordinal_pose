@@ -78,6 +78,43 @@ class mEvaluatorPose3D(object):
             os.makedirs(os.path.dirname(path))
         np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
 
+# Evaluate the pixel Error under 256x256
+class mEvaluatorPose2D(object):
+    def __init__(self, nJoints=15):
+        self.nJoints = nJoints
+        self.avg_counter = my_utils.mAverageCounter(shape=self.nJoints)
+
+    def add(self, gt_2d, pd_2d):
+        assert(gt_2d.shape == pd_2d.shape)
+        gt_2d = np.reshape(gt_2d, [-1, self.nJoints, 2])
+        pd_2d = np.reshape(pd_2d, [-1, self.nJoints, 2])
+
+        for batch_num in range(gt_2d.shape[0]):
+            mpje_arr = np.linalg.norm(gt_2d[batch_num] - pd_2d[batch_num], axis=1)
+            self.avg_counter.add(mpje_arr)
+
+    def mean(self):
+        return self.avg_counter.mean()
+
+    def get(self):
+        return self.avg_counter.cur_average
+
+    def printMean(self):
+        print("MPJE(distance / px): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
+
+    def save(self, save_dir, prefix, epoch):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        mean = self.mean()
+
+        data_file = os.path.join(save_dir, "{}-{}.npy".format(prefix, epoch))
+        np.save(data_file, {"mean": mpje, "per_joints": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
+
+        log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
+        with open(log_file, "aw") as f:
+            f.write(("Epoch: {:05d} | MPJE(pixel): {:0.4f}\n").format(epoch, mean))
+
 ############### Evaluator for BR and FB accuracy ############
 class mEvaluatorFB_BR(object):
     def __init__(self, n_fb, n_br):
