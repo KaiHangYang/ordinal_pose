@@ -3,6 +3,7 @@ import cv2
 import os
 import sys
 import networkx
+import math
 
 from common import *
 import common
@@ -12,11 +13,13 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, bg_color=0.2, pad_scale=0.2):
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, bg_color=0.2, pad_scale=0.2, angle_jitter_size=math.pi/20, bonelength_jitter_size=30):
         self.with_br = with_br
         self.with_fb = with_fb
 
         self.pad_scale = pad_scale
+        self.angle_jitter_size = angle_jitter_size
+        self.bonelength_jitter_size = bonelength_jitter_size
 
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
@@ -68,34 +71,33 @@ class PoseProcessor(object):
 
 
     def preprocess(self, angles, bone_lengths, root_pos, cam_mat, is_training=True):
+
         if is_training:
             angles = self.skeleton.jitter_angles(angles, jitter_size=self.angle_jitter_size)
-
-
-        else:
+            bone_lengths = self.skeleton.jitter_bonelengths(bone_lengths, jitter_size=self.bonelength_jitter_size)
 
         joints_2d, joints_3d, center, scale = self.assemble_pose(angles=angles, bone_lengths=bone_lengths, root_pos=root_pos, cam_mat=cam_mat)
 
         #### Paint the synthetic image
         if self.with_br:
-            aug_bone_order, _ = self.get_bone_relations(joints_2d, joints_3d, scale, center, cam_mat)
+            bone_order, _ = self.get_bone_relations(joints_2d, joints_3d, scale, center, cam_mat)
         else:
-            aug_bone_order = np.arange(0, self.n_bones, 1)
+            bone_order = np.arange(0, self.n_bones, 1)
 
         if self.with_fb:
-            aug_bone_status = self.recalculate_bone_status(aug_joints_3d[:, 2])
+            bone_status = self.recalculate_bone_status(joints_3d[:, 2])
         else:
-            aug_bone_status = np.zeros([self.n_bones])
+            bone_status = np.zeros([self.n_bones])
 
-        aug_img = self.draw_syn_img(joints_2d=aug_joints_2d, bone_status=aug_bone_status, bone_order=aug_bone_order)
+        img = self.draw_syn_img(joints_2d=joints_2d, bone_status=bone_status, bone_order=bone_order)
 
-        if np.max(aug_img) >= 2:
-            aug_img = aug_img / 255.0
+        if np.max(img) >= 2:
+            img = img / 255.0
 
         ####  Set the joints_3d related to the root
-        aug_joints_3d = aug_joints_3d - aug_joints_3d[0]
+        joints_3d = joints_3d - joints_3d[0]
 
-        return aug_img, aug_joints_2d, aug_joints_3d
+        return img, joints_2d, joints_3d
 
     def recalculate_bone_status(self, joints_z):
         bone_status = []
