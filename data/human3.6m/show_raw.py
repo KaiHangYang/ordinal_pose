@@ -3,18 +3,21 @@ import sys
 import numpy as np
 import cv2
 sys.path.append("../../")
+import time
+import math
 
 from utils.visualize_utils import display_utils
 from utils.visualize_utils import visualize_tools as vtools
 from utils.common_utils import my_utils
 from utils.common_utils import h36m_camera
+from utils.common_utils import math_utils
 from utils.defs import pose_defs
 from utils.postprocess_utils import volume_utils
 from utils.preprocess_utils import get_bone_relations
 from utils.defs.skeleton import mSkeleton15 as skeleton
 from utils.preprocess_utils import pose_preprocess
 
-preprocessor = pose_preprocess.PoseProcessor(skeleton, 256)
+preprocessor = pose_preprocess.PoseProcessor(skeleton, 256, with_fb=True, with_br=True)
 
 ############## some Parameters
 data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/"
@@ -50,6 +53,7 @@ class m_btn_callback(object):
     def get_going(cls):
         return cls.keep_going
 
+
 if __name__ == "__main__":
     total_sum = len(os.listdir(os.path.join(data_path, "images")))
     data_index = my_utils.mRangeVariable(0, total_sum, -1)
@@ -61,7 +65,7 @@ if __name__ == "__main__":
     view_mat = np.identity(4)
     proj_mat, _ = h36m_camera.get_cam_mat(1, 54138969)
 
-    visualBox = vtools.mVisualBox(wnd_width, wnd_height, title="ordinal show", btn_callback=m_btn_callback, proj_mat=proj_mat, view_mat=view_mat, limbs_n_root=[pose_defs.h36m_pose, pose_defs.h36m_root], model_size=30.0)
+    visualBox = vtools.mVisualBox(wnd_width, wnd_height, title="ordinal show", btn_callback=m_btn_callback, proj_mat=proj_mat, view_mat=view_mat, limbs_n_root=[skeleton.bone_indices, 0], model_size=30.0)
 
     while not visualBox.checkStop():
         visualBox.begin()
@@ -79,18 +83,14 @@ if __name__ == "__main__":
 
             cur_index = data_index.val
             # cur_index = 1228
-
-            print(cur_index)
+            # print(cur_index)
 
             # cropped_img = cv2.imread(images_file_fn(cur_index))
             cropped_img = cv2.resize(cv2.imread(images_file_fn(cur_index)), (256, 256))
             cur_label = np.load(annots_file_fn(cur_index)).tolist()
 
-            joints_3d = cur_label["joints_3d"]
-            joints_2d = cur_label["joints_2d"]
-
-            raw_joints_2d = joints_2d.copy()
-            raw_joints_3d = joints_3d.copy()
+            joints_3d = cur_label["joints_3d"][skeleton.h36m_selected_index]
+            joints_2d = cur_label["joints_2d"][skeleton.h36m_selected_index]
 
             cur_depth = joints_3d[:, 2] - joints_3d[0, 2]
             root_depth = joints_3d[0, 2]
@@ -100,42 +100,38 @@ if __name__ == "__main__":
 
             cur_img = volume_utils.put_cropped_back(cropped_img, cur_label["center"], cur_label["scale"])
 
-            cur_img = display_utils.drawLines(cur_img, joints_2d, indices=pose_defs.h36m_pose)
+            cur_img = display_utils.drawLines(cur_img, joints_2d, indices=skeleton.bone_indices)
             cur_img = display_utils.drawPoints(cur_img, joints_2d)
 
+            ############## Test to handler the joints_3d ##############
 
-            raw_joints_2d = raw_joints_2d[skeleton.h36m_selected_index]
-            raw_joints_3d = raw_joints_3d[skeleton.h36m_selected_index]
+            test_joints_3d = joints_3d.copy()
+            bone_lengths = skeleton.get_bonelengths(test_joints_3d)
 
-            result_data = get_bone_relations.get_bone_relations(raw_joints_2d.flatten().astype(np.float64).tolist(), raw_joints_3d.flatten().astype(np.float64).tolist(), cur_label["scale"], cur_label["center"].astype(np.float64).tolist(), np.array([cur_label["cam_mat"][0, 0], cur_label["cam_mat"][1, 1], cur_label["cam_mat"][0, 2], cur_label["cam_mat"][1, 2]]).tolist(), 256, 6*2, 1);
-            result_data = np.reshape(result_data, [-1, skeleton.n_bones])
-            new_bone_orders = result_data[0]
-            new_bone_relations = result_data[1:]
-            new_img = preprocessor.draw_syn_img(raw_joints_2d, preprocessor.recalculate_bone_status(raw_joints_3d[:, 2]), new_bone_orders)
-            cv2.imshow("syn_new", new_img)
+            root_joint = test_joints_3d[0].copy()
+            test_joints_3d = test_joints_3d - root_joint
 
-            # bone_orders = cur_label["bone_order"]
-            # bone_relations = cur_label["bone_relations"]
+            GET_ANGLE_TIME = time.clock()
+            angles = skeleton.get_angles(test_joints_3d)
+            # angles = np.zeros([skeleton.n_joints, 3])
+            GET_ANGLE_TIME = time.clock() - GET_ANGLE_TIME
 
+            angles = skeleton.jitter_angles(angles, jitter_size = math.pi / 20)
+            bone_lengths = skeleton.jitter_bonelengths(bone_lengths, jitter_size=30)
 
-            # assert((bone_orders == new_bone_orders).all())
-            # assert((bone_relations == new_bone_relations).all())
+            RECOVER_JOINTS_TIME = time.clock()
+            test_joints_3d = skeleton.get_joints(angles, bone_lengths) + root_joint
+            RECOVER_JOINTS_TIME = time.clock() - RECOVER_JOINTS_TIME
 
-            # old_img = preprocessor.draw_syn_img(raw_joints_2d, cur_label["bone_status"], bone_orders)
+            sys.stdout.write("\rget angle time {:0.4f}s, recover time {:0.4f}s".format(GET_ANGLE_TIME, RECOVER_JOINTS_TIME))
+            sys.stdout.flush()
 
-            # cv2.imshow("syn_old", old_img)
-
-            # for i in range(len(cur_bone_order)):
-                # for j in range(len(cur_bone_order)):
-                    # if cur_bone_relations[i][j] == 1:
-                        # assert(cur_bone_order.index(i) > cur_bone_order.index(j))
-                    # elif cur_bone_relations[i][j] == 2:
-                        # assert(cur_bone_order.index(i) < cur_bone_order.index(j))
-
+            ##########################################################
 
         cv2.imshow("img_2d", cropped_img)
         cv2.waitKey(4)
 
-        visualBox.draw(cur_img, [joints_3d], [[1, 1, 1]])
+        visualBox.draw(cur_img, [joints_3d, test_joints_3d], [[1, 1, 1], [0, 1, 1]])
+        # visualBox.draw(cur_img, [joints_3d], [[1, 1, 1]])
         visualBox.end()
     visualBox.terminate()

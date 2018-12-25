@@ -199,6 +199,25 @@ def img2show(train_image, image_pixel_range):
 def img2train(img, image_pixel_range):
     return (image_pixel_range[1] - image_pixel_range[0]) * (img / 255.0) + image_pixel_range[0]
 
+
+def crop_joints_2d(joints_2d, target_box_size=256, pad_scale=0.2):
+    min_x = np.min(joints_2d[:, 0])
+    min_y = np.min(joints_2d[:, 1])
+    max_x = np.max(joints_2d[:, 0])
+    max_y = np.max(joints_2d[:, 1])
+
+    center = [(min_x + max_x) / 2.0, (min_y + max_y) / 2.0]
+    cur_box_size = np.max(max_x - min_x, max_y - min_y) * (1 + pad_scale)
+
+    offset_x = center[0] - cur_box_size / 2.0
+    offset_y = center[1] - cur_box_size / 2.0
+
+    scale = cur_box_size / target_box_size
+
+    joints_2d = (joints_2d - [offset_x, offset_y]) / scale
+
+    return joints_2d, center, scale
+
 def get_crop_from_center(img, center, scale, crop_box_size = 256, pad_color=[127.5, 127.5, 127.5]):
     img_width = img.shape[1]
     img_height = img.shape[0]

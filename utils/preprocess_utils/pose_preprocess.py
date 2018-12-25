@@ -12,9 +12,11 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, bg_color=0.2):
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, bg_color=0.2, pad_scale=0.2):
         self.with_br = with_br
         self.with_fb = with_fb
+
+        self.pad_scale = pad_scale
 
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
@@ -31,7 +33,7 @@ class PoseProcessor(object):
             "img_size": self.img_size,
             "crop_box_size": self.img_size,
             "num_of_joints": self.n_joints,
-            "scale_range": 0.10,# max is 0.5 no scale now
+            "scale_range": 0.00,# max is 0.5 no scale now
             "rotate_range": 0, # max 45
             "shift_range": 0, # pixel
             "is_flip": 0,
@@ -55,30 +57,28 @@ class PoseProcessor(object):
 
         return bone_order, bone_relations
 
-    # TODO the joints_2d must be the cropped one, the joints_3d shouldn't be the root related
-    def preprocess(self, joints_2d, joints_3d, scale=None, center=None, cam_mat=None, is_training=True):
-        # a placeholder img
-        img = np.zeros([self.img_size, self.img_size, 3], dtype=np.float32)
-        joints_2d = joints_2d.copy()
-        joints_3d = joints_3d.copy()
+    def assemble_pose(self, angles, bone_lengths, root_pos, cam_mat):
+        raw_joints_3d = self.skeleton.get_joints(angles, bone_lengths) + root_pos
 
-        # TODO there is no flip
-        raw_joints_2d = joints_2d.copy()
-        raw_joints_3d = joints_3d.copy()
+        raw_joints_2d = np.transpose(np.dot(cam_mat, np.transpose(joints_3d)))
+        raw_joints_2d = (joints_2d / joints_2d[:, 2][:, np.newaxis])[:, 0:2]
+        joints_2d, center, scale = common.crop_joints_2d(raw_joints_2d, target_box_size=self.img_size, pad_scale=self.pad_scale)
 
+        return joints_2d, joints_3d, center, scale
+
+
+    def preprocess(self, angles, bone_lengths, root_pos, cam_mat, is_training=True):
         if is_training:
-            _, aug_annot = augment_data_2d(img, joints_2d, self.settings)
+            angles = self.skeleton.jitter_angles(angles, jitter_size=self.angle_jitter_size)
 
-            aug_joints_2d = aug_annot
-            aug_joints_3d = joints_3d
 
         else:
-            aug_joints_2d = joints_2d
-            aug_joints_3d = joints_3d
+
+        joints_2d, joints_3d, center, scale = self.assemble_pose(angles=angles, bone_lengths=bone_lengths, root_pos=root_pos, cam_mat=cam_mat)
 
         #### Paint the synthetic image
         if self.with_br:
-            aug_bone_order, _ = self.get_bone_relations(raw_joints_2d, raw_joints_3d, scale, center, cam_mat)
+            aug_bone_order, _ = self.get_bone_relations(joints_2d, joints_3d, scale, center, cam_mat)
         else:
             aug_bone_order = np.arange(0, self.n_bones, 1)
 
