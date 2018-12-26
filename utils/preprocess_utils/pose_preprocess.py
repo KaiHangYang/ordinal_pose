@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6*2, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30):
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6*2, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30):
         self.with_br = with_br
         self.with_fb = with_fb
 
@@ -24,6 +24,7 @@ class PoseProcessor(object):
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
         self.overlap_threshold = overlap_threshold
+        self.bone_status_threshold = bone_status_threshold
         self.bg_color=bg_color
         self.skeleton = skeleton
         self.bone_indices = self.skeleton.bone_indices
@@ -103,7 +104,7 @@ class PoseProcessor(object):
     def recalculate_bone_status(self, joints_z):
         bone_status = []
         for cur_bone_idx in self.bone_indices:
-            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < 100:
+            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < self.bone_status_threshold:
                 bone_status.append(0)
             elif joints_z[cur_bone_idx[1]] < joints_z[cur_bone_idx[0]]:
                 bone_status.append(1)

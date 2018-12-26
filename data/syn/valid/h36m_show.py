@@ -91,15 +91,15 @@ if __name__ == "__main__":
 
             raw_joints_3d = cur_label["joints_3d"]
 
-            img, joints_2d, joints_3d = preprocessor.preprocess(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cammat, is_training=False)
+            img, joints_2d, joints_3d = preprocessor.preprocess(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cammat, is_training=True)
 
             # the joints_3d is related to the root
             joints_3d = joints_3d + cur_root_pos
 
-            max_diff = np.max(np.abs(joints_3d - raw_joints_3d))
-            sys.stdout.write("\r{} {}".format(data_index.val, max_diff))
-            sys.stdout.flush()
-            assert(max_diff < 10)
+            # max_diff = np.max(np.abs(joints_3d - raw_joints_3d))
+            # sys.stdout.write("\r{} {}".format(data_index.val, max_diff))
+            # sys.stdout.flush()
+            # assert(max_diff < 10)
 
             proj_mat = math_utils.cammat2projmat(cur_cammat, wnd_width, wnd_height)
             visualBox.setProjMat(proj_mat)

@@ -20,7 +20,7 @@ from utils.preprocess_utils import pose_preprocess
 preprocessor = pose_preprocess.PoseProcessor(skeleton, 256, with_fb=True, with_br=True, bone_width=6, joint_ratio=6, overlap_threshold=6, pad_scale=0.4)
 
 ############## some Parameters
-angles_file = "/home/kaihang/DataSet_2/Ordinal/syn/train/sfu_angles.npy"
+angles_file = "/home/kaihang/DataSet_2/Ordinal/syn/train/mpi_angles.npy"
 bone_lengths_file = "/home/kaihang/DataSet_2/Ordinal/syn/train/test_bonelengths.npy"
 cammat_file = "/home/kaihang/DataSet_2/Ordinal/syn/train/test_cammat.npy"
 root_pos_file = "/home/kaihang/DataSet_2/Ordinal/syn/train/test_root_pos.npy"

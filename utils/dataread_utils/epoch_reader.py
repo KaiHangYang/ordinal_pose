@@ -8,11 +8,10 @@ class EPOCHReader(object):
         self.name = name
         self.img_path_list = img_path_list
         self.lbl_path_list = lbl_path_list
-        assert(len(self.img_path_list) == len(self.lbl_path_list))
-        self.index_arrays = np.arange(0, len(self.img_path_list), 1)
+
+        self.index_arrays = np.arange(0, len(self.lbl_path_list), 1)
 
         self.only_label = False
-
         if self.img_path_list is None:
             # only labels
             self.only_label = True
@@ -20,9 +19,8 @@ class EPOCHReader(object):
         self.is_shuffle = is_shuffle
         self.batch_size = batch_size
 
-        if not os.path.isdir(os.path.dirname(self.lbl_path_list[0])) or (not self.only_label and not os.path.isdir(os.path.dirname(self.img_path_list[0]))):
-            print("img_dir or lbl_dir is not existing!")
-            quit()
+        if not self.only_label:
+            assert(len(self.img_path_list) == len(self.lbl_path_list))
 
         self.n_labels = len(self.index_arrays)
         self._cur_index = 0

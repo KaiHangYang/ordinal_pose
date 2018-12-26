@@ -43,7 +43,7 @@ if __name__ == "__main__":
         angle_array.append(angles)
         root_pos_array.append(root_pos)
 
-    np.save(os.path.join(target_label_dir, "angles.npy"), angle_array)
+    np.save(os.path.join(target_label_dir, "h36m_angles.npy"), angle_array)
     np.save(os.path.join(target_label_dir, "bone_lengths.npy"), bone_lengths_array)
     np.save(os.path.join(target_label_dir, "root_pos.npy"), root_pos_array)
     np.save(os.path.join(target_label_dir, "cam_mat.npy"), cam_mat_array)

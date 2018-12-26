@@ -10,12 +10,13 @@ import hourglass
 # The structure is translate from github.com/umich-vl/pose-hg-train/blob/maskter/src/models/hg.lua
 # is_training is a tensor or python bool
 class mPoseNet(object):
-    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_pose=1.0, pose_scale=1000.0, is_use_bn=True, HG_nFeat=256):
+    def __init__(self, nJoints, is_training, batch_size, img_size=256, loss_weight_heatmap=1.0, loss_weight_pose=1.0, pose_2d_scale=4.0, pose_3d_scale=1000.0, is_use_bn=True, nFeats=256, nModules=3, nRegModules=2):
         self.model_name = "PoseNet"
 
         self.loss_weight_heatmap = loss_weight_heatmap
         self.loss_weight_pose = loss_weight_pose
-        self.pose_scale = pose_scale
+        self.pose_2d_scale = pose_2d_scale
+        self.pose_3d_scale = pose_3d_scale
 
         self.nJoints = nJoints
         self.img_size = img_size
@@ -26,9 +27,10 @@ class mPoseNet(object):
         self.res_utils = mResidualUtils(is_training=self.is_training, is_use_bias=self.is_use_bias, is_tiny=self.is_tiny, is_use_bn=self.is_use_bn)
         self.batch_size = batch_size
         self.feature_size = 64
-        self.nModules = 3
-        self.nRegModules = 2
-        self.HG_nFeat = HG_nFeat
+
+        self.nModules = nModules
+        self.nRegModules = nRegModules
+        self.nFeats = nFeats
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
     def build_model(self, input_images):
@@ -39,31 +41,31 @@ class mPoseNet(object):
             net_pooled = tf.layers.max_pooling2d(net, 2, 2, name="pooling")
             net = self.res_utils.residual_block(net_pooled, 128, name="res2")
             net = self.res_utils.residual_block(net, 128, name="res3")
-            net = self.res_utils.residual_block(net, 256, name="res4")
+            net = self.res_utils.residual_block(net, self.nFeats, name="res4")
 
-            hg1 = hourglass.build_hourglass(net, self.HG_nFeat, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils)
+            hg1 = hourglass.build_hourglass(net, self.nFeats, 4, name="hg_1", is_training=self.is_training, res_utils=self.res_utils, nModules=self.nModules)
 
-            lin1 = mConvBnRelu(inputs=hg1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin1")
-            lin2 = mConvBnRelu(inputs=lin1, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin2")
+            lin1 = mConvBnRelu(inputs=hg1, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin1")
+            lin2 = mConvBnRelu(inputs=lin1, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin2")
 
             self.heatmaps = tf.layers.conv2d(inputs=lin2, filters=self.nJoints, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="heatmaps")
-            out1_ = tf.layers.conv2d(inputs=self.heatmaps, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out1_")
+            out1_ = tf.layers.conv2d(inputs=self.heatmaps, filters=self.nFeats+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="out1_")
 
             with tf.variable_scope("concat_1"):
                 cat1 = tf.concat([lin2, net_pooled], axis=3)
-                cat1_ = tf.layers.conv2d(inputs=cat1, filters=256+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv")
+                cat1_ = tf.layers.conv2d(inputs=cat1, filters=self.nFeats+128, kernel_size=1, strides=1, use_bias=self.is_use_bias, padding="SAME", activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="conv")
                 int1 = tf.add_n([cat1_, out1_])
 
-            hg2 = hourglass.build_hourglass(int1, self.HG_nFeat, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils)
+            hg2 = hourglass.build_hourglass(int1, self.nFeats, 4, name="hg_2", is_training=self.is_training, res_utils=self.res_utils, nModules=self.nModules)
 
-            lin3 = mConvBnRelu(inputs=hg2, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin3")
-            lin4 = mConvBnRelu(inputs=lin3, nOut=256, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin4")
+            lin3 = mConvBnRelu(inputs=hg2, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin3")
+            lin4 = mConvBnRelu(inputs=lin3, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin4")
 
             reg = lin4
             for i in range(4):
                 with tf.variable_scope("final_downsample_{}".format(i)):
                     for j in range(self.nRegModules):
-                        reg = self.res_utils.residual_block(reg, 256, name="res{}".format(j))
+                        reg = self.res_utils.residual_block(reg, self.nFeats, name="res{}".format(j))
                     reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
 
             with tf.variable_scope("final_pose"):
@@ -90,7 +92,7 @@ class mPoseNet(object):
         return accuracy
 
     # input_joints shape (None, nJoints, 2)
-    def build_input_heatmaps(self, input_center, stddev=2.0, name="input_heatmaps", gaussian_coefficient=False):
+    def build_input_heatmaps(self, input_center, stddev=1.0, name="input_heatmaps", gaussian_coefficient=False):
         with tf.variable_scope(name):
             raw_arr_y = tf.constant(np.reshape(np.repeat(np.arange(0, self.feature_size, 1), self.feature_size), [self.feature_size, self.feature_size, 1]).astype(np.float32), name="raw_arr_y")
 
@@ -114,11 +116,15 @@ class mPoseNet(object):
     def build_evaluation(self):
         self.global_steps = tf.train.get_or_create_global_step()
         with tf.variable_scope("parser_pose"):
-            self.pd_3d = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_scale
+            self.pd_poses = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_3d_scale
 
-    def build_loss(self, input_heatmaps, input_poses, lr, lr_decay_step, lr_decay_rate):
+    def build_loss(self, input_heatmaps, input_poses, lr, lr_decay_step=None, lr_decay_rate=None):
         self.global_steps = tf.train.get_or_create_global_step()
-        self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
+
+        if lr_decay_step is None or lr_decay_rate is None:
+            self.lr = lr
+        else:
+            self.lr = tf.train.exponential_decay(learning_rate=lr, global_step=self.global_steps, decay_steps=lr_decay_step, decay_rate=lr_decay_rate, staircase= True, name= 'learning_rate')
 
         with tf.variable_scope("losses"):
             self.heatmap_loss = tf.nn.l2_loss(input_heatmaps - self.heatmaps, name="heatmap_loss") / self.batch_size * self.loss_weight_heatmap
@@ -141,12 +147,12 @@ class mPoseNet(object):
                 combined_heatmaps = tf.concat([input_heatmaps, self.heatmaps], axis=0, name="heatmaps_combine")
                 all_joints_hm = self.get_joints_hm(combined_heatmaps, batch_size=2*cur_batch_size, name="all_joints_hm")
 
-                self.gt_joints_hm = all_joints_hm[0:cur_batch_size]
-                self.pd_joints_hm = all_joints_hm[cur_batch_size:cur_batch_size*2]
+                self.gt_joints_hm = all_joints_hm[0:cur_batch_size] * self.pose_2d_scale
+                self.pd_joints_hm = all_joints_hm[cur_batch_size:cur_batch_size*2] * self.pose_2d_scale
 
             with tf.variable_scope("parser_pose"):
-                self.gt_poses = (input_poses - tf.tile(input_poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_scale
-                self.pd_poses = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_scale
+                self.gt_poses = (input_poses - tf.tile(input_poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_3d_scale
+                self.pd_poses = (self.poses - tf.tile(self.poses[:, 0][:, tf.newaxis], [1, self.nJoints, 1])) * self.pose_3d_scale
 
         with tf.variable_scope("cal_accuracy"):
             self.accuracy_pose = self.cal_accuracy(self.gt_poses, self.pd_poses, name="poses_accuracy")

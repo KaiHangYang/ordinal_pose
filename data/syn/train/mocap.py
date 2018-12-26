@@ -8,7 +8,7 @@ from utils.defs.skeleton import mSkeleton15 as skeleton
 
 rerank_index = np.array([14, 11, 12, 13, 8, 9, 10, 1, 0, 5, 6, 7, 2, 3, 4])
 
-prefix = "sfu"
+prefix = "mpi"
 
 source_label_dir = "/home/kaihang/DataSet_2/mocap/" + prefix
 target_label_dir = "/home/kaihang/DataSet_2/Ordinal/syn/train"

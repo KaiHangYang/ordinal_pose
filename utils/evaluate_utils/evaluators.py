@@ -46,7 +46,7 @@ class mEvaluatorDepth(object):
 
 ############### Evaluator for Pose3D ############
 class mEvaluatorPose3D(object):
-    def __init__(self, nJoints=17):
+    def __init__(self, nJoints=15):
         self.nJoints = nJoints
         self.avg_counter = my_utils.mAverageCounter(shape=self.nJoints)
 
@@ -69,14 +69,18 @@ class mEvaluatorPose3D(object):
     def printMean(self):
         print("MPJE(distance / mm): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
 
-    def printAll(self):
-        print("MPJE(distance / mm): {}. Frame sum: {}".format(self.mean(), self.avg_counter.cur_data_sum))
-        print(("MPJE(distance_joints / mm): " + "{}" * self.nJoints).format(*self.get()))
+    def save(self, save_dir, prefix, epoch):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
 
-    def save(self, path):
-        if not os.path.exists(os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))
-        np.save(path, {"mean": self.mean(), "all": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
+        mean = self.mean()
+
+        data_file = os.path.join(save_dir, "{}-{}.npy".format(prefix, epoch))
+        np.save(data_file, {"mean": mean, "per_joints": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
+
+        log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
+        with open(log_file, "aw") as f:
+            f.write(("Epoch: {:05d} | MPJE(pixel): {:0.4f}\n").format(epoch, mean))
 
 # Evaluate the pixel Error under 256x256
 class mEvaluatorPose2D(object):
