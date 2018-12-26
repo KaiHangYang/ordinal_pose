@@ -70,16 +70,17 @@ if __name__ == "__main__":
     training_cammat = np.load(os.path.join(training_data_dir, "cam_mat.npy"))
     training_root_pos = np.load(os.path.join(training_data_dir, "root_pos.npy"))
     assert(len(training_bonelengths) == len(training_cammat) == len(training_root_pos))
+
     training_extra_sum = len(training_bonelengths)
+    print("Training Extra Data: {}".format(training_extra_sum))
 
     train_lbl_list = np.arange(0, len(training_angles), 1)
     valid_lbl_list = [os.path.join(validing_data_dir, "{}.npy".format(i)) for i in range(len(os.listdir(validing_data_dir)))]
 
 
     #################### Just for test ###################
-    train_lbl_list = train_lbl_list[0:100]
-    valid_lbl_list = valid_lbl_list[0:100]
-
+    # train_lbl_list = train_lbl_list[0:100]
+    # valid_lbl_list = valid_lbl_list[0:100]
     ###################################################################
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=None, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.train_batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=None, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.valid_batch_size, name="Valid DataSet")
