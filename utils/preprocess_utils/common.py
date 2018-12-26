@@ -207,7 +207,7 @@ def crop_joints_2d(joints_2d, target_box_size=256, pad_scale=0.2):
     max_y = np.max(joints_2d[:, 1])
 
     center = [(min_x + max_x) / 2.0, (min_y + max_y) / 2.0]
-    cur_box_size = np.max(max_x - min_x, max_y - min_y) * (1 + pad_scale)
+    cur_box_size = max(max_x - min_x, max_y - min_y) * (1 + pad_scale)
 
     offset_x = center[0] - cur_box_size / 2.0
     offset_y = center[1] - cur_box_size / 2.0

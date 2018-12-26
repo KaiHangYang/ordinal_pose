@@ -1,6 +1,14 @@
 import numpy as np
 import math
 
+def cammat2projmat(cam_matrix, wnd_width, wnd_height):
+    proj_mat = np.array([[2.0*cam_matrix[0][0] / wnd_width, 0, -1 + 2.0*cam_matrix[0][2] / wnd_width, 0.0],
+                         [0, -2.0*cam_matrix[1][1] / wnd_height, 1 - 2.0*cam_matrix[1][2] / wnd_height, 0.0],
+                         [0, 0, 1, -2 * cam_matrix[0][0]],
+                         [0, 0, 1, 0]])
+
+    return proj_mat
+
 def axisangle2matrix(axis, angle):
     axis = normalize(axis)
     half_angle = angle / 2

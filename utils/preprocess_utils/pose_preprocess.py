@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, bg_color=0.2, pad_scale=0.2, angle_jitter_size=math.pi/20, bonelength_jitter_size=30):
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6*2, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30):
         self.with_br = with_br
         self.with_fb = with_fb
 
@@ -23,6 +23,7 @@ class PoseProcessor(object):
 
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
+        self.overlap_threshold = overlap_threshold
         self.bg_color=bg_color
         self.skeleton = skeleton
         self.bone_indices = self.skeleton.bone_indices
@@ -48,11 +49,11 @@ class PoseProcessor(object):
         joints_2d = joints_2d.flatten().tolist()
         joints_3d = joints_3d.flatten().tolist()
         scale = scale
-        center = center.tolist()
+        center = list(center)
         cam_vec = [cam_mat[0, 0], cam_mat[1, 1], cam_mat[0, 2], cam_mat[1, 2]]
         skeleton_type = self.skeleton.skeleton_index
 
-        result_data = gbr_module.get_bone_relations(joints_2d, joints_3d, scale, center, cam_vec, self.img_size, 2*self.joint_ratio, skeleton_type)
+        result_data = gbr_module.get_bone_relations(joints_2d, joints_3d, scale, center, cam_vec, self.img_size, self.overlap_threshold, skeleton_type)
         result_data = np.reshape(result_data, [-1, self.skeleton.n_bones])
 
         bone_order = result_data[0]
@@ -63,11 +64,11 @@ class PoseProcessor(object):
     def assemble_pose(self, angles, bone_lengths, root_pos, cam_mat):
         raw_joints_3d = self.skeleton.get_joints(angles, bone_lengths) + root_pos
 
-        raw_joints_2d = np.transpose(np.dot(cam_mat, np.transpose(joints_3d)))
-        raw_joints_2d = (joints_2d / joints_2d[:, 2][:, np.newaxis])[:, 0:2]
+        raw_joints_2d = np.transpose(np.dot(cam_mat, np.transpose(raw_joints_3d)))
+        raw_joints_2d = (raw_joints_2d / raw_joints_2d[:, 2][:, np.newaxis])[:, 0:2]
         joints_2d, center, scale = common.crop_joints_2d(raw_joints_2d, target_box_size=self.img_size, pad_scale=self.pad_scale)
 
-        return joints_2d, joints_3d, center, scale
+        return joints_2d, raw_joints_3d, center, scale
 
 
     def preprocess(self, angles, bone_lengths, root_pos, cam_mat, is_training=True):

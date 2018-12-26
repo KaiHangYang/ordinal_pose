@@ -20,7 +20,7 @@ from utils.preprocess_utils import pose_preprocess
 preprocessor = pose_preprocess.PoseProcessor(skeleton, 256, with_fb=True, with_br=True)
 
 ############## some Parameters
-data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/train/"
+data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
 
 images_file_fn = lambda x: os.path.join(os.path.join(data_path, "images"), "{}.jpg".format(x))
 annots_file_fn = lambda x: os.path.join(os.path.join(data_path, "labels_syn"), "{}.npy".format(x))

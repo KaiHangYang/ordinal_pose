@@ -24,7 +24,7 @@ from utils.evaluate_utils.evaluators import mEvaluatorPose2D
 training_protocol = [
         {"prefix": "dlcm_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "dlcm_mixed-15000", "extra_data_scale": 5, "mpii_range_file": "mpii_range_1.2w.npy"}
-        ][0]
+        ][1]
 ###############################################################################
 configs = mConfigs("../eval.conf", training_protocol["prefix"])
 ################ Reseting  #################
@@ -35,7 +35,7 @@ configs.is_use_bn = True
 configs.n_epoches = 150
 
 configs.data_range = [0.1, 0.25, 0.5]
-configs.extra_log_dir = "../train_log/" + configs.prefix
+configs.extra_log_dir = "../eval_result/" + configs.prefix
 configs.zero_debias_moving_mean = True
 
 configs.nFeats = 256
@@ -54,8 +54,8 @@ preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs
 
 ### h36m best 32
 ### mixed best 18
-configs.eval_type = "train"
-restore_model_epoch = 32
+configs.eval_type = "valid"
+restore_model_epoch = 18
 
 #################################################################
 

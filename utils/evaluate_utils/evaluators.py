@@ -109,7 +109,7 @@ class mEvaluatorPose2D(object):
         mean = self.mean()
 
         data_file = os.path.join(save_dir, "{}-{}.npy".format(prefix, epoch))
-        np.save(data_file, {"mean": mpje, "per_joints": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
+        np.save(data_file, {"mean": mean, "per_joints": self.get(), "frame_sum": self.avg_counter.cur_data_sum})
 
         log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
         with open(log_file, "aw") as f:
