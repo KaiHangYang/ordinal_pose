@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -18,7 +18,7 @@ from utils.common_utils import my_utils
 from utils.evaluate_utils.evaluators import mEvaluatorPose3D
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "pose_net")
+configs = mConfigs("../train.conf", "pose_net_aug")
 
 ################ Reseting  #################
 configs.loss_weight_heatmap = 1
@@ -31,7 +31,7 @@ configs.is_use_bn = False
 configs.n_epoches = 30
 configs.learning_rate = 2.5e-5
 configs.gamma = 0.1
-configs.schedule = [10, 20]
+configs.schedule = [5, 10, 20]
 configs.valid_steps = 0 # every training epoch valid the network
 
 configs.nFeats = 256
@@ -143,10 +143,10 @@ if __name__ == "__main__":
 
                 for b in range(batch_size):
                     ##### Here I random choose the cam_mat and root_pos and bone_lengths from the huamn3.6m training set #####
-                    cur_angles = training_angles[cur_batch[b]]
-                    cur_cam_mat = training_cammat[int(np.random.uniform(0, training_extra_sum))][0:3, 0:3]
-                    cur_bonelengths = training_bonelengths[int(np.random.uniform(0, training_extra_sum))]
-                    cur_root_pos = training_root_pos[int(np.random.uniform(0, training_extra_sum))]
+                    cur_angles = training_angles[cur_batch[b]].copy()
+                    cur_cam_mat = training_cammat[int(np.random.uniform(0, training_extra_sum))][0:3, 0:3].copy()
+                    cur_bonelengths = training_bonelengths[int(np.random.uniform(0, training_extra_sum))].copy()
+                    cur_root_pos = training_root_pos[int(np.random.uniform(0, training_extra_sum))].copy()
 
                     # use the bone relations
                     cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cam_mat, is_training=True)
@@ -224,10 +224,10 @@ if __name__ == "__main__":
 
                 for b in range(batch_size):
                     cur_label = np.load(cur_batch[b]).tolist()
-                    cur_angles = cur_label["angles"]
-                    cur_bonelengths = cur_label["bone_lengths"]
-                    cur_root_pos = cur_label["root_pos"]
-                    cur_cam_mat = cur_label["cam_mat"][0:3, 0:3]
+                    cur_angles = cur_label["angles"].copy()
+                    cur_bonelengths = cur_label["bone_lengths"].copy()
+                    cur_root_pos = cur_label["root_pos"].copy()
+                    cur_cam_mat = cur_label["cam_mat"][0:3, 0:3].copy()
                     # use the bone relations
                     cur_img, cur_joints_2d, cur_joints_3d = preprocessor.preprocess(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cam_mat, is_training=False)
                     # generate the heatmaps

@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -61,7 +61,7 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-restore_model_epoch = 18
+restore_model_epoch = 30
 
 if __name__ == "__main__":
     ########################### Initialize the data list #############################

@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -23,8 +23,8 @@ from utils.evaluate_utils.evaluators import mEvaluatorFB_BR
 training_protocol = [
         {"prefix": "syn_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 5, "mpii_range_file": "mpii_range.npy"}
-        ][0]
+        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"}
+        ][2]
 ###############################################################################
 
 configs = mConfigs("../train.conf", training_protocol["prefix"])
@@ -34,15 +34,15 @@ configs.loss_weight_heatmap = 1.0
 configs.loss_weight_br = 1.0
 configs.loss_weight_fb = 1.0
 configs.pose_2d_scale = 4.0
-configs.is_use_bn = True
+configs.is_use_bn = False
 configs.extra_data_scale = training_protocol["extra_data_scale"]
-configs.zero_debias_moving_mean = True
+configs.zero_debias_moving_mean = False
 
 configs.n_epoches = 100
-configs.learning_rate = 2.5e-4
+configs.learning_rate = 2.5e-5
 configs.gamma = 0.1
 configs.schedule = [30, 80]
-configs.valid_steps = 4
+configs.valid_steps = 1
 
 configs.nFeats = 256
 configs.nModules = 2
