@@ -33,7 +33,7 @@ class mPoseNet(object):
         self.nFeats = nFeats
 
     # copy the implementation from https://github.com/geopavlakos/c2f-vol-train/blob/master/src/models/hg-stacked.lua
-    def build_model(self, input_images):
+    def build_model(self, input_images, global_average_pooling=False):
         with tf.variable_scope(self.model_name):
             net = mConvBnRelu(inputs=input_images, nOut=64, kernel_size=7, strides=2, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="conv1")
 
@@ -61,18 +61,38 @@ class mPoseNet(object):
             lin3 = mConvBnRelu(inputs=hg2, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin3")
             lin4 = mConvBnRelu(inputs=lin3, nOut=self.nFeats, kernel_size=1, strides=1, is_use_bias=self.is_use_bias, is_training=self.is_training, is_use_bn=self.is_use_bn, name="lin4")
 
-            reg = lin4
-            for i in range(4):
-                with tf.variable_scope("final_downsample_{}".format(i)):
-                    for j in range(self.nRegModules):
-                        reg = self.res_utils.residual_block(reg, self.nFeats, name="res{}".format(j))
-                    reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
+            if not global_average_pooling:
+                reg = lin4
+                for i in range(4):
+                    with tf.variable_scope("final_downsample_{}".format(i)):
+                        for j in range(self.nRegModules):
+                            reg = self.res_utils.residual_block(reg, self.nFeats, name="res{}".format(j))
+                        reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="maxpool")
 
-            with tf.variable_scope("final_pose"):
-                reg = tf.layers.flatten(reg)
-                # fb information
-                self.poses = tf.layers.dense(inputs=reg, units=3*self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
-                self.poses = tf.reshape(self.poses, [self.batch_size, self.nJoints, 3])
+                with tf.variable_scope("final_pose"):
+                    reg = tf.layers.flatten(reg)
+                    # fb information
+                    self.poses = tf.layers.dense(inputs=reg, units=3*self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
+                    self.poses = tf.reshape(self.poses, [self.batch_size, self.nJoints, 3])
+            else:
+                # Test the global_average_pooling for 3D pose
+                with tf.variable_scope("final_downsample"):
+                    reg = lin4
+                    reg = self.res_utils.residual_block(reg, self.nFeats, name="final_res_1")
+                    reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="final_pool_1")
+
+                    reg = self.res_utils.residual_block(reg, 512, name="final_res_2")
+                    reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="final_pool_2")
+
+                    reg = self.res_utils.residual_block(reg, 1024, name="final_res_3")
+                    reg = tf.layers.max_pooling2d(reg, pool_size=2, strides=2, padding="VALID", name="final_pool_3")
+
+                    # global_average_pooling replace the flatten
+                    reg = tf.reduce_mean(reg, axis=[1, 2])
+
+                with tf.variable_scope("final_pose"):
+                    self.poses = tf.layers.dense(inputs=reg, units=3*self.nJoints, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
+                    self.poses = tf.reshape(self.poses, [self.batch_size, self.nJoints, 3])
 
     def get_joints_hm(self, heatmaps, batch_size, name="heatmap_to_joints"):
         with tf.variable_scope(name):
