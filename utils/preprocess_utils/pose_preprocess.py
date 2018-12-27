@@ -57,7 +57,7 @@ class PoseProcessor(object):
         ################ Debug ###############
         # Track the pose with bug
         ######################################
-        np.save("/home/kaihang/Projects/new_pose/train/train_log/bug_pose.npy", {"joints_2d": joints_2d, "joints_3d":joints_3d, "scale": scale, "center": center, "cam_vec": cam_vec, "img_size": self.img_size, "overlap_threshold": self.overlap_threshold})
+        np.save("/home/kaihang/Projects/pose_project/new_pose/train/train_log/bug_pose.npy", {"joints_2d": joints_2d, "joints_3d":joints_3d, "scale": scale, "center": center, "cam_vec": cam_vec, "img_size": self.img_size, "overlap_threshold": self.overlap_threshold})
         result_data = gbr_module.get_bone_relations(joints_2d, joints_3d, scale, center, cam_vec, self.img_size, self.overlap_threshold, skeleton_type)
 
         result_data = np.reshape(result_data, [-1, self.skeleton.n_bones])
