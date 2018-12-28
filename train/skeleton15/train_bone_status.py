@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net")
     model.build()
-    model.build_loss(configs.learning_rate. loss_type=1)
+    model.build_loss(configs.learning_rate, loss_type=1)
 
     cur_train_global_steps = 0
     cur_valid_global_steps = 0
