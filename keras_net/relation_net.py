@@ -64,6 +64,9 @@ class mRelationNet(object):
 
             losses = {"outputs": focal_loss}
             losses_weight = {"outputs": 1.0}
+        else:
+            print("Invalid loss type!")
+            quit()
 
         #### The metrics function ####
         def mean_accuracy(y_true, y_pred):
