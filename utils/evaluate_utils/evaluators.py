@@ -80,7 +80,7 @@ class mEvaluatorPose3D(object):
 
         log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
         with open(log_file, "aw") as f:
-            f.write(("Epoch: {:05d} | MPJE(pixel): {:0.4f}\n").format(epoch, mean))
+            f.write(("Epoch: {:05d} | MPJE(mm): {:0.4f}\n").format(epoch, mean))
 
 # Evaluate the pixel Error under 256x256
 class mEvaluatorPose2D(object):

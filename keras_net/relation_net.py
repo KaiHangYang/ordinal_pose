@@ -49,9 +49,21 @@ class mRelationNet(object):
 
         self.model = Model(inputs=self.inputs, outputs=self.outputs, name=self.name)
 
-    def build_loss(self, learning_rate=2.5e-4):
-        losses = {"outputs": "categorical_crossentropy"}
-        losses_weight = {"outputs": 1.0}
+    def build_loss(self, learning_rate=2.5e-4, loss_type=0, alpha=[0.05, 1.0, 1.0], gamma=2.0):
+        if loss_type == 0:
+            # use the default categorical_crossentropy
+            losses = {"outputs": "categorical_crossentropy"}
+            losses_weight = {"outputs": 1.0}
+        elif loss_type == 1:
+            # use the focal-loss-like loss functions
+            def focal_loss(y_true, y_pred):
+                ## The y_pred is the value after softmax
+                const_alpha = K.constant(alpha)
+                const_alpha = K.tile(const_alpha[tf.newaxis, tf.newaxis], [self.batch_size, self.n_relations, 1])
+                return K.mean((-1.0 * K.pow(1.0 - y_pred, float(gamma))) * K.log(y_pred) * y_true)
+
+            losses = {"outputs": focal_loss}
+            losses_weight = {"outputs": 1.0}
 
         #### The metrics function ####
         def mean_accuracy(y_true, y_pred):
