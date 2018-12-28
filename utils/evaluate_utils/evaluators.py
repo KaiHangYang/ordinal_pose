@@ -120,6 +120,41 @@ class mEvaluatorPose2D(object):
             f.write(("Epoch: {:05d} | MPJE(pixel): {:0.4f}\n").format(epoch, mean))
 
 ############### Evaluator for BR and FB accuracy ############
+
+class mEvaluatorRelation(object):
+    def __init__(self, n_relations, batch_size, name):
+        self.n_relations = n_relations
+        self.name = name
+        self.batch_size = batch_size
+        self.avg_counter = my_utils.mAverageCounter(shape=self.n_relations)
+
+    def add(self, pred_mean):
+        for _ in range(self.batch_size):
+            self.avg_counter.add(np.ones(self.n_relations) * pred_mean)
+
+    def mean(self):
+        return self.avg_counter.mean()
+
+    def get(self):
+        return self.avg_counter.cur_average
+
+    def printMean(self):
+        acc = self.mean()
+        print("Mean {} Acc: {:05f}.".format(self.name, acc))
+
+    def save(self, save_dir, prefix, epoch):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        acc = self.mean()
+
+        data_file = os.path.join(save_dir, "{}-{}.npy".format(prefix, epoch))
+        np.save(data_file, {"mean_acc": acc, "frame_sum": self.avg_counter.cur_data_sum})
+
+        log_file = os.path.join(save_dir, "{}-log.txt".format(prefix))
+        with open(log_file, "aw") as f:
+            f.write(("Epoch: {:05d} | {} Acc: {:05f}\n").format(epoch, self.name, acc))
+
 class mEvaluatorFB_BR(object):
     def __init__(self, n_fb, n_br):
         self.n_fb = n_fb

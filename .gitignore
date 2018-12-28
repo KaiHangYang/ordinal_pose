@@ -7,3 +7,4 @@ train.conf
 debug.conf
 *.tar
 good_models
+test
