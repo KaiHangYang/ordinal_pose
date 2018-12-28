@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import cv2
@@ -48,12 +48,12 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 
 ################### Initialize the data reader ####################
 configs.printConfig()
-preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2, overlap_threshold=6, bone_status_threshold=80)
 
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = 0
+restore_model_epoch = None
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0

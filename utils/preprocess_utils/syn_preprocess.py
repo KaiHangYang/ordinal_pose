@@ -12,8 +12,9 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class SynProcessor(object):
-    def __init__(self, skeleton, img_size, bone_width=6, joint_ratio=6, bg_color=0.2, bone_status_threshhold=80):
-        self.bone_status_threshhold = bone_status_threshhold
+    def __init__(self, skeleton, img_size, bone_width=6, joint_ratio=6, bg_color=0.2, bone_status_threshold=80, overlap_threshold=6):
+        self.bone_status_threshold = bone_status_threshold
+        self.overlap_threshold = overlap_threshold
         self.bone_width=bone_width
         self.joint_ratio=joint_ratio
         self.bg_color=bg_color
@@ -45,7 +46,7 @@ class SynProcessor(object):
         cam_vec = [cam_mat[0, 0], cam_mat[1, 1], cam_mat[0, 2], cam_mat[1, 2]]
         skeleton_type = self.skeleton.skeleton_index
 
-        result_data = gbr_module.get_bone_relations(joints_2d, joints_3d, scale, center, cam_vec, self.img_size, 2*self.joint_ratio, skeleton_type)
+        result_data = gbr_module.get_bone_relations(joints_2d, joints_3d, scale, center, cam_vec, self.img_size, self.overlap_threshold, skeleton_type)
         result_data = np.reshape(result_data, [-1, self.skeleton.n_bones])
 
         bone_order = result_data[0]
@@ -135,7 +136,7 @@ class SynProcessor(object):
     def recalculate_bone_status(self, joints_z):
         bone_status = []
         for cur_bone_idx in self.bone_indices:
-            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < self.bone_status_threshhold:
+            if np.abs(joints_z[cur_bone_idx[0]] - joints_z[cur_bone_idx[1]]) < self.bone_status_threshold:
                 bone_status.append(0)
             elif joints_z[cur_bone_idx[1]] < joints_z[cur_bone_idx[0]]:
                 bone_status.append(1)
