@@ -53,7 +53,7 @@ preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.i
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = 10
+restore_model_epoch = 0
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
@@ -160,7 +160,7 @@ if __name__ == "__main__":
             print("\n\n")
             cur_train_global_steps += 1
 
-        train_accuracy_evaluator.save(configs.extra_log_dir, configs.prefix, cur_epoch)
+        train_accuracy_evaluator.save(os.path.join(configs.extra_log_dir, "train"), "train", cur_epoch)
 
         ######################## Evaluate ############################
 
@@ -215,10 +215,9 @@ if __name__ == "__main__":
             print("Current Accuracy: {}".format(accuracy))
             valid_accuracy_evaluator.printMean()
             print("\n\n")
-
             cur_valid_global_steps += 1
 
-        valid_accuracy_evaluator.save(configs.extra_log_dir, configs.prefix, cur_epoch)
+        valid_accuracy_evaluator.save(os.path.join(configs.extra_log_dir, "valid"), "valid", cur_epoch)
 
         cur_valid_acc = valid_accuracy_evaluator.mean()
 
