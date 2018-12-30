@@ -31,7 +31,7 @@ configs.pose_2d_scale = 4.0
 configs.extra_data_scale = training_protocol["extra_data_scale"]
 
 configs.n_epoches = 100
-configs.learning_rate = 2.5e-4
+configs.learning_rate = 0
 configs.gamma = 0.1
 configs.schedule = [30, 80]
 configs.batch_size = 4
@@ -83,6 +83,13 @@ if __name__ == "__main__":
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
     ###################################################################
+    #############################
+    train_img_list = train_img_list[0:100]
+    train_lbl_list = train_lbl_list[0:100]
+
+    valid_img_list = valid_img_list[0:100]
+    valid_lbl_list = valid_lbl_list[0:100]
+    #############################
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
@@ -91,6 +98,7 @@ if __name__ == "__main__":
     model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net")
 
     model.build()
+    # model.model.trainable = False
     model.build_loss(configs.learning_rate)
 
     cur_valid_global_steps = 0
@@ -98,6 +106,7 @@ if __name__ == "__main__":
     cur_max_acc = 0
 
     if restore_model_epoch is not None:
+        print("Restore the model")
         model.restore_model(configs.model_path_fn(restore_model_epoch))
 
     ######################## Evaluate ############################
@@ -139,13 +148,13 @@ if __name__ == "__main__":
                 cur_img, cur_joints_2d, cur_bone_status, cur_bone_relations = preprocessor.preprocess_base(img=cur_img, joints_2d=cur_joints_2d, bone_status=cur_bone_status, bone_relations=cur_bone_relations, is_training=False)
 
             # generate the heatmaps
-            batch_images_np[b] = cur_img
-            cv2.imshow("test", cur_img)
-            cv2.waitKey()
+            # cv2.imshow("test", cur_img)
+            # cv2.waitKey()
             #### convert the bone_status and bone_relations to one-hot representation
+            batch_images_np[b] = cur_img
             batch_fb_np[b] = np.eye(3)[cur_bone_status]
 
-        loss, accuracy = model.train_on_batch(x=batch_images_np, y=batch_fb_np)
+        loss, accuracy = model.test_on_batch(x=batch_images_np, y=batch_fb_np)
 
         valid_accuracy_evaluator.add(pred_mean=accuracy)
         print("Validing | Epoch: {:05d}/{:05d}. Iteration: {:05d}/{:05d}".format(0, configs.n_epoches, *data_reader.progress()))

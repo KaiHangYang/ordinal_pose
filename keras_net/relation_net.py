@@ -60,7 +60,7 @@ class mRelationNet(object):
                 ## The y_pred is the value after softmax
                 const_alpha = K.constant(alpha)
                 const_alpha = K.tile(const_alpha[tf.newaxis, tf.newaxis], [self.batch_size, self.n_relations, 1])
-                return K.mean((-1.0 * K.pow(1.0 - y_pred, float(gamma))) * K.log(y_pred) * y_true)
+                return K.sum((-1.0 * K.pow(1.0 - y_pred, float(gamma))) * K.log(y_pred + K.epsilon()) * y_true * const_alpha, axis=-1)
 
             losses = {"outputs": focal_loss}
             losses_weight = {"outputs": 1.0}

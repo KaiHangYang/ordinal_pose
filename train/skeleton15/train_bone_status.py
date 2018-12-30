@@ -65,7 +65,7 @@ def get_learning_rate(configs, epoch):
 if __name__ == "__main__":
     ########################### Initialize the data list #############################
     train_range = np.load(configs.h36m_train_range_file)
-    np.random.shuffle(train_range)
+    # np.random.shuffle(train_range)
 
     valid_range = np.load(configs.h36m_valid_range_file)
 
@@ -87,13 +87,18 @@ if __name__ == "__main__":
 
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
+    ######################### Only for test ###########################
+    train_img_list = train_img_list[0:1000]
+    train_lbl_list = train_lbl_list[0:1000]
+    valid_img_list = train_img_list[0:1000]
+    valid_lbl_list = train_lbl_list[0:1000]
     ###################################################################
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
     model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net")
     model.build()
-    model.build_loss(configs.learning_rate, loss_type=1)
+    model.build_loss(configs.learning_rate, loss_type=0)
 
     cur_train_global_steps = 0
     cur_valid_global_steps = 0

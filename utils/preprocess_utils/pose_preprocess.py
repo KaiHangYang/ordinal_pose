@@ -13,9 +13,11 @@ sys.path.append(os.path.dirname(__file__))
 import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
-    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6*2, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30):
+    ## The pure_color parameter means the joints only have color (black, gray, white)
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30, pure_color=True):
         self.with_br = with_br
         self.with_fb = with_fb
+        self.pure_color = pure_color
 
         self.pad_scale = pad_scale
         self.angle_jitter_size = angle_jitter_size
@@ -179,15 +181,27 @@ class PoseProcessor(object):
             ####### get bone informations first #######
             cur_bone_color = np.array([self.bone_colors[cur_bone][2] * 255, self.bone_colors[cur_bone][1] * 255, self.bone_colors[cur_bone][0] * 255])
 
-            if bone_status[cur_bone] == 0:
-                # not certain
-                cur_joint_color = (127, 127, 127)
-            elif bone_status[cur_bone] == 1:
-                # forward
-                cur_joint_color = (255, 255, 255)
+            if self.pure_color:
+                if bone_status[cur_bone] == 0:
+                    # not certain
+                    cur_joint_color = (127, 127, 127)
+                elif bone_status[cur_bone] == 1:
+                    # forward
+                    cur_joint_color = (255, 255, 255)
+                else:
+                    # backward
+                    cur_joint_color = (0, 0, 0)
             else:
-                # backward
-                cur_joint_color = (0, 0, 0)
+                if bone_status[cur_bone] == 0:
+                    # not certain
+                    cur_joint_color = (cur_bone_color * 0.5).astype(cur_bone_color.dtype)
+                elif bone_status[cur_bone] == 1:
+                    # forward
+                    cur_joint_color = (cur_bone_color * 0.8).astype(cur_bone_color.dtype)
+                else:
+                    # backward
+                    cur_joint_color = (cur_bone_color * 0.2).astype(cur_bone_color.dtype)
+
 
             source_joint = joints_2d[self.bone_indices[cur_bone][0]]
             target_joint = joints_2d[self.bone_indices[cur_bone][1]]

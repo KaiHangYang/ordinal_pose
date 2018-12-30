@@ -17,7 +17,7 @@ from utils.preprocess_utils import get_bone_relations
 from utils.defs.skeleton import mSkeleton15 as skeleton
 from utils.preprocess_utils import pose_preprocess
 
-preprocessor = pose_preprocess.PoseProcessor(skeleton, 256, with_fb=True, with_br=True)
+preprocessor = pose_preprocess.PoseProcessor(skeleton, 256, with_fb=True, with_br=True, overlap_threshold=6, pure_color=False)
 
 ############## some Parameters
 data_path = "/home/kaihang/DataSet_2/Ordinal/human3.6m/cropped_256/valid/"
@@ -91,6 +91,7 @@ if __name__ == "__main__":
 
             joints_3d = cur_label["joints_3d"][skeleton.h36m_selected_index]
             joints_2d = cur_label["joints_2d"][skeleton.h36m_selected_index]
+            cam_mat = cur_label["cam_mat"][0:3, 0:3]
 
             cur_depth = joints_3d[:, 2] - joints_3d[0, 2]
             root_depth = joints_3d[0, 2]
@@ -116,8 +117,8 @@ if __name__ == "__main__":
             # angles = np.zeros([skeleton.n_joints, 3])
             GET_ANGLE_TIME = time.clock() - GET_ANGLE_TIME
 
-            angles = skeleton.jitter_angles(angles, jitter_size = math.pi / 20)
-            bone_lengths = skeleton.jitter_bonelengths(bone_lengths, jitter_size=30)
+            # angles = skeleton.jitter_angles(angles, jitter_size = math.pi / 20)
+            # bone_lengths = skeleton.jitter_bonelengths(bone_lengths, jitter_size=30)
 
             RECOVER_JOINTS_TIME = time.clock()
             test_joints_3d = skeleton.get_joints(angles, bone_lengths) + root_joint
@@ -126,9 +127,12 @@ if __name__ == "__main__":
             sys.stdout.write("\rget angle time {:0.4f}s, recover time {:0.4f}s".format(GET_ANGLE_TIME, RECOVER_JOINTS_TIME))
             sys.stdout.flush()
 
+            syn_img, _, _ = preprocessor.preprocess(angles, bone_lengths, root_joint, cam_mat, is_training=False)
+
             ##########################################################
 
         cv2.imshow("img_2d", cropped_img)
+        cv2.imshow("syn_img", syn_img)
         cv2.waitKey(4)
 
         visualBox.draw(cur_img, [joints_3d, test_joints_3d], [[1, 1, 1], [0, 1, 1]])
