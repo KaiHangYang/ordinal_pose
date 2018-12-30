@@ -50,7 +50,7 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2, overlap_threshold=6, bone_status_threshold=80)
 
-restore_model_epoch = 99
+restore_model_epoch = 52
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
@@ -84,16 +84,16 @@ if __name__ == "__main__":
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
     ###################################################################
     #############################
-    train_img_list = train_img_list[0:100]
-    train_lbl_list = train_lbl_list[0:100]
+    train_img_list = train_img_list[0:1000]
+    train_lbl_list = train_lbl_list[0:1000]
 
-    valid_img_list = valid_img_list[0:100]
-    valid_lbl_list = valid_lbl_list[0:100]
+    valid_img_list = valid_img_list[0:1000]
+    valid_lbl_list = valid_lbl_list[0:1000]
     #############################
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
-    data_reader = valid_data_reader
+    data_reader = train_data_reader
 
     model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net")
 

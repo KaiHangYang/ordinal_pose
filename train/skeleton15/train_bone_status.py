@@ -87,12 +87,7 @@ if __name__ == "__main__":
 
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
-    ######################### Only for test ###########################
-    train_img_list = train_img_list[0:1000]
-    train_lbl_list = train_lbl_list[0:1000]
-    valid_img_list = train_img_list[0:1000]
-    valid_lbl_list = train_lbl_list[0:1000]
-    ###################################################################
+
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
