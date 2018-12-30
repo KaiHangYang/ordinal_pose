@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -18,7 +18,7 @@ from utils.common_utils import my_utils
 from utils.evaluate_utils.evaluators import mEvaluatorPose3D
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "pose_net_aug")
+configs = mConfigs("../train.conf", "pose_net_colorful")
 
 ################ Reseting  #################
 configs.loss_weight_heatmap = 1
@@ -43,7 +43,7 @@ configs.extra_log_dir = "../train_log/" + configs.prefix
 ################### Initialize the data reader ####################
 
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4, pure_color=False)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -51,7 +51,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = 10
+restore_model_epoch = None
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
@@ -77,7 +77,6 @@ if __name__ == "__main__":
     train_lbl_list = np.arange(0, len(training_angles), 1)
     valid_lbl_list = [os.path.join(validing_data_dir, "{}.npy".format(i)) for i in range(len(os.listdir(validing_data_dir)))]
 
-
     #################### Just for test ###################
     # train_lbl_list = train_lbl_list[0:100]
     # valid_lbl_list = valid_lbl_list[0:100]
@@ -98,7 +97,7 @@ if __name__ == "__main__":
     with tf.Session() as sess:
 
         with tf.device("/device:GPU:0"):
-            pose_model.build_model(input_images)
+            pose_model.build_model(input_images, global_average_pooling=True)
             input_heatmaps = pose_model.build_input_heatmaps(input_centers_hm, stddev=2.0, gaussian_coefficient=False)
 
         pose_model.build_loss(input_heatmaps=input_heatmaps, input_poses=input_poses, lr=input_lr)

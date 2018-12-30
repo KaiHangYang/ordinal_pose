@@ -28,10 +28,10 @@ configs.pose_3d_scale = 1000.0
 
 configs.is_use_bn = False
 
-configs.n_epoches = 30
+configs.n_epoches = 50
 configs.learning_rate = 2.5e-5
 configs.gamma = 0.1
-configs.schedule = [5, 10, 20]
+configs.schedule = [5, 25]
 configs.valid_steps = 0 # every training epoch valid the network
 
 configs.nFeats = 256
@@ -51,7 +51,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = None
+restore_model_epoch = 10
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
