@@ -43,7 +43,7 @@ configs.nModules = 1
 configs.batch_size = 4
 
 configs.h36m_train_range_file = os.path.join(configs.range_file_dir, "train_range.npy")
-configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range_training.npy")
+configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range.npy")
 configs.mpii_range_file = os.path.join(configs.range_file_dir, training_protocol["mpii_range_file"])
 configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 
@@ -54,8 +54,8 @@ preprocessor = dlcm_preprocess.DLCMProcessor(skeleton=skeleton, img_size=configs
 
 ### h36m best 32
 ### mixed best 18
-configs.eval_type = "valid"
-restore_model_epoch = 18
+configs.eval_type = "train"
+restore_model_epoch = 68
 
 #################################################################
 
@@ -91,7 +91,6 @@ if __name__ == "__main__":
     ###################################################################
     data_reader = epoch_reader.EPOCHReader(img_path_list=img_list, lbl_path_list=lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Eval DataSet")
 
-    # now test the classification
     input_images = tf.placeholder(shape=[configs.batch_size * 2, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
     dlcm_model = dlcm_net.mDLCMNet(skeleton=skeleton, img_size=configs.img_size, batch_size=configs.batch_size * 2, is_training=False, loss_weights=configs.loss_weights, pose_2d_scale=configs.pose_2d_scale, is_use_bn=configs.is_use_bn, nFeats=configs.nFeats, nModules=configs.nModules, zero_debias_moving_mean=configs.zero_debias_moving_mean)
 
@@ -121,6 +120,7 @@ if __name__ == "__main__":
         raw_mpje_evaluator = mEvaluatorPose2D(nJoints=skeleton.n_joints)
         mean_mpje_evaluator = mEvaluatorPose2D(nJoints=skeleton.n_joints)
 
+        data_count = 0
         is_epoch_finished = False
         while not is_epoch_finished:
             # get the data path
@@ -155,6 +155,10 @@ if __name__ == "__main__":
                         dlcm_model.mean_pd_2d
                      ],
                     feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
+
+            # for b in range(batch_size):
+                # np.save(os.path.join(configs.extra_log_dir, "datas/{}.npy".format(data_count)), {"mean_pd_2d": mean_pd_2d[b], "raw_pd_2d": raw_pd_2d[b], "gt_2d": batch_joints_2d_np[b]})
+                # data_count += 1
 
             raw_pck_evaluator.add(gt_2d=np.round(batch_joints_2d_np), pd_2d=raw_pd_2d, norm=configs.img_size / 10.0)
             mean_pck_evaluator.add(gt_2d=np.round(batch_joints_2d_np), pd_2d=mean_pd_2d, norm=configs.img_size / 10.0)

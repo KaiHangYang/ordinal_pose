@@ -22,12 +22,15 @@ from keras.optimizers import RMSprop
 
 from keras import backend as K
 
+import resnet50
+
 sys.path.append("../")
 from utils.defs.skeleton import mSkeleton15
 
 class mRelationNet(object):
 
-    def __init__(self, img_size, batch_size, skeleton, n_relations, name="Relation Model"):
+    def __init__(self, img_size, batch_size, skeleton, n_relations, name="Relation Model", use_bn=True):
+        self.use_bn = use_bn
         self.n_relations = n_relations
         self.img_size = img_size
         self.batch_size = batch_size
@@ -38,10 +41,12 @@ class mRelationNet(object):
         ############# Build the network structure first #############
         self.inputs = Input(batch_shape=(self.batch_size, self.img_size, self.img_size, 3))
         #### Use the global average pooling ####
-        self.res50_model = keras.applications.resnet50.ResNet50(include_top=False, weights=None, input_tensor=self.inputs, pooling="avg")
+        self.res50_model = resnet50.ResNet50(include_top=False, weights=None, input_tensor=self.inputs, pooling="avg", use_bn=self.use_bn)
         net = self.res50_model.outputs[0]
 
-        net = BatchNormalization(axis=-1)(net)
+        if self.use_bn:
+            net = BatchNormalization(axis=-1)(net)
+
         net = ReLU()(net)
         net = Dense(units=self.n_relations * 3)(net)
         net = Reshape(target_shape=[self.n_relations, 3])(net)
@@ -81,8 +86,8 @@ class mRelationNet(object):
 
     def train_on_batch(self, x, y):
         loss, accuracy = self.model.train_on_batch(x, y)
-
         return loss, accuracy
+
     def test_on_batch(self, x, y):
         loss, accuracy = self.model.test_on_batch(x, y)
         return loss, accuracy

@@ -34,7 +34,7 @@ configs.n_epoches = 100
 configs.learning_rate = 0
 configs.gamma = 0.1
 configs.schedule = [30, 80]
-configs.batch_size = 4
+configs.batch_size = 1
 
 configs.n_relations = skeleton.n_bones
 
@@ -50,7 +50,7 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2, overlap_threshold=6, bone_status_threshold=80)
 
-restore_model_epoch = 52
+restore_model_epoch = 103
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
