@@ -30,6 +30,7 @@ configs.relation_name = "Bone Status"
 configs.pose_2d_scale = 4.0
 configs.extra_data_scale = training_protocol["extra_data_scale"]
 
+configs.use_bn = False
 configs.n_epoches = 100
 configs.learning_rate = 2.5e-4
 configs.gamma = 0.1
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
-    model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net")
+    model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net", use_bn=configs.use_bn)
     model.build()
     model.build_loss(configs.learning_rate, loss_type=0)
 
