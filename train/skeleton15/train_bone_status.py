@@ -32,7 +32,7 @@ configs.extra_data_scale = training_protocol["extra_data_scale"]
 
 configs.use_bn = False
 configs.n_epoches = 100
-configs.learning_rate = 2.5e-4
+configs.learning_rate = 2.5e-5
 configs.gamma = 0.1
 configs.schedule = [30, 80]
 configs.batch_size = 4
