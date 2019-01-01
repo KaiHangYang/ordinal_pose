@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import cv2
@@ -18,9 +18,9 @@ from utils.evaluate_utils.evaluators import mEvaluatorRelation
 
 ####################### Setting the training protocols ########################
 training_protocol = [
-        {"prefix": "fb_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "fb_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "fb_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"}
+        {"prefix": "fb_focal_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
+        {"prefix": "fb_focal_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
+        {"prefix": "fb_focal_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"}
         ][0]
 ###############################################################################
 configs = mConfigs("../train.conf", training_protocol["prefix"])
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     model = relation_net.mRelationNet(img_size=configs.img_size, batch_size=configs.batch_size, skeleton=skeleton, n_relations=configs.n_relations, name="bone_status_net", use_bn=configs.use_bn)
     model.build()
-    model.build_loss(configs.learning_rate, loss_type=0)
+    model.build_loss(configs.learning_rate, loss_type=1)
 
     cur_train_global_steps = 0
     cur_valid_global_steps = 0
