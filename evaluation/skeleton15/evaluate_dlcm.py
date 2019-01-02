@@ -62,7 +62,7 @@ restore_model_epoch = 68
 if __name__ == "__main__":
     ########################### Initialize the data list #############################
     train_range = np.load(configs.h36m_train_range_file)
-    np.random.shuffle(train_range)
+    # np.random.shuffle(train_range)
 
     valid_range = np.load(configs.h36m_valid_range_file)
 

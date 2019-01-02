@@ -61,14 +61,14 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-restore_model_epoch = "old"
+restore_model_epoch = 30
 
 if __name__ == "__main__":
     ########################### Initialize the data list #############################
 
-    valid_range = np.load(configs.h36m_valid_range_file)
-    valid_img_list = [configs.h36m_valid_img_path_fn(i) for i in valid_range]
-    valid_lbl_list = [configs.h36m_valid_lbl_path_fn(i) for i in valid_range]
+    valid_range = np.load(configs.h36m_train_range_file)
+    valid_img_list = [configs.h36m_train_img_path_fn(i) for i in valid_range]
+    valid_lbl_list = [configs.h36m_train_lbl_path_fn(i) for i in valid_range]
     ###################################################################
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
@@ -161,7 +161,7 @@ if __name__ == "__main__":
 
             ################### Temporarily save the network outputs ###################
             for b in range(batch_size):
-                np.save(os.path.join(configs.extra_log_dir, "prev_datas/{}.npy".format(data_count)), {"pd_fb": pd_fb_result[b], "pd_br": pd_br_result[b], "pd_br_belief": pd_br_belief[b], "gt_fb": batch_fb_np[b], "gt_br": batch_br_np[b]})
+                np.save(os.path.join(configs.extra_log_dir, "datas/{}.npy".format(data_count)), {"pd_fb": pd_fb_result[b], "pd_br": pd_br_result[b], "pd_br_belief": pd_br_belief[b], "gt_fb": batch_fb_np[b], "gt_br": batch_br_np[b]})
                 data_count += 1
             ############################################################################
 

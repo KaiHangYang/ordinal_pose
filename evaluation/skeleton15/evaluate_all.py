@@ -40,16 +40,16 @@ configs.nFeats = 256
 configs.nModules = 3
 configs.nRegModules = 2
 
+configs.valid_type = "train"
+
 configs.extra_log_dir = "../eval_log/" + configs.prefix
 
 configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range.npy")
 
-configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-11000/prev_datas/{}.npy".format(x)
-configs.dlcm_data_path_fn = lambda x: "../eval_result/dlcm_mixed-15000/datas/{}.npy".format(x)
 ################### Initialize the data reader ####################
 
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4, pure_color=True)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, pure_color=True)
 
 restore_model_epoch = 21
 #################################################################
@@ -57,7 +57,19 @@ restore_model_epoch = 21
 if __name__ == "__main__":
     #################################Set the train and valid datas##################################
 
-    valid_range = np.load(configs.h36m_valid_range_file)
+    if configs.valid_type == "train":
+        configs.lbl_path_fn = configs.h36m_train_lbl_path_fn
+        configs.img_path_fn = configs.h36m_train_img_path_fn
+        valid_range = np.load(configs.h36m_train_range_file)
+        configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-11000/train_datas/{}.npy".format(x)
+        configs.dlcm_data_path_fn = lambda x: "../eval_result/dlcm_mixed-15000/train_datas/{}.npy".format(x)
+    elif configs.valid_type == "valid":
+        configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
+        configs.img_path_fn = configs.h36m_valid_img_path_fn
+        valid_range = np.load(configs.h36m_valid_range_file)
+        configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-11000/valid_datas/{}.npy".format(x)
+        configs.dlcm_data_path_fn = lambda x: "../eval_result/dlcm_mixed-15000/valid_datas/{}.npy".format(x)
+
     print("Valid DataSet number: {}".format(valid_range.shape[0]))
 
     input_images = tf.placeholder(shape=[configs.batch_size, configs.img_size, configs.img_size, 3], dtype=tf.float32, name="input_images")
@@ -93,8 +105,8 @@ if __name__ == "__main__":
             batch_joints_2d_np = np.zeros([configs.batch_size, skeleton.n_joints, 2], dtype=np.float32)
             batch_joints_3d_np = np.zeros([configs.batch_size, skeleton.n_joints, 3], dtype=np.float32)
 
-            # cur_img = cv2.imread(configs.h36m_valid_img_path_fn(cur_data_idx))
-            cur_label = np.load(configs.h36m_valid_lbl_path_fn(cur_data_idx)).tolist()
+            raw_img = cv2.imread(configs.img_path_fn(cur_data_idx))
+            cur_label = np.load(configs.lbl_path_fn(cur_data_idx)).tolist()
 
             cur_dlcm_data = np.load(configs.dlcm_data_path_fn(cur_data_idx)).tolist()
             cur_syn_data = np.load(configs.syn_data_path_fn(cur_data_idx)).tolist()
@@ -103,16 +115,20 @@ if __name__ == "__main__":
 
             cur_joints_2d = cur_dlcm_data["raw_pd_2d"]
             cur_fb = cur_syn_data["pd_fb"]
-            # cur_br = cur_syn_data["pd_br"]
-            # cur_br_belief = cur_syn_data["pd_br_belief"]
+            cur_br = cur_syn_data["pd_br"]
+            cur_br_belief = cur_syn_data["pd_br_belief"]
 
             # cur_joints_2d = cur_dlcm_data["gt_2d"]
             # cur_fb = cur_syn_data["gt_fb"]
-            cur_br = cur_syn_data["gt_br"]
-            cur_br_belief = np.ones_like(cur_br)
+            # cur_br = cur_syn_data["gt_br"]
+            # cur_br_belief = np.ones_like(cur_br)
 
             cur_bone_order = preprocessor.bone_order_from_bone_relations(cur_br, cur_br_belief)
             cur_img = preprocessor.draw_syn_img(cur_joints_2d, cur_fb, cur_bone_order)
+
+            cv2.imshow("raw_img", raw_img)
+            cv2.imshow("syn_img", cur_img)
+            cv2.waitKey()
 
             batch_images_np[0] = cur_img / 255.0
             batch_joints_3d_np[0] = cur_joints_3d - cur_joints_3d[0]
