@@ -30,7 +30,7 @@ configs.relation_name = "Bone Status"
 configs.pose_2d_scale = 4.0
 configs.extra_data_scale = training_protocol["extra_data_scale"]
 
-configs.use_bn = False
+configs.use_bn = True
 configs.n_epoches = 100
 configs.learning_rate = 2.5e-4
 configs.gamma = 0.1

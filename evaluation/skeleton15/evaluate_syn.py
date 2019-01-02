@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -61,14 +61,14 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 configs.printConfig()
 preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
 
-restore_model_epoch = 30
+restore_model_epoch = "old"
 
 if __name__ == "__main__":
     ########################### Initialize the data list #############################
 
-    valid_range = np.load(configs.h36m_train_range_file)
-    valid_img_list = [configs.h36m_train_img_path_fn(i) for i in valid_range]
-    valid_lbl_list = [configs.h36m_train_lbl_path_fn(i) for i in valid_range]
+    valid_range = np.load(configs.h36m_valid_range_file)
+    valid_img_list = [configs.h36m_valid_img_path_fn(i) for i in valid_range]
+    valid_lbl_list = [configs.h36m_valid_lbl_path_fn(i) for i in valid_range]
     ###################################################################
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
@@ -102,6 +102,8 @@ if __name__ == "__main__":
         valid_data_reader.reset()
         valid_relation_evaluator = mEvaluatorFB_BR(n_fb=skeleton.n_bones, n_br=(skeleton.n_bones-1) * skeleton.n_bones / 2)
         is_epoch_finished = False
+
+        data_count = 0
 
         while not is_epoch_finished:
             cur_batch, is_epoch_finished = valid_data_reader.get()
@@ -147,13 +149,21 @@ if __name__ == "__main__":
                 batch_br_np[b] = cur_bone_relations[np.triu_indices(skeleton.n_bones, k=1)] # only get the upper triangle
 
             pd_fb_result, \
-            pd_br_result  = sess.run(
+            pd_br_result, \
+            pd_br_belief = sess.run(
                     [
                      syn_model.pd_fb_result,
                      syn_model.pd_br_result,
+                     syn_model.pd_br_belief
                     ],
                     feed_dict={input_images: batch_images_np,
                                input_batch_size: configs.batch_size})
+
+            ################### Temporarily save the network outputs ###################
+            for b in range(batch_size):
+                np.save(os.path.join(configs.extra_log_dir, "prev_datas/{}.npy".format(data_count)), {"pd_fb": pd_fb_result[b], "pd_br": pd_br_result[b], "pd_br_belief": pd_br_belief[b], "gt_fb": batch_fb_np[b], "gt_br": batch_br_np[b]})
+                data_count += 1
+            ############################################################################
 
             valid_relation_evaluator.add(gt_fb=batch_fb_np, pd_fb=pd_fb_result, gt_br=batch_br_np, pd_br=pd_br_result)
 

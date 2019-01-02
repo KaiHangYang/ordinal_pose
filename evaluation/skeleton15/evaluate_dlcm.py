@@ -156,9 +156,9 @@ if __name__ == "__main__":
                      ],
                     feed_dict={input_images: np.concatenate([batch_images_np, batch_images_flipped_np], axis=0)})
 
-            # for b in range(batch_size):
-                # np.save(os.path.join(configs.extra_log_dir, "datas/{}.npy".format(data_count)), {"mean_pd_2d": mean_pd_2d[b], "raw_pd_2d": raw_pd_2d[b], "gt_2d": batch_joints_2d_np[b]})
-                # data_count += 1
+            for b in range(batch_size):
+                np.save(os.path.join(configs.extra_log_dir, "datas/{}.npy".format(data_count)), {"mean_pd_2d": mean_pd_2d[b], "raw_pd_2d": raw_pd_2d[b], "gt_2d": batch_joints_2d_np[b]})
+                data_count += 1
 
             raw_pck_evaluator.add(gt_2d=np.round(batch_joints_2d_np), pd_2d=raw_pd_2d, norm=configs.img_size / 10.0)
             mean_pck_evaluator.add(gt_2d=np.round(batch_joints_2d_np), pd_2d=mean_pd_2d, norm=configs.img_size / 10.0)
