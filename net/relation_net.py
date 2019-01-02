@@ -84,7 +84,7 @@ class mRelationNet(object):
 
             with tf.variable_scope("final_relations"):
                 self.results = tf.layers.dense(inputs=reg, units=3*self.n_relations, activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(), name="fc")
-                self.results = tf.reshape(self.poses, [self.batch_size, self.n_relations, 3])
+                self.results = tf.reshape(self.results, [self.batch_size, self.n_relations, 3])
 
     # input_joints shape (None, 17, 2)
     def build_input_heatmaps(self, input_center, stddev=1.0, name="input_heatmaps", gaussian_coefficient=False):

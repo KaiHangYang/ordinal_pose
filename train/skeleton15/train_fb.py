@@ -23,9 +23,9 @@ from utils.evaluate_utils.evaluators import mEvaluatorRelation
 training_protocol = [
         {"prefix": "fb_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "fb_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "fb_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"}
+        {"prefix": "fb_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"},
         {"prefix": "fb_net_mixed-15000", "extra_data_scale": 4, "mpii_range_file": "mpii_range_1.2w.npy"}
-        ][2]
+        ][0]
 ###############################################################################
 
 configs = mConfigs("../train.conf", training_protocol["prefix"])
@@ -103,6 +103,13 @@ if __name__ == "__main__":
     train_img_list = train_img_list + mpii_lsp_img_list
     train_lbl_list = train_lbl_list + mpii_lsp_lbl_list
     ###################################################################
+    ########## Little test ###########
+    # train_img_list = train_img_list[0:100]
+    # train_lbl_list = train_lbl_list[0:100]
+
+    # valid_img_list = valid_img_list[0:100]
+    # valid_lbl_list = valid_lbl_list[0:100]
+    ##################################
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=train_img_list, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.train_batch_size, name="Train DataSet")
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.valid_batch_size, name="Valid DataSet")
 
@@ -150,7 +157,7 @@ if __name__ == "__main__":
             cur_learning_rate = get_learning_rate(configs, cur_epoch)
 
             #################### Train ####################
-            train_relation_evaluator = mEvaluatorRelation(n_relations=configs.n_relations, batch_size=configs.train_batch_size)
+            train_relation_evaluator = mEvaluatorRelation(n_relations=configs.n_relations, batch_size=configs.train_batch_size, name=configs.relation_name)
             train_data_reader.reset()
             is_epoch_finished = False
 
@@ -254,7 +261,7 @@ if __name__ == "__main__":
             ######################## Evaluate ############################
 
             valid_data_reader.reset()
-            valid_relation_evaluator = mEvaluatorRelation(n_relations=configs.n_relations, batch_size=configs.valid_batch_size)
+            valid_relation_evaluator = mEvaluatorRelation(n_relations=configs.n_relations, batch_size=configs.valid_batch_size, name=configs.relation_name)
             is_epoch_finished = False
 
             while not is_epoch_finished:
@@ -309,15 +316,15 @@ if __name__ == "__main__":
                 lr,\
                 summary  = sess.run(
                         [
-                         syn_model.gt_result,
-                         syn_model.pd_result,
-                         syn_model.heatmaps_acc,
-                         syn_model.relation_acc,
-                         syn_model.total_loss,
-                         syn_model.heatmaps_loss,
-                         syn_model.relation_loss,
-                         syn_model.lr,
-                         syn_model.merged_summary],
+                         relation_model.gt_result,
+                         relation_model.pd_result,
+                         relation_model.heatmaps_acc,
+                         relation_model.relation_acc,
+                         relation_model.total_loss,
+                         relation_model.heatmaps_loss,
+                         relation_model.relation_loss,
+                         relation_model.lr,
+                         relation_model.merged_summary],
                         feed_dict={input_images: batch_images_np,
                                    input_centers_hm: batch_joints_2d_np,
                                    input_relation: batch_relation_np,
@@ -349,8 +356,7 @@ if __name__ == "__main__":
             if cur_max_relation_acc < valid_relation_acc:
                 cur_max_relation_acc = valid_relation_acc
 
-                #### Only save the higher score models
+                #### Only save the higher score model name
                 with open(os.path.join(configs.model_dir, "best_model.txt"), "w") as f:
                     f.write("{}".format(cur_epoch))
-
-                model_saver.save(sess=sess, save_path=configs.model_path, global_step=cur_epoch)
+            model_saver.save(sess=sess, save_path=configs.model_path, global_step=cur_epoch)
