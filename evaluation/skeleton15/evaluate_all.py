@@ -18,7 +18,8 @@ from utils.common_utils import my_utils
 from utils.evaluate_utils.evaluators import mEvaluatorPose3D
 
 ##################### Setting for training ######################
-configs = mConfigs("../eval.conf", "pose_net_aug_global")
+configs = mConfigs("../eval.conf", "overall")
+pose_configs = mConfigs("../eval.conf", "pose_net_aug_global")
 
 ################ Reseting  #################
 configs.loss_weight_heatmap = 1
@@ -40,9 +41,9 @@ configs.nFeats = 256
 configs.nModules = 3
 configs.nRegModules = 2
 
-configs.valid_type = "train"
+configs.valid_type = "valid"
 
-configs.extra_log_dir = "../eval_log/" + configs.prefix
+configs.extra_log_dir = "../eval_result/" + configs.prefix
 
 configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range.npy")
 
@@ -86,9 +87,9 @@ if __name__ == "__main__":
         sess.run([net_init])
 
         # reload the model
-        if os.path.exists(configs.model_path_fn(restore_model_epoch)+".index"):
+        if os.path.exists(pose_configs.model_path_fn(restore_model_epoch)+".index"):
             print("#######################Restored all weights ###########################")
-            model_saver.restore(sess, configs.model_path_fn(restore_model_epoch))
+            model_saver.restore(sess, pose_configs.model_path_fn(restore_model_epoch))
         else:
             print("The prev model is not existing!")
             quit()
@@ -99,7 +100,7 @@ if __name__ == "__main__":
 
         valid_pose3d_evaluator = mEvaluatorPose3D(nJoints=skeleton.n_joints)
 
-        for cur_data_idx in valid_range:
+        for idx, cur_data_idx in enumerate(valid_range):
 
             batch_images_np = np.zeros([configs.batch_size, configs.img_size, configs.img_size, 3], dtype=np.float32)
             batch_joints_2d_np = np.zeros([configs.batch_size, skeleton.n_joints, 2], dtype=np.float32)
@@ -108,8 +109,8 @@ if __name__ == "__main__":
             raw_img = cv2.imread(configs.img_path_fn(cur_data_idx))
             cur_label = np.load(configs.lbl_path_fn(cur_data_idx)).tolist()
 
-            cur_dlcm_data = np.load(configs.dlcm_data_path_fn(cur_data_idx)).tolist()
-            cur_syn_data = np.load(configs.syn_data_path_fn(cur_data_idx)).tolist()
+            cur_dlcm_data = np.load(configs.dlcm_data_path_fn(idx)).tolist()
+            cur_syn_data = np.load(configs.syn_data_path_fn(idx)).tolist()
 
             cur_joints_3d = cur_label["joints_3d"][skeleton.h36m_selected_index]
 
@@ -126,9 +127,18 @@ if __name__ == "__main__":
             cur_bone_order = preprocessor.bone_order_from_bone_relations(cur_br, cur_br_belief)
             cur_img = preprocessor.draw_syn_img(cur_joints_2d, cur_fb, cur_bone_order)
 
-            cv2.imshow("raw_img", raw_img)
-            cv2.imshow("syn_img", cur_img)
-            cv2.waitKey()
+            ################## Draw the ground truth bone maps ######################
+            gt_joints_2d = cur_dlcm_data["gt_2d"]
+            gt_fb = cur_syn_data["gt_fb"]
+            gt_br = cur_syn_data["gt_br"]
+            gt_br_belief = np.ones_like(gt_br)
+
+            gt_bone_order = preprocessor.bone_order_from_bone_relations(gt_br, gt_br_belief)
+            gt_img = preprocessor.draw_syn_img(gt_joints_2d, gt_fb, gt_bone_order)
+            #########################################################################
+            # cv2.imshow("raw_img", raw_img)
+            # cv2.imshow("syn_img", cur_img)
+            # cv2.waitKey(3)
 
             batch_images_np[0] = cur_img / 255.0
             batch_joints_3d_np[0] = cur_joints_3d - cur_joints_3d[0]
@@ -140,6 +150,11 @@ if __name__ == "__main__":
                               })
 
             pd_poses = pd_poses[0]
+
+            np.save(os.path.join(configs.extra_log_dir, "results", "{}.npy".format(idx)), {"gt_3d": batch_joints_3d_np[0], "pd_3d": pd_poses[0]})
+            cv2.imwrite(os.path.join(configs.extra_log_dir, "results", "gt-{}.jpg".format(idx)), gt_img)
+            cv2.imwrite(os.path.join(configs.extra_log_dir, "results", "pd-{}.jpg".format(idx)), cur_img)
+            cv2.imwrite(os.path.join(configs.extra_log_dir, "results", "raw-{}.jpg".format(idx)), raw_img)
 
             valid_pose3d_evaluator.add(gt_coords=batch_joints_3d_np, pd_coords=pd_poses)
             valid_pose3d_evaluator.printMean()
