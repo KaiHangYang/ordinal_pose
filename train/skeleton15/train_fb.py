@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -24,8 +24,8 @@ training_protocol = [
         {"prefix": "fb_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "fb_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "fb_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"},
-        {"prefix": "fb_net_mixed-15000", "extra_data_scale": 4, "mpii_range_file": "mpii_range_1.2w.npy"}
-        ][0]
+        {"prefix": "fb_net_mixed-15000", "extra_data_scale": 5, "mpii_range_file": "mpii_range_1.2w.npy"}
+        ][3]
 ###############################################################################
 
 configs = mConfigs("../train.conf", training_protocol["prefix"])
