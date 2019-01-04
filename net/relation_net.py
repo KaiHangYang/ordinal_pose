@@ -136,7 +136,17 @@ class mRelationNet(object):
             self.pd_result = tf.argmax(self.relation_info, axis=2)
             self.pd_belief = tf.reduce_max(self.relation_info, axis=2)
 
-    def build_loss(self, input_heatmaps, input_relation, lr, lr_decay_step=None, lr_decay_rate=None):
+    ### The y must be the raw output without softmax
+    def focal_loss(self, y_true, y_pred, alpha=[0.1, 1.0, 1.0], gamma=2.0, name="focal_loss"):
+        with tf.variable_scope(name):
+            y_pred = tf.nn.softmax(y_pred, axis=-1)
+
+            const_alpha = tf.constant(np.array(alpha).astype(np.float32))
+            const_alpha = tf.tile(const_alpha[tf.newaxis, tf.newaxis], [self.batch_size, self.n_relations, 1])
+
+            return tf.reduce_sum((-1.0 * tf.pow(1.0 - y_pred, float(gamma))) * tf.log(y_pred + tf.keras.backend.epsilon()) * y_true * const_alpha, axis=-1)
+
+    def build_loss(self, input_heatmaps, input_relation, lr, lr_decay_step=None, lr_decay_rate=None, use_focal=False):
         self.global_steps = tf.train.get_or_create_global_step()
 
         if lr_decay_step is None or lr_decay_rate is None:
@@ -147,7 +157,10 @@ class mRelationNet(object):
         with tf.variable_scope("losses"):
             # 1 is forward, 0 is uncertain, -1 is backward
             self.relation_info = self.results
-            self.relation_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_relation, logits=self.relation_info, dim=-1, name="{}_loss".format(self.relation_name))) / self.batch_size * self.loss_weight_relation
+            if use_focal:
+                self.relation_loss = tf.reduce_sum(self.focal_loss(y_true=input_relation, y_pred=self.relation_info, name="{}_loss".format(self.relation_name))) / self.batch_size * self.loss_weight_relation
+            else:
+                self.relation_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(labels=input_relation, logits=self.relation_info, dim=-1, name="{}_loss".format(self.relation_name))) / self.batch_size * self.loss_weight_relation
 
             self.heatmaps_loss = []
             self.total_loss = 0
