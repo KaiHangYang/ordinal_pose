@@ -14,10 +14,11 @@ import get_bone_relations as gbr_module
 
 class PoseProcessor(object):
     ## The pure_color parameter means the joints only have color (black, gray, white)
-    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30, pure_color=True):
+    def __init__(self, skeleton, img_size, with_br, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, angle_jitter_size=math.pi/20, bonelength_jitter_size=30, pure_color=True, aug_bone_status=False):
         self.with_br = with_br
         self.with_fb = with_fb
         self.pure_color = pure_color
+        self.aug_bone_status = aug_bone_status
 
         self.pad_scale = pad_scale
         self.angle_jitter_size = angle_jitter_size
@@ -97,6 +98,11 @@ class PoseProcessor(object):
             bone_status = self.recalculate_bone_status(joints_3d[:, 2])
         else:
             bone_status = np.zeros([self.n_bones])
+
+        ####### randomly augment the bone_status by masking some bone status #######
+        if self.aug_bone_status and np.random.uniform() > 0.5:
+            bone_status[np.random.uniform(low=0.0, high=1.0, size=self.n_bones) > 0.5] = 0
+        ############################################################################
 
         img = self.draw_syn_img(joints_2d=joints_2d, bone_status=bone_status, bone_order=bone_order)
 
