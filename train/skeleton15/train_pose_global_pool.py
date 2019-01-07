@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -31,7 +31,7 @@ configs.is_use_bn = False
 configs.n_epoches = 50
 configs.learning_rate = 2.5e-5
 configs.gamma = 0.1
-configs.schedule = [5, 25]
+configs.schedule = [5, 25, 40]
 configs.valid_steps = 0 # every training epoch valid the network
 
 configs.nFeats = 256
@@ -43,7 +43,7 @@ configs.extra_log_dir = "../train_log/" + configs.prefix
 ################### Initialize the data reader ####################
 
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4, aug_bone_status=True)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -51,7 +51,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = 10
+restore_model_epoch = 0
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0

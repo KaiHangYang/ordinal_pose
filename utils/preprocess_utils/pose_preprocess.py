@@ -100,8 +100,9 @@ class PoseProcessor(object):
             bone_status = np.zeros([self.n_bones])
 
         ####### randomly augment the bone_status by masking some bone status #######
-        if self.aug_bone_status and np.random.uniform() > 0.5:
-            bone_status[np.random.uniform(low=0.0, high=1.0, size=self.n_bones) > 0.5] = 0
+        if is_training:
+            if self.aug_bone_status and np.random.uniform() > 0.5:
+                bone_status[np.random.uniform(low=0.0, high=1.0, size=self.n_bones) > 0.5] = 0
         ############################################################################
 
         img = self.draw_syn_img(joints_2d=joints_2d, bone_status=bone_status, bone_order=bone_order)
