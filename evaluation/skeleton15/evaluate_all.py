@@ -52,7 +52,7 @@ configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_rang
 configs.printConfig()
 preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, pure_color=True)
 
-restore_model_epoch = 21
+restore_model_epoch = 13
 #################################################################
 
 if __name__ == "__main__":
@@ -151,10 +151,10 @@ if __name__ == "__main__":
 
             pd_poses = pd_poses[0]
 
-            np.save(os.path.join(configs.extra_log_dir, "results", "{}.npy".format(idx)), {"gt_3d": batch_joints_3d_np[0], "pd_3d": pd_poses[0]})
-            cv2.imwrite(os.path.join(configs.extra_log_dir, "results", "gt-{}.jpg".format(idx)), gt_img)
-            cv2.imwrite(os.path.join(configs.extra_log_dir, "results", "pd-{}.jpg".format(idx)), cur_img)
-            cv2.imwrite(os.path.join(configs.extra_log_dir, "results", "raw-{}.jpg".format(idx)), raw_img)
+            np.save(os.path.join(configs.extra_log_dir, "masked_results", "{}.npy".format(idx)), {"gt_3d": batch_joints_3d_np[0], "pd_3d": pd_poses[0]})
+            cv2.imwrite(os.path.join(configs.extra_log_dir, "masked_results", "gt-{}.jpg".format(idx)), gt_img)
+            cv2.imwrite(os.path.join(configs.extra_log_dir, "masked_results", "pd-{}.jpg".format(idx)), cur_img)
+            cv2.imwrite(os.path.join(configs.extra_log_dir, "masked_results", "raw-{}.jpg".format(idx)), raw_img)
 
             valid_pose3d_evaluator.add(gt_coords=batch_joints_3d_np, pd_coords=pd_poses)
             valid_pose3d_evaluator.printMean()

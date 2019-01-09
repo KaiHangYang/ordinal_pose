@@ -39,10 +39,11 @@ class m_btn_callback(object):
         return cls.keep_going
 
 ################### Define the path storing the results ####################
-raw_img_path_fn = lambda x: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/results/raw-{}.jpg".format(x)
-gt_syn_img_path_fn = lambda x: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/results/gt-{}.jpg".format(x)
-pd_syn_img_path_fn = lambda x: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/results/pd-{}.jpg".format(x)
-lbl_path_fn = lambda x: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/results/{}.npy".format(x)
+result_dir = ["results", "masked_results"]
+raw_img_path_fn = lambda x, y: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/{}/raw-{}.jpg".format(y, x)
+gt_syn_img_path_fn = lambda x, y: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/{}/gt-{}.jpg".format(y, x)
+pd_syn_img_path_fn = lambda x, y: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/{}/pd-{}.jpg".format(y, x)
+lbl_path_fn = lambda x, y: "/home/kaihang/Projects/pose_project/new_pose/evaluation/eval_result/overall/{}/{}.npy".format(y, x)
 
 if __name__ == "__main__":
 
@@ -73,27 +74,39 @@ if __name__ == "__main__":
 
             cur_index = data_index.val
 
-            cur_raw_img = cv2.imread(raw_img_path_fn(cur_index))
-            cur_syn_gt_img = cv2.imread(gt_syn_img_path_fn(cur_index))
-            cur_syn_pd_img = cv2.imread(pd_syn_img_path_fn(cur_index))
-            cur_lbl = np.load(lbl_path_fn(cur_index)).tolist()
+            display_imgs = []
+            display_joints_3d = []
+            display_logs = []
 
-            cur_img_display = np.concatenate([cur_raw_img, cur_syn_gt_img, cur_syn_pd_img], axis=1)
+            for cur_case in result_dir:
+                cur_raw_img = cv2.imread(raw_img_path_fn(cur_index, cur_case))
+                cur_syn_gt_img = cv2.imread(gt_syn_img_path_fn(cur_index, cur_case))
+                cur_syn_pd_img = cv2.imread(pd_syn_img_path_fn(cur_index, cur_case))
+                cur_lbl = np.load(lbl_path_fn(cur_index, cur_case)).tolist()
 
-            cur_joints_3d_gt = cur_lbl["gt_3d"] * 0.002
-            cur_joints_3d_pd = cur_lbl["pd_3d"] * 0.002
+                cur_img_display = np.concatenate([cur_raw_img, cur_syn_gt_img, cur_syn_pd_img], axis=1)
 
-            cur_joints_3d_gt[:, 1:3] *= -1
-            cur_joints_3d_pd[:, 1:3] *= -1
+                cur_joints_3d_gt = cur_lbl["gt_3d"] * 0.002
+                cur_joints_3d_pd = cur_lbl["pd_3d"] * 0.002
 
-            error_per = np.sqrt(np.sum((cur_lbl["gt_3d"]-cur_lbl["pd_3d"]) ** 2, axis=-1))
-            log = ("Frame:{:08d} MPJE(mm): {:0.6f} \n"+"{:<15}: {:0.6f}\n" * skeleton.n_joints).format(cur_index, error_per.mean(), *reduce(lambda x,y: list(x) + list(y), zip(skeleton.joint_names, error_per)))
+                cur_joints_3d_gt[:, 1:3] *= -1
+                cur_joints_3d_pd[:, 1:3] *= -1
 
-            print(log)
+                error_per = np.sqrt(np.sum((cur_lbl["gt_3d"]-cur_lbl["pd_3d"]) ** 2, axis=-1))
+                log = ("Frame:{:08d} MPJE(mm): {:0.6f} \n"+"{:<15}: {:0.6f}\n" * skeleton.n_joints).format(cur_index, error_per.mean(), *reduce(lambda x,y: list(x) + list(y), zip(skeleton.joint_names, error_per)))
+
+                display_imgs.append(cur_img_display)
+                display_logs.append(log)
+                display_joints_3d.append(cur_joints_3d_pd)
+
+            display_joints_3d.insert(0, cur_joints_3d_gt)
+
+            print("{}\n{}".format(*display_logs))
+            cur_img_display = np.concatenate(display_imgs, axis=0)
 
         cv2.imshow("raw_gt_pd", cur_img_display)
         cv2.waitKey(3)
 
-        visualBox.draw((128 * np.ones([wnd_height, wnd_width, 3])).astype(np.uint8), [cur_joints_3d_gt, cur_joints_3d_pd], [[0.3, 1.0, 0.3], [1.0, 0.3, 0.3]])
+        visualBox.draw((128 * np.ones([wnd_height, wnd_width, 3])).astype(np.uint8), display_joints_3d, [[0.3, 1.0, 0.3], [1.0, 0.3, 0.3], [0.3, 0.3, 1.0]])
         visualBox.end()
     visualBox.terminate()

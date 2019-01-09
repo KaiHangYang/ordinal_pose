@@ -24,7 +24,8 @@ training_protocol = [
         {"prefix": "syn_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"}
-        ][2]
+        {"prefix": "syn_net_mixed-all", "extra_data_scale": 5, "mpii_range_file": "mpii_range_1.2w.npy"}
+        ][3]
 ###############################################################################
 
 configs = mConfigs("../train.conf", training_protocol["prefix"])
@@ -32,7 +33,7 @@ configs = mConfigs("../train.conf", training_protocol["prefix"])
 ################ Reseting  #################
 configs.loss_weight_heatmap = 1.0
 configs.loss_weight_br = 1.0
-configs.loss_weight_fb = 1.0
+configs.loss_weight_fb = 2.0
 configs.pose_2d_scale = 4.0
 configs.is_use_bn = False
 configs.extra_data_scale = training_protocol["extra_data_scale"]
@@ -41,7 +42,7 @@ configs.zero_debias_moving_mean = False
 configs.n_epoches = 100
 configs.learning_rate = 2.5e-5
 configs.gamma = 0.1
-configs.schedule = [30, 80]
+configs.schedule = [30, 50, 80]
 configs.valid_steps = 1
 
 configs.nFeats = 256
@@ -61,7 +62,7 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 ################### Initialize the data reader ####################
 
 configs.printConfig()
-preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, bone_status_threshold=120)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
