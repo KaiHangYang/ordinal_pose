@@ -123,7 +123,7 @@ if __name__ == "__main__":
     with tf.Session() as sess:
         with tf.device("/device:GPU:0"):
             syn_model.build_model(input_images)
-            input_heatmaps = syn_model.build_input_heatmaps(input_centers_hm, stddev=1.0, gaussian_coefficient=False)
+            input_heatmaps = syn_model.build_input_heatmaps(input_centers_hm, stddev=2.0, gaussian_coefficient=False)
 
         syn_model.build_loss(input_heatmaps=input_heatmaps, input_fb=input_fb, input_br=input_br, lr=input_lr)
 
