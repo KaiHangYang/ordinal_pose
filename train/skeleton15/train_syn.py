@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import sys
 import tensorflow as tf
@@ -23,7 +23,7 @@ from utils.evaluate_utils.evaluators import mEvaluatorFB_BR
 training_protocol = [
         {"prefix": "syn_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"}
+        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"},
         {"prefix": "syn_net_mixed-all", "extra_data_scale": 5, "mpii_range_file": "mpii_range_1.2w.npy"}
         ][3]
 ###############################################################################
