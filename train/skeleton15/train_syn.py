@@ -69,7 +69,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = None
+restore_model_epoch = 26
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         valid_log_writer = tf.summary.FileWriter(logdir=valid_log_dir, graph=sess.graph)
         print("Network built!")
 
-        model_saver = tf.train.Saver(max_to_keep=10)
+        model_saver = tf.train.Saver()
         net_init = tf.global_variables_initializer()
 
         sess.run([net_init])
