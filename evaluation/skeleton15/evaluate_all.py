@@ -19,7 +19,7 @@ from utils.evaluate_utils.evaluators import mEvaluatorPose3D
 
 ##################### Setting for training ######################
 configs = mConfigs("../eval.conf", "overall")
-pose_configs = mConfigs("../eval.conf", "pose_net_aug_global")
+pose_configs = mConfigs("../eval.conf", "pose_net_large_uncertain_range")
 
 ################ Reseting  #################
 configs.loss_weight_heatmap = 1
@@ -52,7 +52,7 @@ configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_rang
 configs.printConfig()
 preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, pure_color=True)
 
-restore_model_epoch = 13
+restore_model_epoch = 31
 #################################################################
 
 if __name__ == "__main__":
@@ -62,13 +62,13 @@ if __name__ == "__main__":
         configs.lbl_path_fn = configs.h36m_train_lbl_path_fn
         configs.img_path_fn = configs.h36m_train_img_path_fn
         valid_range = np.load(configs.h36m_train_range_file)
-        configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-11000/train_datas/{}.npy".format(x)
+        configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-all/train_datas/{}.npy".format(x)
         configs.dlcm_data_path_fn = lambda x: "../eval_result/dlcm_mixed-15000/train_datas/{}.npy".format(x)
     elif configs.valid_type == "valid":
         configs.lbl_path_fn = configs.h36m_valid_lbl_path_fn
         configs.img_path_fn = configs.h36m_valid_img_path_fn
         valid_range = np.load(configs.h36m_valid_range_file)
-        configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-11000/valid_datas/{}.npy".format(x)
+        configs.syn_data_path_fn = lambda x: "../eval_result/syn_net_mixed-all/valid_datas/{}.npy".format(x)
         configs.dlcm_data_path_fn = lambda x: "../eval_result/dlcm_mixed-15000/valid_datas/{}.npy".format(x)
 
     print("Valid DataSet number: {}".format(valid_range.shape[0]))

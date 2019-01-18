@@ -80,6 +80,35 @@ class PoseProcessor(object):
         return joints_2d, raw_joints_3d, center, scale
 
 
+    def preprocess_vec(self, angles, bone_lengths, root_pos, cam_mat, is_training=True):
+        if is_training:
+            angles = self.skeleton.jitter_angles(angles, jitter_size=self.angle_jitter_size)
+            bone_lengths = self.skeleton.jitter_bonelengths(bone_lengths, jitter_size=self.bonelength_jitter_size)
+
+        joints_2d, joints_3d, center, scale = self.assemble_pose(angles=angles, bone_lengths=bone_lengths, root_pos=root_pos, cam_mat=cam_mat)
+
+        #### Paint the synthetic image
+        if self.with_br:
+            bone_order, bone_relation = self.get_bone_relations(joints_2d, joints_3d, scale, center, cam_mat)
+        else:
+            bone_order = np.arange(0, self.n_bones, 1)
+            bone_relation = np.zeros([self.n_bones, self.n_bones])
+
+        if self.with_fb:
+            bone_status = self.recalculate_bone_status(joints_3d[:, 2])
+        else:
+            bone_status = np.zeros([self.n_bones])
+
+        ####### randomly augment the bone_status by masking some bone status #######
+        if is_training:
+            if self.aug_bone_status and np.random.uniform() > 0.5:
+                bone_status[np.random.uniform(low=0.0, high=1.0, size=self.n_bones) > 0.5] = 0
+        ############################################################################
+        ####  Set the joints_3d related to the root
+        joints_3d = joints_3d - joints_3d[0]
+
+        return joints_2d, joints_3d, bone_status, bone_relation
+
     def preprocess(self, angles, bone_lengths, root_pos, cam_mat, is_training=True):
 
         if is_training:

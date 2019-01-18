@@ -23,15 +23,16 @@ from utils.evaluate_utils.evaluators import mEvaluatorFB_BR
 training_protocol = [
         {"prefix": "syn_net_h36m", "extra_data_scale": 0, "mpii_range_file": "mpii_range_3000.npy"},
         {"prefix": "syn_net_mixed-5000", "extra_data_scale": 10, "mpii_range_file": "mpii_range_3000.npy"},
-        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 5, "mpii_range_file": "mpii_range.npy"}
-        ][2]
+        {"prefix": "syn_net_mixed-11000", "extra_data_scale": 3, "mpii_range_file": "mpii_range.npy"},
+        {"prefix": "syn_net_mixed-all", "extra_data_scale": 5, "mpii_range_file": "mpii_range_1.2w.npy"}
+        ][3]
 ###############################################################################
 configs = mConfigs("../eval.conf", training_protocol["prefix"])
 
 ################ Reseting  #################
 configs.loss_weight_heatmap = 1.0
 configs.loss_weight_br = 1.0
-configs.loss_weight_fb = 1.0
+configs.loss_weight_fb = 2.0
 configs.pose_2d_scale = 4.0
 configs.is_use_bn = False
 configs.extra_data_scale = training_protocol["extra_data_scale"]
@@ -40,7 +41,7 @@ configs.batch_size = 4
 configs.n_epoches = 100
 configs.learning_rate = 2.5e-4
 configs.gamma = 0.1
-configs.schedule = [30, 80]
+configs.schedule = [30, 50, 80]
 configs.valid_steps = 4
 
 configs.nFeats = 256
@@ -51,6 +52,7 @@ configs.nRegModules = 2
 configs.extra_log_dir = "../eval_result/" + configs.prefix
 
 ### Use the smaller dataset to test and tune the hyper parameters
+configs.train_or_valid = "valid"
 
 configs.h36m_train_range_file = os.path.join(configs.range_file_dir, "train_range.npy")
 configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_range.npy")
@@ -59,16 +61,21 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 
 ################### Initialize the data reader ####################
 configs.printConfig()
-preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, bg_color=0.2)
+preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, bone_status_threshold=120)
 
-restore_model_epoch = 30
+restore_model_epoch = 38
 
 if __name__ == "__main__":
     ########################### Initialize the data list #############################
+    if configs.train_or_valid == "train":
+        valid_range = np.load(configs.h36m_train_range_file)
+        valid_img_list = [configs.h36m_train_img_path_fn(i) for i in valid_range]
+        valid_lbl_list = [configs.h36m_train_lbl_path_fn(i) for i in valid_range]
+    else:
+        valid_range = np.load(configs.h36m_valid_range_file)
+        valid_img_list = [configs.h36m_valid_img_path_fn(i) for i in valid_range]
+        valid_lbl_list = [configs.h36m_valid_lbl_path_fn(i) for i in valid_range]
 
-    valid_range = np.load(configs.h36m_train_range_file)
-    valid_img_list = [configs.h36m_train_img_path_fn(i) for i in valid_range]
-    valid_lbl_list = [configs.h36m_train_lbl_path_fn(i) for i in valid_range]
     ###################################################################
     valid_data_reader = epoch_reader.EPOCHReader(img_path_list=valid_img_list, lbl_path_list=valid_lbl_list, is_shuffle=False, batch_size=configs.batch_size, name="Valid DataSet")
 
@@ -161,7 +168,7 @@ if __name__ == "__main__":
 
             ################### Temporarily save the network outputs ###################
             for b in range(batch_size):
-                np.save(os.path.join(configs.extra_log_dir, "datas/{}.npy".format(data_count)), {"pd_fb": pd_fb_result[b], "pd_br": pd_br_result[b], "pd_br_belief": pd_br_belief[b], "gt_fb": batch_fb_np[b], "gt_br": batch_br_np[b]})
+                np.save(os.path.join(configs.extra_log_dir, "{}_datas/{}.npy".format(configs.train_or_valid, data_count)), {"pd_fb": pd_fb_result[b], "pd_br": pd_br_result[b], "pd_br_belief": pd_br_belief[b], "gt_fb": batch_fb_np[b], "gt_br": batch_br_np[b]})
                 data_count += 1
             ############################################################################
 
