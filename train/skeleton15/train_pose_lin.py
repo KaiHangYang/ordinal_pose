@@ -18,18 +18,23 @@ from utils.common_utils import my_utils
 from utils.evaluate_utils.evaluators import mEvaluatorPose3D
 
 ##################### Setting for training ######################
-configs = mConfigs("../train.conf", "pose_lin")
+configs = mConfigs("../train.conf", "pose_lin_only2d")
 
 ################ Reseting  #################
-configs.pose_2d_scale = 4
+configs.pose_2d_scale = 128
+configs.pose_2d_offset = 1.0
+
 configs.pose_3d_scale = 1000.0
 
 configs.is_use_bn = False
 
 configs.n_epoches = 200
 configs.learning_rate = 2.5e-4
-configs.gamma = 0.1
-configs.schedule = [10, 20]
+configs.gamma = 0.5
+configs.schedule = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140]
+
+configs.train_batch_size = 64
+configs.valid_batch_size = 8
 
 configs.extra_log_dir = "../train_log/" + configs.prefix
 
@@ -37,7 +42,7 @@ configs.extra_log_dir = "../train_log/" + configs.prefix
 
 configs.printConfig()
 
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4, aug_bone_status=True, bone_status_threshold=120)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, pad_scale=0.4, aug_bone_status=True, bone_status_threshold=100)
 
 train_log_dir = os.path.join(configs.log_dir, "train")
 valid_log_dir = os.path.join(configs.log_dir, "valid")
@@ -45,7 +50,7 @@ valid_log_dir = os.path.join(configs.log_dir, "valid")
 if not os.path.exists(configs.model_dir):
     os.makedirs(configs.model_dir)
 
-restore_model_epoch = 70
+restore_model_epoch = None
 #################################################################
 def get_learning_rate(configs, epoch):
     decay = 0
@@ -71,8 +76,16 @@ if __name__ == "__main__":
     train_lbl_list = np.arange(0, len(training_angles), 1)
     valid_lbl_list = [os.path.join(validing_data_dir, "{}.npy".format(i)) for i in range(len(os.listdir(validing_data_dir)))]
 
+    ################ Test on the raw datas ################
+    # training_data_dir = "/home/kaihang/DataSet_2/Ordinal/syn/train_h36m"
+    # validing_data_dir = "/home/kaihang/DataSet_2/Ordinal/syn/valid"
+
+    # train_lbl_list = [os.path.join(training_data_dir, "{}.npy".format(i)) for i in range(len(os.listdir(training_data_dir)))]
+    # valid_lbl_list = [os.path.join(validing_data_dir, "{}.npy".format(i)) for i in range(len(os.listdir(validing_data_dir)))]
+    #######################################################
+
     #################### Just for test ###################
-    # train_lbl_list = train_lbl_list[0:100]
+    # train_lbl_list = train_lbl_list[0:100000]
     # valid_lbl_list = valid_lbl_list[0:100]
     ###################################################################
     train_data_reader = epoch_reader.EPOCHReader(img_path_list=None, lbl_path_list=train_lbl_list, is_shuffle=True, batch_size=configs.train_batch_size, name="Train DataSet")
@@ -81,7 +94,9 @@ if __name__ == "__main__":
     input_joints_2d = tf.placeholder(shape=[None, skeleton.n_joints, 2], dtype=tf.float32, name="input_joints_2d")
     input_bone_status = tf.placeholder(shape=[None, skeleton.n_bones, 3], dtype=tf.float32, name="input_bone_status")
     input_bone_relation = tf.placeholder(shape=[None, skeleton.n_bones * (skeleton.n_bones - 1) / 2, 3], dtype=tf.float32, name="input_bone_relation")
-    input_arr = tf.concat([tf.layers.flatten(input_joints_2d), tf.layers.flatten(input_bone_status), tf.layers.flatten(input_bone_relation)], axis=1, name="input_all")
+
+    # input_arr = tf.concat([tf.layers.flatten(input_joints_2d), tf.layers.flatten(input_bone_status), tf.layers.flatten(input_bone_relation)], axis=1, name="input_all")
+    input_arr = tf.layers.flatten(input_joints_2d)
 
     input_poses = tf.placeholder(shape=[None, skeleton.n_joints, 3], dtype=tf.float32, name="input_poses")
 
@@ -127,6 +142,7 @@ if __name__ == "__main__":
             train_data_reader.reset()
             is_epoch_finished = False
             train_pose3d_evaluator = mEvaluatorPose3D(nJoints=skeleton.n_joints)
+            train_pose3d0_evaluator = mEvaluatorPose3D(nJoints=skeleton.n_joints)
 
             while not is_epoch_finished:
                 cur_batch, is_epoch_finished = train_data_reader.get()
@@ -148,7 +164,7 @@ if __name__ == "__main__":
                     # use the bone relations
                     cur_joints_2d, cur_joints_3d, cur_bone_status, cur_bone_relation = preprocessor.preprocess_vec(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cam_mat, is_training=True)
 
-                    cur_joints_2d = np.round(cur_joints_2d / configs.pose_2d_scale)
+                    cur_joints_2d = cur_joints_2d / configs.pose_2d_scale - configs.pose_2d_offset
                     cur_joints_3d = cur_joints_3d / configs.pose_3d_scale
 
                     batch_joints_2d_np[b] = cur_joints_2d.copy()
@@ -157,9 +173,30 @@ if __name__ == "__main__":
                     batch_bone_status_np[b] = np.eye(3)[cur_bone_status]
                     batch_bone_relation_np[b] = np.eye(3)[cur_bone_relation[np.triu_indices(skeleton.n_bones, k=1)]]
 
+                    ############# Test on the raw datas #############
+                    # cur_label = np.load(cur_batch[b]).tolist()
+                    # cur_angles = cur_label["angles"].copy()
+                    # cur_bonelengths = cur_label["bone_lengths"].copy()
+                    # cur_root_pos = cur_label["root_pos"].copy()
+                    # cur_cam_mat = cur_label["cam_mat"][0:3, 0:3].copy()
+
+                    # # use the bone relations
+                    # cur_joints_2d, cur_joints_3d, cur_bone_status, cur_bone_relation = preprocessor.preprocess_vec(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cam_mat, is_training=False)
+
+                    # cur_joints_2d = cur_joints_2d / configs.pose_2d_scale - configs.pose_2d_offset
+                    # cur_joints_3d = cur_joints_3d / configs.pose_3d_scale
+
+                    # batch_joints_2d_np[b] = cur_joints_2d.copy()
+                    # batch_joints_3d_np[b] = cur_joints_3d.copy()
+
+                    # batch_bone_status_np[b] = np.eye(3)[cur_bone_status]
+                    # batch_bone_relation_np[b] = np.eye(3)[cur_bone_relation[np.triu_indices(skeleton.n_bones, k=1)]]
+                    #################################################
+
                 _, \
                 pd_poses, \
-                acc_pose, \
+                pd_poses_0, \
+                acc_poses, \
                 total_loss,\
                 pose_loss, \
                 lr,\
@@ -167,6 +204,7 @@ if __name__ == "__main__":
                         [
                          lin_model.train_op,
                          lin_model.pd_poses,
+                         lin_model.pd_poses_0,
                          lin_model.accuracy_pose,
                          lin_model.total_loss,
                          lin_model.pose_loss,
@@ -184,24 +222,32 @@ if __name__ == "__main__":
 
                 train_log_writer.add_summary(summary, cur_train_global_steps)
                 train_pose3d_evaluator.add(gt_coords=batch_joints_3d_np * configs.pose_3d_scale, pd_coords=pd_poses)
+                train_pose3d0_evaluator.add(gt_coords=batch_joints_3d_np * configs.pose_3d_scale, pd_coords=pd_poses_0)
 
                 print("Training | Epoch: {:05d}/{:05d}. Iteration: {:08d}/{:08d}".format(cur_epoch, configs.n_epoches, *train_data_reader.progress()))
                 print("Learning_rate: {:07f}".format(lr))
-                print("Pose error: {}".format(acc_pose))
+                for idx, cur_pose_acc in enumerate(acc_poses):
+                    print("Pose error {}: {:.08f}".format(idx, cur_pose_acc))
+
                 print("Total loss: {:.08f}".format(total_loss))
                 for idx, cur_pose_loss in enumerate(pose_loss):
                     print("Pose loss {}: {:.08f}".format(idx, cur_pose_loss))
 
+                sys.stdout.write("Pose 0:")
+                train_pose3d0_evaluator.printMean()
+                sys.stdout.write("Pose 1:")
                 train_pose3d_evaluator.printMean()
                 print("\n\n")
                 cur_train_global_steps += 1
 
             train_pose3d_evaluator.save(os.path.join(configs.extra_log_dir, "train"), prefix="train", epoch=cur_epoch)
+            train_pose3d0_evaluator.save(os.path.join(configs.extra_log_dir, "train"), prefix="train0", epoch=cur_epoch)
 
             ############################ Next Evaluate #############################
             valid_data_reader.reset()
             is_epoch_finished = False
             valid_pose3d_evaluator = mEvaluatorPose3D(nJoints=skeleton.n_joints)
+            valid_pose3d0_evaluator = mEvaluatorPose3D(nJoints=skeleton.n_joints)
 
             while not is_epoch_finished:
                 cur_batch, is_epoch_finished = valid_data_reader.get()
@@ -223,7 +269,7 @@ if __name__ == "__main__":
                     # use the bone relations
                     cur_joints_2d, cur_joints_3d, cur_bone_status, cur_bone_relation = preprocessor.preprocess_vec(angles=cur_angles, bone_lengths=cur_bonelengths, root_pos=cur_root_pos, cam_mat=cur_cam_mat, is_training=False)
 
-                    cur_joints_2d = np.round(cur_joints_2d / configs.pose_2d_scale)
+                    cur_joints_2d = cur_joints_2d / configs.pose_2d_scale - configs.pose_2d_offset
                     cur_joints_3d = cur_joints_3d / configs.pose_3d_scale
 
                     batch_joints_2d_np[b] = cur_joints_2d.copy()
@@ -233,13 +279,15 @@ if __name__ == "__main__":
                     batch_bone_relation_np[b] = np.eye(3)[cur_bone_relation[np.triu_indices(skeleton.n_bones, k=1)]]
 
                 pd_poses, \
-                acc_pose, \
+                pd_poses_0, \
+                acc_poses, \
                 total_loss,\
                 pose_loss, \
                 lr,\
                 summary  = sess.run(
                         [
                          lin_model.pd_poses,
+                         lin_model.pd_poses_0,
                          lin_model.accuracy_pose,
                          lin_model.total_loss,
                          lin_model.pose_loss,
@@ -257,19 +305,26 @@ if __name__ == "__main__":
 
                 valid_log_writer.add_summary(summary, cur_valid_global_steps)
                 valid_pose3d_evaluator.add(gt_coords=batch_joints_3d_np * configs.pose_3d_scale, pd_coords=pd_poses)
+                valid_pose3d0_evaluator.add(gt_coords=batch_joints_3d_np * configs.pose_3d_scale, pd_coords=pd_poses_0)
 
                 print("Validing | Epoch: {:05d}/{:05d}. Iteration: {:08d}/{:08d}".format(cur_epoch, configs.n_epoches, *valid_data_reader.progress()))
                 print("Learning_rate: {:07f}".format(lr))
-                print("Pose error: {}".format(acc_pose))
+                for idx, cur_pose_acc in enumerate(acc_poses):
+                    print("Pose error {}: {:.08f}".format(idx, cur_pose_acc))
+
                 print("Total loss: {:.08f}".format(total_loss))
                 for idx, cur_pose_loss in enumerate(pose_loss):
                     print("Pose loss {}: {:.08f}".format(idx, cur_pose_loss))
+                sys.stdout.write("Pose 0:")
+                valid_pose3d0_evaluator.printMean()
+                sys.stdout.write("Pose 1:")
                 valid_pose3d_evaluator.printMean()
                 print("\n\n")
 
                 cur_valid_global_steps += 1
 
             valid_pose3d_evaluator.save(os.path.join(configs.extra_log_dir, "valid"), prefix="valid", epoch=cur_epoch)
+            valid_pose3d0_evaluator.save(os.path.join(configs.extra_log_dir, "valid"), prefix="valid0", epoch=cur_epoch)
 
             #################### Save the models #####################
             cur_mpje = valid_pose3d_evaluator.mean()

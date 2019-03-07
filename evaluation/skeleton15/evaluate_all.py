@@ -50,9 +50,9 @@ configs.h36m_valid_range_file = os.path.join(configs.range_file_dir, "valid_rang
 ################### Initialize the data reader ####################
 
 configs.printConfig()
-preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=80, bg_color=0.2, pad_scale=0.4, pure_color=True)
+preprocessor = pose_preprocess.PoseProcessor(skeleton=skeleton, img_size=configs.img_size, with_br=True, with_fb=True, bone_width=6, joint_ratio=6, overlap_threshold=6, bone_status_threshold=100, bg_color=0.2, pad_scale=0.4, pure_color=True)
 
-restore_model_epoch = 31
+restore_model_epoch = 21
 #################################################################
 
 if __name__ == "__main__":

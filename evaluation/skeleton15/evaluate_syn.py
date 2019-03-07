@@ -61,9 +61,9 @@ configs.lsp_range_file = os.path.join(configs.range_file_dir, "lsp_range.npy")
 
 ################### Initialize the data reader ####################
 configs.printConfig()
-preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, bone_status_threshold=120)
+preprocessor = syn_preprocess.SynProcessor(skeleton=skeleton, img_size=configs.img_size, bone_width=6, joint_ratio=6, overlap_threshold=6, bg_color=0.2, bone_status_threshold=100)
 
-restore_model_epoch = 38
+restore_model_epoch = 59
 
 if __name__ == "__main__":
     ########################### Initialize the data list #############################
